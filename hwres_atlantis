@@ -9,11 +9,9 @@
 ## 2. Hardware Resource Metrics
 - **CPU Threads:** 4
 - **Memory Profile:**
-```text
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       1.7Gi       559Mi       2.4Mi       1.3Gi       1.5Gi
+Mem:           3.3Gi       1.2Gi       716Mi       2.4Mi       1.7Gi       2.1Gi
 Swap:          3.3Gi       768Ki       3.3Gi
-```
 
 ## 3. Storage Architecture & Block Topology
 ### Block Device Enumeration (lsblk)
@@ -90,33 +88,12 @@ UUID=f51d5dcc-7667-4c5e-8f81-1d7a810821d7   /mnt/databox_14_223G_3   ext4  defau
 ```
 
 ## 4. Persistent Storage Pools & MergerFS Layout
-- **Pool Name:** `nexus_pool`
-- **Mount Path:** `/mnt/nexus_pool`
-- **Consolidated Elements:** `/mnt/internal` combined with 14 individual storage drives (`/mnt/databox_01_*` through `/mnt/databox_14_*`).
-- **Storage Pool Composition:**
-  - **Internal Storage Buffer:** `/mnt/internal` (LVM logical volume `/dev/ubuntu-vg/internal`, `344.1G`).
-  - **Data Nodes:** 14 independent ext4 storage endpoints mounted under `/mnt/databox_*` via their unique UUIDs to maintain reference stability across boots.
-- **Physical Block Device mapping (as of current boot):**
-  - **databox_01** (`/mnt/databox_01_59G_1`): 59.5G removable USB drive (`/dev/sdc`, `RM=1`).
-  - **databox_02** (`/mnt/databox_02_894G_1`): 894.3G SATA drive (`/dev/sdm`, `RM=0`).
-  - **databox_03** (`/mnt/databox_03_894G_2`): 894.3G SATA drive (`/dev/sdd`, `RM=0`).
-  - **databox_04** (`/mnt/databox_04_465G_1`): 465.8G SATA drive (`/dev/sdl`, `RM=0`).
-  - **databox_05** (`/mnt/databox_05_894G_3`): 894.3G SATA drive (`/dev/sde`, `RM=0`).
-  - **databox_06** (`/mnt/databox_06_894G_4`): 894.3G SATA drive (`/dev/sdk`, `RM=0`).
-  - **databox_07** (`/mnt/databox_07_894G_5`): 894.3G SATA drive (`/dev/sdo`, `RM=0`).
-  - **databox_08** (`/mnt/databox_08_894G_6`): 894.3G SATA drive (`/dev/sdh`, `RM=0`).
-  - **databox_09** (`/mnt/databox_09_223G_1`): 223.6G SATA drive (`/dev/sdg`, `RM=0`).
-  - **databox_10** (`/mnt/databox_10_931G_1`): 931.5G SATA drive (`/dev/sdf`, `RM=0`).
-  - **databox_11** (`/mnt/databox_11_223G_2`): 223.6G SATA drive (`/dev/sdb`, `RM=0`).
-  - **databox_12** (`/mnt/databox_12_894G_7`): 894.3G SATA drive (`/dev/sdj`, `RM=0`).
-  - **databox_13** (`/mnt/databox_13_894G_8`): 894.3G SATA drive (`/dev/sdn`, `RM=0`).
-  - **databox_14** (`/mnt/databox_14_223G_3`): 223.6G SATA drive (`/dev/sdi`, `RM=0`).
-- **Removable Flash Dev Exception Note:** Drive `databox_01` (59.5G) is physically a removable flash device (USB), identified by `RM=1`. Due to dynamic kernel initialization, block letters (such as `/dev/sdc` or `/dev/sdo`) fluctuate arbitrarily across boots. However, because mounts are fully decoupled using UUIDs, and MergerFS dynamically binds endpoints matching `/mnt/databox_*`, the configuration remains deterministic and robust.
+- **Pool Name:** nexus_pool
+- **Mount Path:** /mnt/nexus_pool
+- **Consolidated Elements:** /mnt/internal combined with 14 individual storage drives (`/mnt/databox_01_*` through `/mnt/databox_14_*`).
+- **Removable Flash Dev Exception:** `/dev/sdo` (59.5G) is excluded from the array to eliminate boot dependency vulnerabilities.
 
 ## 5. Kubernetes Environment State
 - **Engine Type:** K3s (Lightweight Kubernetes)
-- **K3s Version:** `v1.36.2+k3s1`
 - **Deployment Strategy:** Clean-slate blueprint targeting ArgoCD-driven orchestrations.
-- **Node Configuration:** Single-node control-plane cluster (`atlantis`) in `Ready` state.
-- **Active System Pods:** CoreDNS, local-path-provisioner, metrics-server, and Traefik Ingress controllers are active and healthy.
 - **Persistent Volume Base Path:** Default K3s path `/var/lib/rancher/k3s/storage/` alongside targeted persistent volume bindings rooted inside `/mnt/nexus_pool/`.
