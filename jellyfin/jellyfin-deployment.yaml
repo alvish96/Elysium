@@ -60,7 +60,7 @@ metadata:
 spec:
   selector:
     app: jellyfin
-  type: Nodeport
+  type: NodePort
   ports:
     - port: 8096
       targetPort: 8096
