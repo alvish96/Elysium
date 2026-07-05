@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jellyfin
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # If the repo is public, you can use the HTTPS URL here. If private, use the SSH URL.
+    repoURL: git@github.com:alvish96/Elysium.git
+    targetRevision: HEAD
+    path: jellyfin # Points to the folder containing jellyfin-storage.yaml and jellyfin-deployment.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true  # Automatically creates the 'media' namespace if it doesn't exist
+      - ServerSideApply=true  # Built-in safety against massive schemas or large annotations
