@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: media
+  labels:
+    app: jellyfin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      # CRITICAL: Forces Jellyfin onto the battery-backed storage host
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      containers:
+        - name: jellyfin
+          image: jellyfin/jellyfin:latest
+          env:
+            - name: JELLYFIN_LOG_DIR
+              value: "/config/log"
+          ports:
+            - containerPort: 8096
+              name: http
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: media-volume
+              mountPath: /data
+      volumes:
+        - name: config-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-config-pvc
+        - name: media-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-media-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-svc
+  namespace: media
+spec:
+  selector:
+    app: jellyfin
+  ports:
+    - port: 8096
+      targetPort: 8096
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`jellyfin.local`)
+      kind: Rule
+      services:
+        - name: jellyfin-svc
+          port: 8096
