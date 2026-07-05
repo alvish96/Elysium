@@ -10,7 +10,7 @@
 - **CPU Threads:** 4
 - **Memory Profile:**
                total        used        free      shared  buff/cache   available
-Mem:           3.7Gi       561Mi       2.6Gi       1.4Mi       810Mi       3.2Gi
+Mem:           3.7Gi       555Mi       2.6Gi       1.4Mi       813Mi       3.2Gi
 Swap:          3.7Gi          0B       3.7Gi
 
 ## 3. Storage Architecture & Block Topology
