@@ -58,7 +58,6 @@ spec:
       containers:
         - name: ffmpeg
           image: linuxserver/ffmpeg:latest
-#          image: jrottenberg/ffmpeg:4.4-alpine
           resources:
             requests:
               memory: "128Mi"
@@ -80,19 +79,24 @@ spec:
             - mountPath: /tmp/stream-run
               name: temp-volume
           command: ["sh", "-c"]
-          # Fixed line: Using | block literal allows special characters like colons without breaking syntax
           args:
             - |
               while true; do
-                echo "Starting Low-RAM, Zero-Storage YouTube Transcoder Engine..."
+                echo "Starting YouTube-Compliant Low-RAM Transcoder Engine..."
                 
-                ffmpeg -loglevel info -fflags nobuffer -flags low_delay -f v4l2 \
-                -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
+                # Fixed Specs:
+                # -f lavfi -i anullsrc injects a 100% silent, 0-overhead dummy audio stream to satisfy YouTube
+                # -r 30 forces a strict constant output framerate
+                # -g 60 tells ffmpeg to insert a keyframe every 60 frames (exactly 2 seconds at 30fps)
+                ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
+                -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
+                -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset superfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
-                -pix_fmt yuv420p -g 60 -an \
+                -pix_fmt yuv420p -r 30 -g 60 \
+                -c:a aac -b:a 128k \
                 -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
                 
-                echo "Stream exited. Re-spawning pipeline in 5 seconds...";
+                echo "Stream disconnected. Re-spawning pipeline in 5 seconds...";
                 sleep 5;
               done
       volumes:
