@@ -10,8 +10,8 @@
 - **CPU Threads:** 4
 - **Memory Profile:**
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       1.2Gi       516Mi       2.4Mi       1.9Gi       2.1Gi
-Swap:          3.3Gi       768Ki       3.3Gi
+Mem:           3.3Gi       2.0Gi       146Mi        96Mi       1.5Gi       1.3Gi
+Swap:          3.3Gi        62Mi       3.2Gi
 
 ## 3. Storage Architecture & Block Topology
 ### Block Device Enumeration (lsblk)
@@ -22,7 +22,8 @@ sda                         8:0    0 447.1G  0 disk
 ├─sda2                      8:2    0     2G  0 part /boot
 └─sda3                      8:3    0 444.1G  0 part 
   ├─ubuntu--vg-ubuntu--lv 252:0    0   100G  0 lvm  /
-  └─ubuntu--vg-internal   252:1    0 344.1G  0 lvm  /mnt/internal
+  └─ubuntu--vg-internal   252:1    0 344.1G  0 lvm  /var/lib/kubelet/pods/8dd2a84b-afd1-4124-93a2-9fb5bc64b5da/volumes/kubernetes.io~local-volume/jellyfin-config-pv
+                                                    /mnt/internal
 sdb                         8:16   0 223.6G  0 disk /mnt/databox_11_223G_2
 sdc                         8:32   1  59.5G  0 disk /mnt/databox_01_59G_1
 sdd                         8:48   0 894.3G  0 disk /mnt/databox_03_894G_2
@@ -37,30 +38,33 @@ sdl                         8:176  0 465.8G  0 disk /mnt/databox_04_465G_1
 sdm                         8:192  0 894.3G  0 disk /mnt/databox_02_894G_1
 sdn                         8:208  0 894.3G  0 disk /mnt/databox_13_894G_8
 sdo                         8:224  0 894.3G  0 disk /mnt/databox_07_894G_5
+sdp                         8:240  0   1.8T  0 disk 
+└─sdp1                      8:241  0   1.8T  0 part /mnt/databox_15_1.8T_1
 sr0                        11:0    1  1024M  0 rom  
 ```
 
 ### Active Filesystem Allocation (df -h)
 ```text
-/dev/mapper/ubuntu--vg-ubuntu--lv   98G   13G   81G  14% /
-nexus_pool                         9.3T  400K  8.8T   1% /mnt/nexus_pool
-/dev/mapper/ubuntu--vg-internal    338G   12K  321G   1% /mnt/internal
-/dev/sdc                            59G   24K   56G   1% /mnt/databox_01_59G_1
+/dev/mapper/ubuntu--vg-ubuntu--lv   98G   16G   78G  17% /
 /dev/sda2                          2.0G  201M  1.6G  11% /boot
 /dev/sda1                          1.1G  6.2M  1.1G   1% /boot/efi
-/dev/sdm                           880G   28K  835G   1% /mnt/databox_02_894G_1
-/dev/sdd                           880G   28K  835G   1% /mnt/databox_03_894G_2
-/dev/sdl                           458G   28K  435G   1% /mnt/databox_04_465G_1
-/dev/sde                           880G   28K  835G   1% /mnt/databox_05_894G_3
-/dev/sdk                           880G   28K  835G   1% /mnt/databox_06_894G_4
-/dev/sdo                           880G   28K  835G   1% /mnt/databox_07_894G_5
-/dev/sdh                           880G   28K  835G   1% /mnt/databox_08_894G_6
-/dev/sdg                           220G   28K  208G   1% /mnt/databox_09_223G_1
-/dev/sdf                           916G   28K  870G   1% /mnt/databox_10_931G_1
-/dev/sdb                           220G   28K  208G   1% /mnt/databox_11_223G_2
-/dev/sdj                           880G   28K  835G   1% /mnt/databox_12_894G_7
-/dev/sdn                           880G   28K  835G   1% /mnt/databox_13_894G_8
-/dev/sdi                           220G   28K  208G   1% /mnt/databox_14_223G_3
+/dev/mapper/ubuntu--vg-internal    338G  680K  321G   1% /mnt/internal
+/dev/sdc                            59G   24K   58G   1% /mnt/databox_01_59G_1
+/dev/sdm                           880G   40K  862G   1% /mnt/databox_02_894G_1
+/dev/sdd                           880G   28K  862G   1% /mnt/databox_03_894G_2
+/dev/sdl                           458G   28K  449G   1% /mnt/databox_04_465G_1
+/dev/sde                           880G   28K  862G   1% /mnt/databox_05_894G_3
+/dev/sdk                           880G   28K  862G   1% /mnt/databox_06_894G_4
+/dev/sdo                           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/sdh                           880G   28K  862G   1% /mnt/databox_08_894G_6
+/dev/sdg                           220G   28K  215G   1% /mnt/databox_09_223G_1
+/dev/sdf                           916G   28K  898G   1% /mnt/databox_10_931G_1
+/dev/sdb                           220G   28K  215G   1% /mnt/databox_11_223G_2
+/dev/sdj                           880G   28K  862G   1% /mnt/databox_12_894G_7
+/dev/sdn                           880G   28K  862G   1% /mnt/databox_13_894G_8
+/dev/sdi                           220G   28K  215G   1% /mnt/databox_14_223G_3
+/dev/sdp1                          1.8T  633G  1.2T  36% /mnt/databox_15_1.8T_1
+nexus_pool                          12T  633G   11T   6% /mnt/nexus_pool
 ```
 
 ### File System Table Configuration (/etc/fstab)
@@ -70,6 +74,7 @@ nexus_pool                         9.3T  400K  8.8T   1% /mnt/nexus_pool
 /dev/disk/by-uuid/E921-6ABB /boot/efi vfat defaults 0 1
 /swap.img       none    swap    sw      0       0
 /dev/mapper/ubuntu--vg-internal  /mnt/internal  ext4  defaults  0  2
+192.168.1.170:/mnt/phantom_share  /mnt/phantom_nfs  nfs  defaults,_netdev,nofail,x-systemd.automount  0  0
 UUID=87ca52c9-255b-4c09-9585-f3dc52aa3ca6   /mnt/databox_01_59G_1    ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
 UUID=24c0f55a-4730-46d6-a18b-ad3bf9e41385   /mnt/databox_02_894G_1   ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
 UUID=b52d2150-722b-41a4-9ba7-a89b84b44f39   /mnt/databox_03_894G_2   ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
@@ -84,6 +89,7 @@ UUID=cc4d68ec-55b7-413f-88ce-547a4c46615a   /mnt/databox_11_223G_2   ext4  defau
 UUID=e3ffbbb7-9019-495d-a624-52ca96b92f2c   /mnt/databox_12_894G_7   ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
 UUID=70ac8199-7628-4e31-9804-b7b311ea5a47   /mnt/databox_13_894G_8   ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
 UUID=f51d5dcc-7667-4c5e-8f81-1d7a810821d7   /mnt/databox_14_223G_3   ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
+UUID=28039a10-2240-4937-ac37-837e7bb65828   /mnt/databox_15_1.8T_1   ext4  defaults,nofail,x-systemd.device-timeout=10  0  2
 /mnt/internal:/mnt/databox_* /mnt/nexus_pool  fuse.mergerfs  defaults,allow_other,use_ino,cache.files=partial,dropcacheonclose=true,category.create=mfs,fsname=nexus_pool,nofail  0  0
 ```
 
