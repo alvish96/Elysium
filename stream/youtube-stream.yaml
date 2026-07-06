@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: youtube-stream-local-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-ssd
+  local:
+    path: /mnt/phantom_share/appdata/youtube-stream
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - phantom
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: youtube-stream-local-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage-ssd
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-streamer
+  namespace: media
+  labels:
+    app: youtube-streamer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: youtube-streamer
+  template:
+    metadata:
+      labels:
+        app: youtube-streamer
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom # Hard-pinned to phantom
+      containers:
+        - name: ffmpeg
+          image: jrottenberg/ffmpeg:4.4-alpine
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "500m"
+            limits:
+              memory: "384Mi" # Tight cap to prioritize Jellyfin
+              cpu: "1500m"
+          env:
+            - name: YOUTUBE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: youtube-stream-key
+                  key: tfvq-je41-yraj-m927-7048
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /dev/video0
+              name: webcam
+            - mountPath: /tmp/stream-run
+              name: temp-volume
+          command: ["sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "Starting Low-RAM, Zero-Storage YouTube Transcoder Engine..."
+                
+                # Optimized Flags:
+                # -fflags nobuffer + realtime reduces RAM cache loops
+                # -preset superfast lowers CPU usage dramatically
+                # Direct streaming to RTMP ensures zero residual video files are written to disk
+                ffmpeg -loglevel info -fflags nobuffer -flags low_delay -f v4l2 \
+                -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
+                -c:v libx264 -preset superfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
+                -pix_fmt yuv420p -g 60 -an \
+                -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
+                
+                echo "Stream stream tracking exited. Re-spawning pipeline in 5 seconds...";
+                sleep 5;
+              done
+      volumes:
+        - name: webcam
+          hostPath:
+            path: /dev/video0
+        - name: temp-volume
+          persistentVolumeClaim:
+            claimName: youtube-stream-local-pvcapiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: youtube-stream-local-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-ssd
+  local:
+    path: /mnt/phantom_share/appdata/youtube-stream
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - phantom
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: youtube-stream-local-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage-ssd
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-streamer
+  namespace: media
+  labels:
+    app: youtube-streamer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: youtube-streamer
+  template:
+    metadata:
+      labels:
+        app: youtube-streamer
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom # Hard-pinned to phantom
+      containers:
+        - name: ffmpeg
+          image: jrottenberg/ffmpeg:4.4-alpine
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "500m"
+            limits:
+              memory: "384Mi" # Tight cap to prioritize Jellyfin
+              cpu: "1500m"
+          env:
+            - name: YOUTUBE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: youtube-stream-key
+                  key: KEY
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /dev/video0
+              name: webcam
+            - mountPath: /tmp/stream-run
+              name: temp-volume
+          command: ["sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "Starting Low-RAM, Zero-Storage YouTube Transcoder Engine..."
+                
+                # Optimized Flags:
+                # -fflags nobuffer + realtime reduces RAM cache loops
+                # -preset superfast lowers CPU usage dramatically
+                # Direct streaming to RTMP ensures zero residual video files are written to disk
+                ffmpeg -loglevel info -fflags nobuffer -flags low_delay -f v4l2 \
+                -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
+                -c:v libx264 -preset superfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
+                -pix_fmt yuv420p -g 60 -an \
+                -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
+                
+                echo "Stream stream tracking exited. Re-spawning pipeline in 5 seconds...";
+                sleep 5;
+              done
+      volumes:
+        - name: webcam
+          hostPath:
+            path: /dev/video0
+        - name: temp-volume
+          persistentVolumeClaim:
+            claimName: youtube-stream-local-pvc
