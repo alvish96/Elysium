@@ -70,7 +70,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: youtube-stream-key
-                  key: tfvq-je41-yraj-m927-7048
+                  key: KEY
           securityContext:
             privileged: true
           volumeMounts:
