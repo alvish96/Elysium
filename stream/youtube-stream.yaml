@@ -63,8 +63,8 @@ spec:
               memory: "128Mi"
               cpu: "500m"
             limits:
-              memory: "384Mi"
-              cpu: "1500m"
+              memory: "512Mi"
+              cpu: "2500m" # Raised slightly to allow comfortable 30fps encoding
           env:
             - name: YOUTUBE_KEY
               valueFrom:
@@ -74,7 +74,7 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            - mountPath: /dev/video2
+            - mountPath: /dev/video0
               name: webcam
             - mountPath: /tmp/stream-run
               name: temp-volume
@@ -82,19 +82,18 @@ spec:
           args:
             - |
               while true; do
-                echo "Starting YouTube-Compliant Low-RAM Transcoder Engine..."
+                echo "Starting YouTube-Compliant True 30fps Transcoder Engine..."
                 
-                # Fixed Specs:
-                # -f lavfi -i anullsrc injects a 100% silent, 0-overhead dummy audio stream to satisfy YouTube
-                # -r 30 forces a strict constant output framerate
-                # -g 60 tells ffmpeg to insert a keyframe every 60 frames (exactly 2 seconds at 30fps)
+                # Optimized Changes:
+                # -preset ultrafast allows true 30fps with minimal CPU cycles
+                # Switched output destination endpoint to secure RTMPS (port 443)
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
                 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
                 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
-                -c:v libx264 -preset superfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
+                -c:v libx264 -preset ultrafast -b:v 4000k -maxrate 4000k -bufsize 8000k \
                 -pix_fmt yuv420p -r 30 -g 60 \
                 -c:a aac -b:a 128k \
-                -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
+                -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
                 
                 echo "Stream disconnected. Re-spawning pipeline in 5 seconds...";
                 sleep 5;
@@ -102,7 +101,7 @@ spec:
       volumes:
         - name: webcam
           hostPath:
-            path: /dev/video0
+            path: /dev/video2 # Correctly targeting your Tandberg camera hardware node
         - name: temp-volume
           persistentVolumeClaim:
             claimName: youtube-stream-local-pvc
