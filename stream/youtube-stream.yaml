@@ -74,7 +74,7 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            - mountPath: /dev/video0
+            - mountPath: /dev/video2
               name: webcam
             - mountPath: /tmp/stream-run
               name: temp-volume
