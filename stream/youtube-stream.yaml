@@ -86,7 +86,7 @@ spec:
                 echo "Starting Low-RAM, Zero-Storage YouTube Transcoder Engine..."
                 
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay -f v4l2 \
-                -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
+                -vcodec mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
                 -c:v libx264 -preset superfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
                 -pix_fmt yuv420p -g 60 -an \
                 -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
