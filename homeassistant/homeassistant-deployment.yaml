@@ -48,7 +48,7 @@ spec:
   ports:
     - port: 8123
       targetPort: 8123
-      nodePort: 38123 # Custom port exposed across your network
+      nodePort: 31123 # Custom port exposed across your network
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
