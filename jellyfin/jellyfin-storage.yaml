@@ -27,14 +27,14 @@ metadata:
   name: jellyfin-media-pv
 spec:
   capacity:
-    storage: 10Ti
+    storage: 15Ti
   volumeMode: Filesystem
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-jellyfin
   local:
-    path: /mnt/nexus_pool/media
+    path: /mnt
   nodeAffinity:
     required:
       nodeSelectorTerms:
