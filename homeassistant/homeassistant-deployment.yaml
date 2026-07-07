@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homeassistant
+  namespace: homeassistant
+  labels:
+    app: homeassistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: homeassistant
+  template:
+    metadata:
+      labels:
+        app: homeassistant
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom # Offloads the compute processing to phantom
+      containers:
+        - name: homeassistant
+          image: homeassistant/home-assistant:stable
+          env:
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 8123
+              name: http
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          persistentVolumeClaim:
+            claimName: homeassistant-config-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homeassistant-svc
+  namespace: homeassistant
+spec:
+  selector:
+    app: homeassistant
+  type: NodePort
+  ports:
+    - port: 8123
+      targetPort: 8123
+      nodePort: 38123 # Custom port exposed across your network
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homeassistant-ingress
+  namespace: homeassistant
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`homeassistant.local`)
+      kind: Rule
+      services:
+        - name: homeassistant-svc
+          port: 8123

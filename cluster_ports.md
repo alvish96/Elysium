@@ -4,6 +4,7 @@ This file tracks all port mapping parameters across the `atlantis` and `phantom`
 
 | Application / Service | Namespace | Service Type | Internal Port | External Exposed Port / Host | Target Node / Placement | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Home Assistant | homeassistant | NodePort | 8123 | 38123 / https://homeassistant.local | Pinned to phantom (Compute Muscle) | Active | Port 38123 explicitly assigned |
 | **K3s API Server** | `kube-system` | Native | `6443` | `6443` | `atlantis` (Master) | Active | Core cluster orchestration API endpoint |
 | **Traefik Ingress HTTP** | `kube-system` | LoadBalancer | `80` | `80` (via NodePort `31090`) | All Nodes (`192.168.1.160` / `.170`) | Active | Core reverse proxy traffic loop |
 | **Traefik Ingress HTTPS**| `kube-system` | LoadBalancer | `443` | `443` (via NodePort `31981`)| All Nodes (`192.168.1.160` / `.170`) | Active | Core secure reverse proxy traffic loop |
