@@ -17,21 +17,17 @@ spec:
       labels:
         app: jellyfin
       annotations:
-        # Add this specific annotation to explicitly tell containerd to skip AppArmor enforcement
         container.apparmor.security.beta.kubernetes.io/jellyfin: unconfined
     spec:
-      # CRITICAL: Forces Jellyfin onto the battery-backed storage host
       nodeSelector:
         kubernetes.io/hostname: atlantis
       securityContext:
-        # This strips default container execution profiling bounds
         seccompProfile:
           type: Unconfined
       containers:
         - name: jellyfin
           image: jellyfin/jellyfin:latest
           securityContext:
-            # Prevents internal AppArmor orchestration lookups
             allowPrivilegeEscalation: true
           env:
             - name: JELLYFIN_LOG_DIR
@@ -44,6 +40,8 @@ spec:
               mountPath: /config
             - name: media-volume
               mountPath: /data
+              # CRITICAL: Forces Linux kernel to pass MergerFS & NFS sub-mounts into the container
+              mountPropagation: HostToContainer
       volumes:
         - name: config-volume
           persistentVolumeClaim:
@@ -65,7 +63,6 @@ spec:
     - port: 8096
       targetPort: 8096
       nodePort: 30096
-
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute

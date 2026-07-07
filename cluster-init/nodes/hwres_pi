@@ -1,0 +1,31 @@
+# Hardware & Software Manifest: RASPBERRYPI
+## System Details
+* **OS Image:** $(hostnamectl | grep 'Operating System' | cut -d: -f2- | xargs)
+* **Kernel Version:** $(uname -r)
+* **Architecture:** $(uname -m)
+## Compute Footprint
+* **CPU Cores:** $(nproc)
+* **Memory Capacity:**
+```text
+               total        used        free      shared  buff/cache   available
+Mem:           921Mi       514Mi        41Mi        39Mi       468Mi       406Mi
+Swap:          511Mi       168Mi       343Mi
+```
+## Local Storage Topography
+```text
+NAME        FSTYPE  SIZE TYPE MOUNTPOINTS
+mmcblk0            29.9G disk 
+├─mmcblk0p1 vfat    512M part /boot/firmware
+└─mmcblk0p2 ext4   29.4G part /
+```
+## Active Disk Mounts Space
+```text
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/mmcblk0p2   29G  9.9G   18G  37% /
+/dev/mmcblk0p1  510M  102M  409M  20% /boot/firmware
+overlay          29G  9.9G   18G  37% /var/lib/docker/overlay2/012fc651e016d4b625704ba57344a47345d83cc87d27dd0e7d54138521965951/merged
+overlay          29G  9.9G   18G  37% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/0da4e7e8b66fcfb3d526e92807db524aa5c382772c5f3f8c51e337dc38b80cd1/rootfs
+overlay          29G  9.9G   18G  37% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/83964f4f5813f540db05f00440f60d9398eb69a575dda09ca34ed5747d2d098f/rootfs
+overlay          29G  9.9G   18G  37% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/8061e2758510b200d742905a5051e06b85cf04dd38d6caf8883bd8ab76d32819/rootfs
+```
+* **Last Profile Update:** $(date)

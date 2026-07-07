@@ -1,0 +1,26 @@
+# Hardware & Software Manifest: OLYMPUS
+## System Details
+* **OS Image:** $(hostnamectl | grep 'Operating System' | cut -d: -f2- | xargs)
+* **Kernel Version:** $(uname -r)
+* **Architecture:** $(uname -m)
+## Compute Footprint
+* **CPU Cores:** $(nproc)
+* **Memory Capacity:**
+```text
+               total        used        free      shared  buff/cache   available
+Mem:           1.8Gi       345Mi        97Mi       0.0Ki       1.4Gi       1.3Gi
+Swap:          975Mi        37Mi       938Mi
+```
+## Local Storage Topography
+```text
+```
+## Active Disk Mounts Space
+```text
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/mmcblk1p2   28G   13G   14G  48% /
+/dev/mmcblk1p1  511M  5.9M  506M   2% /boot/efi
+overlay          28G   13G   14G  48% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/9c160092871b7641eba0131ff45beb8dfb1839ff7ee6b26da3f0e302ab27a268/rootfs
+overlay          28G   13G   14G  48% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/bba0116df2d32653c59d05aecb1cdfaf5443f2033bda31387a2b5269bfc9047e/rootfs
+overlay          28G   13G   14G  48% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/1fed1c6fdf65d924185aafa5e889cf43753996b355d72fbb9a5cdb4e6f77a68f/rootfs
+```
+* **Last Profile Update:** $(date)

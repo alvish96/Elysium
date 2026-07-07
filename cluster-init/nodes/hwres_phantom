@@ -1,0 +1,39 @@
+# Hardware & Software Manifest: PHANTOM
+## System Details
+* **OS Image:** $(hostnamectl | grep 'Operating System' | cut -d: -f2- | xargs)
+* **Kernel Version:** $(uname -r)
+* **Architecture:** $(uname -m)
+## Compute Footprint
+* **CPU Cores:** $(nproc)
+* **Memory Capacity:**
+```text
+               total        used        free      shared  buff/cache   available
+Mem:           3.7Gi       851Mi       141Mi       1.7Mi       3.0Gi       2.9Gi
+Swap:          3.7Gi          0B       3.7Gi
+```
+## Local Storage Topography
+```text
+NAME                      FSTYPE        SIZE TYPE MOUNTPOINTS
+sda                                   223.6G disk 
+├─sda1                    vfat            1G part /boot/efi
+├─sda2                    ext4            2G part /boot
+└─sda3                    LVM2_member 220.5G part 
+  ├─ubuntu--vg-ubuntu--lv ext4          100G lvm  /
+  └─ubuntu--vg-share--lv  ext4        120.5G lvm  /var/lib/kubelet/pods/e5aa7079-5f89-4a9a-9b65-b463ea2b2248/volumes/kubernetes.io~local-volume/youtube-stream-local-pv
+                                                  /mnt/phantom_share
+```
+## Active Disk Mounts Space
+```text
+Filesystem                         Size  Used Avail Use% Mounted on
+efivarfs                            84K   43K   37K  54% /sys/firmware/efi/efivars
+/dev/mapper/ubuntu--vg-ubuntu--lv   98G   29G   64G  32% /
+/dev/sda2                          2.0G  200M  1.6G  11% /boot
+/dev/sda1                          1.1G  6.2M  1.1G   1% /boot/efi
+overlay                             98G   29G   64G  32% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/250e29ae0e59e32dd74a5aed432a222d6aab2f642449b606e89087fbd4b634ea/rootfs
+overlay                             98G   29G   64G  32% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/12107fedbc08cc10ea59bc73200aa076703708539bbb67d01516284aa830c492/rootfs
+overlay                             98G   29G   64G  32% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/536461dbffc791153a5181e3ac5e3fa69eac74302cd86d49b5333c513b1d3eec/rootfs
+/dev/mapper/ubuntu--vg-share--lv   119G   36K  113G   1% /mnt/phantom_share
+overlay                             98G   29G   64G  32% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/3bcd9e2c306c0a3555928143a22cc01633032338cdb9f61477262db50f333c29/rootfs
+overlay                             98G   29G   64G  32% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/bc20a7d15d4b0d3ce02ed4b8b3229961017a162daa36ef36ece1e5396a880825/rootfs
+```
+* **Last Profile Update:** $(date)
