@@ -16,12 +16,22 @@ spec:
     metadata:
       labels:
         app: qbittorrent
+      annotations:
+        # CRITICAL: Bypasses container AppArmor profile checks on the host
+        container.apparmor.security.beta.kubernetes.io/qbittorrent: unconfined
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis # Keeps I/O local to the physical USB bus
+      securityContext:
+        # Prevents default cluster runtime sandbox profiling lockouts
+        seccompProfile:
+          type: Unconfined
       containers:
         - name: qbittorrent
           image: linuxserver/qbittorrent:latest
+          securityContext:
+            # Allows the linuxserver initialization scripts to map the root filesystems correctly
+            allowPrivilegeEscalation: true
           env:
             - name: PUID
               value: "0" # Runs with root permissions to handle multi-disk access fields cleanly
