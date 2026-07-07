@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: media
+  labels:
+    app: qbittorrent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis # Keeps I/O local to the physical USB bus
+      containers:
+        - name: qbittorrent
+          image: linuxserver/qbittorrent:latest
+          env:
+            - name: PUID
+              value: "0" # Runs with root permissions to handle multi-disk access fields cleanly
+            - name: PGID
+              value: "0"
+            - name: TZ
+              value: "Asia/Kolkata"
+            - name: WEBUI_PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+              name: webui
+            - containerPort: 6881
+              name: torrent-tcp
+              protocol: TCP
+            - containerPort: 6881
+              name: torrent-udp
+              protocol: UDP
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: data-volume
+              mountPath: /data # The container accesses downloads/media natively under this single tree root
+      volumes:
+        - name: config-volume
+          persistentVolumeClaim:
+            claimName: qbittorrent-config-pvc
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: qbittorrent-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-svc
+  namespace: media
+spec:
+  selector:
+    app: qbittorrent
+  type: NodePort
+  ports:
+    - name: webui
+      port: 8080
+      targetPort: 8080
+      nodePort: 30068 # Web Dashboard interface custom port mapping
+    - name: torrent-tcp
+      port: 6881
+      targetPort: 6881
+      nodePort: 31681
+      protocol: TCP
+    - name: torrent-udp
+      port: 6881
+      targetPort: 6881
+      nodePort: 31681
+      protocol: UDP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: qbittorrent-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`qbittorrent.local`)
+      kind: Rule
+      services:
+        - name: qbittorrent-svc
+          port: 8080
