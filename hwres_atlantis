@@ -10,8 +10,8 @@
 - **CPU Threads:** 4
 - **Memory Profile:**
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       2.0Gi       146Mi        96Mi       1.5Gi       1.3Gi
-Swap:          3.3Gi        62Mi       3.2Gi
+Mem:           3.3Gi       2.0Gi       276Mi        99Mi       1.4Gi       1.3Gi
+Swap:          3.3Gi        64Mi       3.2Gi
 
 ## 3. Storage Architecture & Block Topology
 ### Block Device Enumeration (lsblk)
@@ -39,7 +39,7 @@ sdm                         8:192  0 894.3G  0 disk /mnt/databox_02_894G_1
 sdn                         8:208  0 894.3G  0 disk /mnt/databox_13_894G_8
 sdo                         8:224  0 894.3G  0 disk /mnt/databox_07_894G_5
 sdp                         8:240  0   1.8T  0 disk 
-└─sdp1                      8:241  0   1.8T  0 part /mnt/databox_15_1.8T_1
+└─sdp1                      8:241  0   1.8T  0 part 
 sr0                        11:0    1  1024M  0 rom  
 ```
 
@@ -48,9 +48,9 @@ sr0                        11:0    1  1024M  0 rom
 /dev/mapper/ubuntu--vg-ubuntu--lv   98G   16G   78G  17% /
 /dev/sda2                          2.0G  201M  1.6G  11% /boot
 /dev/sda1                          1.1G  6.2M  1.1G   1% /boot/efi
-/dev/mapper/ubuntu--vg-internal    338G  680K  321G   1% /mnt/internal
+/dev/mapper/ubuntu--vg-internal    338G  700K  321G   1% /mnt/internal
 /dev/sdc                            59G   24K   58G   1% /mnt/databox_01_59G_1
-/dev/sdm                           880G   40K  862G   1% /mnt/databox_02_894G_1
+/dev/sdm                           880G   44K  862G   1% /mnt/databox_02_894G_1
 /dev/sdd                           880G   28K  862G   1% /mnt/databox_03_894G_2
 /dev/sdl                           458G   28K  449G   1% /mnt/databox_04_465G_1
 /dev/sde                           880G   28K  862G   1% /mnt/databox_05_894G_3
@@ -63,8 +63,7 @@ sr0                        11:0    1  1024M  0 rom
 /dev/sdj                           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdn                           880G   28K  862G   1% /mnt/databox_13_894G_8
 /dev/sdi                           220G   28K  215G   1% /mnt/databox_14_223G_3
-/dev/sdp1                          1.8T  633G  1.2T  36% /mnt/databox_15_1.8T_1
-nexus_pool                          12T  633G   11T   6% /mnt/nexus_pool
+nexus_pool                         9.4T   16G  9.2T   1% /mnt/nexus_pool
 ```
 
 ### File System Table Configuration (/etc/fstab)
