@@ -38,17 +38,20 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /config
-            - name: media-volume
-              mountPath: /data
-              # CRITICAL: Forces Linux kernel to pass MergerFS & NFS sub-mounts into the container
-              mountPropagation: HostToContainer
+            - name: nexus-volume
+              mountPath: /data/nexus_pool
+            - name: phantom-volume
+              mountPath: /data/phantom_nfs
       volumes:
         - name: config-volume
           persistentVolumeClaim:
             claimName: jellyfin-config-pvc
-        - name: media-volume
+        - name: nexus-volume
           persistentVolumeClaim:
-            claimName: jellyfin-media-pvc
+            claimName: jellyfin-nexus-pvc
+        - name: phantom-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-phantom-pvc
 ---
 apiVersion: v1
 kind: Service
