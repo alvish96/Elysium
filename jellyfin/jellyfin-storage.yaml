@@ -1,71 +1,83 @@
-apiVersion: v1
-kind: PersistentVolume
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: jellyfin-config-pv
+  name: jellyfin
+  namespace: media
+  labels:
+    app: jellyfin
 spec:
-  capacity:
-    storage: 20Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage-jellyfin
-  local:
-    path: /mnt/internal/appdata/jellyfin/config
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - atlantis
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/jellyfin: unconfined
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      containers:
+        - name: jellyfin
+          image: jellyfin/jellyfin:latest
+          securityContext:
+            allowPrivilegeEscalation: true
+          env:
+            - name: JELLYFIN_LOG_DIR
+              value: "/config/log"
+          ports:
+            - containerPort: 8096
+              name: http
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: nexus-volume
+              mountPath: /data/nexus_pool   # Maps directly to your MergerFS media data
+            - name: phantom-volume
+              mountPath: /data/phantom_nfs  # Maps directly to your network share storage
+      volumes:
+        - name: config-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-config-pvc
+        - name: nexus-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-nexus-pvc
+        - name: phantom-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-phantom-pvc
 ---
 apiVersion: v1
-kind: PersistentVolume
+kind: Service
 metadata:
-  name: jellyfin-media-pv
-spec:
-  capacity:
-    storage: 15Ti
-  volumeMode: Filesystem
-  accessModes:
-    - ReadOnlyMany
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage-jellyfin
-  local:
-    path: /mnt
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - atlantis
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jellyfin-config-pvc
+  name: jellyfin-svc
   namespace: media
 spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: local-storage-jellyfin
-  resources:
-    requests:
-      storage: 20Gi
+  selector:
+    app: jellyfin
+  type: NodePort
+  ports:
+    - port: 8096
+      targetPort: 8096
+      nodePort: 30096
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
 metadata:
-  name: jellyfin-media-pvc
+  name: jellyfin-ingress
   namespace: media
 spec:
-  accessModes:
-    - ReadOnlyMany
-  storageClassName: local-storage-jellyfin
-  resources:
-    requests:
-      storage: 10Ti
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`jellyfin.local`)
+      kind: Rule
+      services:
+        - name: jellyfin-svc
+          port: 8096
