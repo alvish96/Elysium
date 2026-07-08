@@ -64,7 +64,7 @@ spec:
               cpu: "500m"
             limits:
               memory: "512Mi"
-              cpu: "2500m" # Raised slightly to allow comfortable 30fps encoding
+              cpu: "2500m"
           env:
             - name: YOUTUBE_KEY
               valueFrom:
@@ -74,34 +74,55 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            - mountPath: /dev/video0
-              name: webcam
+            # Mount parent dev and sys trees to monitor hardware events live
+            - mountPath: /dev
+              name: host-dev
+            - mountPath: /sys
+              name: host-sys
             - mountPath: /tmp/stream-run
               name: temp-volume
           command: ["sh", "-c"]
           args:
             - |
               while true; do
-                echo "Starting YouTube-Compliant True 30fps Transcoder Engine..."
+                echo "Scanning kernel space for TANDBERG PrecisionHD Camera node..."
+                TANDBERG_DEV=""
                 
-                # Optimized Changes:
-                # -preset ultrafast allows true 30fps with minimal CPU cycles
-                # Switched output destination endpoint to secure RTMPS (port 443)
+                # Dynamic hardware loop scanning the kernel sysfs parameters
+                for syspath in /sys/class/video4linux/video*; do
+                  if cat "$syspath/name" 2>/dev/null | grep -q -i "TANDBERG"; then
+                    TANDBERG_DEV="/dev/$(basename "$syspath")"
+                    break
+                  fi
+                done
+                
+                if [ -z "$TANDBERG_DEV" ]; then
+                  echo "CRITICAL: TANDBERG Hardware Camera not found on the USB bus! Retrying in 5 seconds..."
+                  sleep 5
+                  continue
+                fi
+                
+                echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
+                echo "Launching True 30fps Streaming Engine..."
+                
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
-                -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i /dev/video0 \
+                -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
                 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset ultrafast -b:v 4000k -maxrate 4000k -bufsize 8000k \
                 -pix_fmt yuv420p -r 30 -g 60 \
                 -c:a aac -b:a 128k \
                 -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
                 
-                echo "Stream disconnected. Re-spawning pipeline in 5 seconds...";
+                echo "Connection dropped or camera link severed. Re-scanning system bus in 5 seconds..."
                 sleep 5;
               done
       volumes:
-        - name: webcam
+        - name: host-dev
           hostPath:
-            path: /dev/video2 # Correctly targeting your Tandberg camera hardware node
+            path: /dev
+        - name: host-sys
+          hostPath:
+            path: /sys
         - name: temp-volume
           persistentVolumeClaim:
             claimName: youtube-stream-local-pvc
