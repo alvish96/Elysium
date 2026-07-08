@@ -16,16 +16,18 @@ spec:
     metadata:
       labels:
         app: qbittorrent
-      annotations:
-        container.apparmor.security.beta.kubernetes.io/qbittorrent: unconfined
+      # The deprecated annotations are gone!
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
+      
+      # THE FIX: This applies Unconfined profiles to ALL containers natively
       securityContext:
         seccompProfile:
           type: Unconfined
+        appArmorProfile:
+          type: Unconfined
       
-      # THE MAGIC FIX: This pre-creates the bypass config before the app starts
       initContainers:
         - name: inject-skeleton-key
           image: busybox:latest
@@ -116,7 +118,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(\`qbittorrent.local\`)
+    - match: Host(`qbittorrent.local`)
       kind: Rule
       services:
         - name: qbittorrent-svc
