@@ -74,7 +74,6 @@ spec:
           securityContext:
             privileged: true
           volumeMounts:
-            # Mount parent dev and sys trees to monitor hardware events live
             - mountPath: /dev
               name: host-dev
             - mountPath: /sys
@@ -88,7 +87,6 @@ spec:
                 echo "Scanning kernel space for TANDBERG PrecisionHD Camera node..."
                 TANDBERG_DEV=""
                 
-                # Dynamic hardware loop scanning the kernel sysfs parameters
                 for syspath in /sys/class/video4linux/video*; do
                   if cat "$syspath/name" 2>/dev/null | grep -q -i "TANDBERG"; then
                     TANDBERG_DEV="/dev/$(basename "$syspath")"
@@ -103,13 +101,16 @@ spec:
                 fi
                 
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
-                echo "Launching True 30fps Streaming Engine..."
+                echo "Launching Jitter-Free 30fps Ingestion Engine..."
                 
+                # Fixed Engine Parameters:
+                # -thread_queue_size 1024 prevents the container kernel line from dropping hardware frames
+                # -vf "fps=fps=30,format=yuv420p" forces perfect monotonic timestamps for YouTube ingestion compliance
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
-                -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
-                -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+                -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
+                -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset ultrafast -b:v 4000k -maxrate 4000k -bufsize 8000k \
-                -pix_fmt yuv420p -r 30 -g 60 \
+                -vf "fps=fps=30,format=yuv420p" -g 60 \
                 -c:a aac -b:a 128k \
                 -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
                 
