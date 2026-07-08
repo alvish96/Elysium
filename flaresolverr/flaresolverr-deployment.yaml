@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr
+  namespace: media
+  labels:
+    app: flaresolverr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: flaresolverr
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom # Offloaded to the muscle node
+      containers:
+        - name: flaresolverr
+          image: flaresolverr/flaresolverr:latest
+          env:
+            - name: LOG_LEVEL
+              value: "info"
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 8191
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr-svc
+  namespace: media
+spec:
+  selector:
+    app: flaresolverr
+  type: ClusterIP # Keeps it purely internal
+  ports:
+    - port: 8191
+      targetPort: 8191
