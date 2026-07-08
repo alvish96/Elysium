@@ -17,24 +17,43 @@ spec:
       labels:
         app: qbittorrent
       annotations:
-        # CRITICAL: Bypasses container AppArmor profile checks on the host
         container.apparmor.security.beta.kubernetes.io/qbittorrent: unconfined
     spec:
       nodeSelector:
-        kubernetes.io/hostname: atlantis # Keeps I/O local to the physical USB bus
+        kubernetes.io/hostname: atlantis
       securityContext:
-        # Prevents default cluster runtime sandbox profiling lockouts
         seccompProfile:
           type: Unconfined
+      
+      # THE MAGIC FIX: This pre-creates the bypass config before the app starts
+      initContainers:
+        - name: inject-skeleton-key
+          image: busybox:latest
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Injecting Skeleton Keys..."
+              mkdir -p /config/qBittorrent
+              FILE=/config/qBittorrent/qBittorrent.conf
+              echo "[Preferences]" > $FILE
+              echo "WebUI\HostHeaderValidation=false" >> $FILE
+              echo "WebUI\CSRFProtection=false" >> $FILE
+              echo "WebUI\AuthSubnetWhitelist=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16" >> $FILE
+              echo "WebUI\AuthSubnetWhitelistEnabled=true" >> $FILE
+              echo "WebUI\ReverseProxySupportEnabled=true" >> $FILE
+              echo "Skeleton Key Injection Complete."
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+
       containers:
         - name: qbittorrent
           image: linuxserver/qbittorrent:latest
           securityContext:
-            # Allows the linuxserver initialization scripts to map the root filesystems correctly
             allowPrivilegeEscalation: true
           env:
             - name: PUID
-              value: "0" # Runs with root permissions to handle multi-disk access fields cleanly
+              value: "0"
             - name: PGID
               value: "0"
             - name: TZ
@@ -54,7 +73,7 @@ spec:
             - name: config-volume
               mountPath: /config
             - name: data-volume
-              mountPath: /data # The container accesses downloads/media natively under this single tree root
+              mountPath: /data
       volumes:
         - name: config-volume
           persistentVolumeClaim:
@@ -76,7 +95,7 @@ spec:
     - name: webui
       port: 8080
       targetPort: 8080
-      nodePort: 30068 # Web Dashboard interface custom port mapping
+      nodePort: 30068
     - name: torrent-tcp
       port: 6881
       targetPort: 6881
@@ -97,7 +116,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`qbittorrent.local`)
+    - match: Host(\`qbittorrent.local\`)
       kind: Rule
       services:
         - name: qbittorrent-svc
