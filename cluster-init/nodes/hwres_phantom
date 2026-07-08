@@ -8,8 +8,8 @@
 * **Memory Capacity:**
 ```text
                total        used        free      shared  buff/cache   available
-Mem:           3.7Gi       1.0Gi       413Mi       1.8Mi       2.6Gi       2.7Gi
-Swap:          3.7Gi       768Ki       3.7Gi
+Mem:           3.7Gi       1.2Gi       150Mi       1.9Mi       2.7Gi       2.5Gi
+Swap:          3.7Gi       1.0Mi       3.7Gi
 ```
 ## Local Storage Topography
 ```text
@@ -19,7 +19,7 @@ sda                                   223.6G disk
 ├─sda2                    ext4            2G part /boot
 └─sda3                    LVM2_member 220.5G part 
   ├─ubuntu--vg-ubuntu--lv ext4          100G lvm  /
-  └─ubuntu--vg-share--lv  ext4        120.5G lvm  /var/lib/kubelet/pods/ccef76c3-4c7a-4b8e-89e0-5ccbdaaa73ff/volumes/kubernetes.io~local-volume/youtube-stream-local-pv
+  └─ubuntu--vg-share--lv  ext4        120.5G lvm  /var/lib/kubelet/pods/583017c1-09a1-48e6-af67-98e045b2aeeb/volumes/kubernetes.io~local-volume/youtube-stream-local-pv
                                                   /var/lib/kubelet/pods/0aa668cc-fbbf-475c-9adf-fef4edbd44ca/volumes/kubernetes.io~local-volume/homeassistant-config-pv
                                                   /mnt/phantom_share
 ```
@@ -33,10 +33,12 @@ efivarfs                            84K   43K   37K  54% /sys/firmware/efi/efiva
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/250e29ae0e59e32dd74a5aed432a222d6aab2f642449b606e89087fbd4b634ea/rootfs
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/12107fedbc08cc10ea59bc73200aa076703708539bbb67d01516284aa830c492/rootfs
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/536461dbffc791153a5181e3ac5e3fa69eac74302cd86d49b5333c513b1d3eec/rootfs
-/dev/mapper/ubuntu--vg-share--lv   119G  3.0M  113G   1% /mnt/phantom_share
+/dev/mapper/ubuntu--vg-share--lv   119G  4.8M  113G   1% /mnt/phantom_share
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/dad1a77e3fe5a77518acd93230978b4f45c90600ceb9d4d06ff857f125f58196/rootfs
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e8df935c6b89ddc6056cb93813590ad7bbd69770d83ff2214afb54ae9eeffcd6/rootfs
-overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/1170bcaed05993fa0cbe65dfcf4a29aae3ac90083ccec773ac5ac834ea30a185/rootfs
-overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/cb0f3450bfa40e06e3613dc801c0de0d1abae009e4611b76775e5c9e91645fb5/rootfs
+overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/2392619358ffef090ed3e298db77d82839a03892bc80a54b9d54998fe4d76e49/rootfs
+overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/9563e724b626e40ed0332bc9aa6301f5b68cae70d2ec0abe43edf5f10899e7fb/rootfs
+overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/cd7508e5f1068502bc2a0f5699bc0513e8195b4b07c3a27f026c0f1c74dc116f/rootfs
+overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/b945589930e9674e209e9ce7872a817c011ef0e59c4c411e438abfbbe9ca1664/rootfs
 ```
 * **Last Profile Update:** $(date)

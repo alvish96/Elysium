@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gluetun
+  namespace: media
+  labels:
+    app: gluetun
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gluetun
+  template:
+    metadata:
+      labels:
+        app: gluetun
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom # Offloads the VPN encryption math to your muscle node
+      
+      # Security bypass to allow the pod to create internal network tunnels cleanly
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
+      containers:
+        - name: gluetun
+          image: qmcgaw/gluetun:latest
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN # Mandatory permission for creating the WireGuard tunnel
+          env:
+            # Tell Gluetun to connect via Custom WireGuard
+            - name: VPN_SERVICE_PROVIDER
+              value: custom
+            - name: VPN_TYPE
+              value: wireguard
+            
+            # Standard Cloudflare WARP global endpoint
+            - name: VPN_ENDPOINT_IP
+              value: 162.159.192.1 
+            - name: VPN_ENDPOINT_PORT
+              value: "2408"
+            - name: WIREGUARD_PUBLIC_KEY
+              value: "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=" # Standard WARP Public Key
+            
+            # --- REPLACE THESE TWO VALUES ---
+            - name: WIREGUARD_PRIVATE_KEY
+              value: "0AX85KU5RqySyoQJ/UqTRyNyuNKmQ5owx1izVzcRz0Y=" # Example: yJz8x...
+            - name: WIREGUARD_ADDRESSES
+              value: "172.16.0.2/32" # Example: 172.16.0.2/32
+            
+            # Enable the internal K3s Proxy services
+            - name: HTTPPROXY
+              value: "on"
+            - name: HTTPPROXY_PORT
+              value: "8888"
+            - name: SOCKS5
+              value: "on"
+            - name: SOCKS5_PORT
+              value: "8388"
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 8888
+              name: http-proxy
+            - containerPort: 8388
+              name: socks5-proxy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gluetun-svc
+  namespace: media
+spec:
+  selector:
+    app: gluetun
+  type: ClusterIP # Keeps it purely internal (No NodePort required)
+  ports:
+    - name: http-proxy
+      port: 8888
+      targetPort: 8888
+    - name: socks5-proxy
+      port: 8388
+      targetPort: 8388
