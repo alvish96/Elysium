@@ -16,18 +16,25 @@ spec:
     metadata:
       labels:
         app: qbittorrent
-      # The deprecated annotations are gone!
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
-      
-      # THE FIX: This applies Unconfined profiles to ALL containers natively
       securityContext:
         seccompProfile:
           type: Unconfined
         appArmorProfile:
           type: Unconfined
       
+      # THE DNS FIX: Solves Alpine ndots bugs & overrides broken cluster DNS loops
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        nameservers:
+          - 8.8.8.8
+          - 1.1.1.1
+        options:
+          - name: ndots
+            value: "1"
+            
       initContainers:
         - name: inject-skeleton-key
           image: busybox:latest
