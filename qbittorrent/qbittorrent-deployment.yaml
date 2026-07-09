@@ -18,7 +18,8 @@ spec:
         app: qbittorrent
     spec:
       nodeSelector:
-        kubernetes.io/hostname: atlantis # Keeps block writes native to physical bus arrays
+        kubernetes.io/hostname: atlantis
+
       securityContext:
         seccompProfile:
           type: Unconfined
@@ -55,6 +56,62 @@ spec:
               mountPath: /config
 
       containers:
+        # THE SIDECAR: Runs the VPN and provides a cluster-wide HTTP Proxy
+        - name: gluetun
+          image: qmcgaw/gluetun:latest
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: custom
+            - name: VPN_TYPE
+              value: wireguard
+            - name: VPN_ENDPOINT_IP
+              value: 162.159.192.1 
+            - name: VPN_ENDPOINT_PORT
+              value: "2408"
+            - name: WIREGUARD_PUBLIC_KEY
+              value: "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
+            
+            # --- PASTE YOUR KEYS HERE ---
+            - name: WIREGUARD_PRIVATE_KEY
+              value: "0AX85KU5RqySyoQJ/UqTRyNyuNKmQ5owx1izVzcRz0Y="
+            - name: WIREGUARD_ADDRESSES
+              value: "172.16.0.2/32"
+            
+            - name: WIREGUARD_MTU
+              value: "1280"
+            - name: FIREWALL_OUTBOUND_SUBNETS
+              value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24"
+            - name: FIREWALL_INPUT_PORTS
+              value: "8888" # Opens the proxy to the cluster
+              
+            - name: DNS_UPSTREAM_RESOLVER_TYPE
+              value: "plain"
+            - name: DNS_UPSTREAM_PLAIN_ADDRESSES
+              value: "1.1.1.1:53,8.8.8.8:53"
+            - name: HEALTH_RESTART_VPN
+              value: "off"
+              
+            # THE PROXY ENGINE FOR PROWLARR
+            - name: HTTPPROXY
+              value: "on"
+            - name: HTTPPROXY_LISTENING_ADDRESS
+              value: ":8888"
+            - name: PROXY_HTTP_SERVER
+              value: "on"
+            - name: PROXY_HTTP_SERVER_LISTENING_ADDRESS
+              value: ":8888"
+              
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 8888
+              name: http-proxy
+
+        # THE DOWNLOADER: Trapped inside the VPN network natively
         - name: qbittorrent
           image: linuxserver/qbittorrent:latest
           securityContext:
@@ -82,6 +139,7 @@ spec:
               mountPath: /config
             - name: data-volume
               mountPath: /data
+              
       volumes:
         - name: config-volume
           persistentVolumeClaim:
@@ -114,6 +172,10 @@ spec:
       targetPort: 6881
       nodePort: 31681
       protocol: UDP
+    # This exposes the proxy to Prowlarr internally!
+    - name: http-proxy
+      port: 8888
+      targetPort: 8888
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
