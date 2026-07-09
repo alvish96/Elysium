@@ -17,7 +17,6 @@ spec:
       labels:
         app: gluetun
     spec:
-      # THE FAILOVER MATRIX
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -71,7 +70,7 @@ spec:
             - name: WIREGUARD_PUBLIC_KEY
               value: "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
             
-            # Cryptographic token mappings placeholder
+            # Placeholders for your active cryptographic tokens
             - name: WIREGUARD_PRIVATE_KEY
               value: "0AX85KU5RqySyoQJ/UqTRyNyuNKmQ5owx1izVzcRz0Y="
             - name: WIREGUARD_ADDRESSES
@@ -89,14 +88,19 @@ spec:
               value: "1.1.1.1:53,8.8.8.8:53"
             - name: HEALTH_RESTART_VPN
               value: "off"
+            
+            # HTTP Proxy Configuration
             - name: HTTPPROXY
               value: "on"
             - name: HTTPPROXY_PORT
               value: "8888"
-            - name: SOCKS5
+            
+            # THE FIX: Correct syntax for enabling SOCKS5 engine listeners
+            - name: SOCKS5_PROXY
               value: "on"
-            - name: SOCKS5_PORT
+            - name: SOCKS5_PROXY_PORT
               value: "8388"
+              
             - name: TZ
               value: "Asia/Kolkata"
           ports:
