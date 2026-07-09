@@ -9,7 +9,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage-prowlarr
+  storageClassName: manual-prowlarr
   local:
     path: /mnt/internal/appdata/prowlarr/config
   nodeAffinity:
@@ -29,7 +29,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-storage-prowlarr
+  storageClassName: manual-prowlarr
   resources:
     requests:
       storage: 5Gi
