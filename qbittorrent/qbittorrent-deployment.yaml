@@ -18,14 +18,13 @@ spec:
         app: qbittorrent
     spec:
       nodeSelector:
-        kubernetes.io/hostname: atlantis
+        kubernetes.io/hostname: atlantis # Keeps block writes native to physical bus arrays
       securityContext:
         seccompProfile:
           type: Unconfined
         appArmorProfile:
           type: Unconfined
       
-      # THE DNS FIX: Solves Alpine ndots bugs & overrides broken cluster DNS loops
       dnsPolicy: ClusterFirst
       dnsConfig:
         nameservers:

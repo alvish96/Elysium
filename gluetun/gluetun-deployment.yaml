@@ -17,6 +17,7 @@ spec:
       labels:
         app: gluetun
     spec:
+      # Preferred muscle scheduling with high availability failover to atlantis
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -70,18 +71,19 @@ spec:
             - name: WIREGUARD_PUBLIC_KEY
               value: "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
             
-            # Placeholders for your active cryptographic tokens
+            # Cryptographic token definitions
             - name: WIREGUARD_PRIVATE_KEY
               value: "0AX85KU5RqySyoQJ/UqTRyNyuNKmQ5owx1izVzcRz0Y="
             - name: WIREGUARD_ADDRESSES
               value: "172.16.0.2/32"
             
+            # Network optimization and firewall parameters
             - name: WIREGUARD_MTU
               value: "1280"
             - name: FIREWALL_OUTBOUND_SUBNETS
               value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24"
             - name: FIREWALL_INPUT_PORTS
-              value: "8888,8388"
+              value: "8888"
             - name: DNS_UPSTREAM_RESOLVER_TYPE
               value: "plain"
             - name: DNS_UPSTREAM_PLAIN_ADDRESSES
@@ -89,25 +91,21 @@ spec:
             - name: HEALTH_RESTART_VPN
               value: "off"
             
-            # HTTP Proxy Configuration
+            # THE FIX: Activates the HTTP Proxy Engine over Port 8888 across versions
             - name: HTTPPROXY
               value: "on"
-            - name: HTTPPROXY_PORT
-              value: "8888"
-            
-            # THE FIX: Correct syntax for enabling SOCKS5 engine listeners
-            - name: SOCKS5_PROXY
+            - name: HTTPPROXY_LISTENING_ADDRESS
+              value: ":8888"
+            - name: PROXY_HTTP_SERVER
               value: "on"
-            - name: SOCKS5_PROXY_PORT
-              value: "8388"
+            - name: PROXY_HTTP_SERVER_LISTENING_ADDRESS
+              value: ":8888"
               
             - name: TZ
               value: "Asia/Kolkata"
           ports:
             - containerPort: 8888
               name: http-proxy
-            - containerPort: 8388
-              name: socks5-proxy
 ---
 apiVersion: v1
 kind: Service
@@ -122,6 +120,3 @@ spec:
     - name: http-proxy
       port: 8888
       targetPort: 8888
-    - name: socks5-proxy
-      port: 8388
-      targetPort: 8388
