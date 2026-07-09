@@ -9,7 +9,7 @@ spec:
     # If the repo is public, you can use the HTTPS URL here. If private, use the SSH URL.
     repoURL: git@github.com:alvish96/Elysium.git
     targetRevision: HEAD
-    path: jellyfin # Points to the folder containing jellyfin-storage.yaml and jellyfin-deployment.yaml
+    path: app-code/jellyfin # Points to the folder containing jellyfin-storage.yaml and jellyfin-deployment.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: media

@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: git@github.com:alvish96/Elysium.git
     targetRevision: HEAD
-    path: qbittorrent
+    path: app-code/qbittorrent
   destination:
     server: https://kubernetes.default.svc
     namespace: media

@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: git@github.com:alvish96/Elysium.git
     targetRevision: HEAD
-    path: homeassistant
+    path: app-code/homeassistant
   destination:
     server: https://kubernetes.default.svc
     namespace: homeassistant

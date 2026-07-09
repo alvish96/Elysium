@@ -3,7 +3,7 @@
 NODE_NAME=$(hostname)
 ATLANTIS_IP="192.168.1.160"
 ATLANTIS_USER="root"
-REPO_DIR="$HOME/Elysium"
+ATLANTIS_REPO_DIR="/root/Elysium"
 
 # Generate the profile in a temporary local folder first
 LOCAL_TMP="/tmp/hwres_$NODE_NAME"
@@ -28,10 +28,10 @@ df -hT | grep -v tmpfs | grep -v overlay | grep -v shm >> "$LOCAL_TMP"
 # 2. Routing Logic (Hub vs Spoke)
 if [ "$NODE_NAME" = "atlantis" ]; then
     echo "Node is Atlantis (Hub). Copying local profile to repo..."
-    cp "$LOCAL_TMP" "$REPO_DIR/cluster-init/nodes/"
+    cp "$LOCAL_TMP" "$ATLANTIS_REPO_DIR/cluster-init/nodes/"
 
     echo "Synchronizing Hub with GitHub..."
-    cd "$REPO_DIR" || exit
+    cd "$ATLANTIS_REPO_DIR" || exit
     git fetch origin
     git pull --rebase origin main
 
@@ -51,6 +51,6 @@ if [ "$NODE_NAME" = "atlantis" ]; then
 else
     echo "Node is $NODE_NAME (Spoke). Sending profile to Atlantis via SCP..."
     # Silently transfers the file to the Atlantis repository folder over local LAN
-    scp "$LOCAL_TMP" "$ATLANTIS_USER@$ATLANTIS_IP:$REPO_DIR/cluster-init/nodes/"
+    scp "$LOCAL_TMP" "$ATLANTIS_USER@$ATLANTIS_IP:$ATLANTIS_REPO_DIR/cluster-init/nodes/"
     echo "Successfully transferred profile to Atlantis."
 fi

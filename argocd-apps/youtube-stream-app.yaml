@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: 'https://github.com/alvish96/Elysium.git'
     targetRevision: HEAD
-    path: stream
+    path: app-code/stream
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: media

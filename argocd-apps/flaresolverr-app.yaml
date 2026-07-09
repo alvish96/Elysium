@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: git@github.com:alvish96/Elysium.git
     targetRevision: HEAD
-    path: flaresolverr
+    path: app-code/flaresolverr
   destination:
     server: https://kubernetes.default.svc
     namespace: media
