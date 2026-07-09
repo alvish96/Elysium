@@ -17,8 +17,25 @@ spec:
       labels:
         app: gluetun
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: phantom
+      # THE FAILOVER MATRIX
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+                      - atlantis
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
       
       securityContext:
         seccompProfile:
@@ -54,24 +71,24 @@ spec:
             - name: WIREGUARD_PUBLIC_KEY
               value: "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
             
-            # Note: Overwriting resetting template. Make sure to paste 
-            # your real cryptographic keys back here in Step 2.
+            # Cryptographic token mappings placeholder
             - name: WIREGUARD_PRIVATE_KEY
               value: "0AX85KU5RqySyoQJ/UqTRyNyuNKmQ5owx1izVzcRz0Y="
             - name: WIREGUARD_ADDRESSES
               value: "172.16.0.2/32"
             
-            # THE FIX: Provides the plain addresses Gluetun was searching for
+            - name: WIREGUARD_MTU
+              value: "1280"
+            - name: FIREWALL_OUTBOUND_SUBNETS
+              value: "10.42.0.0/16,10.43.0.0/16,192.168.1.0/24"
+            - name: FIREWALL_INPUT_PORTS
+              value: "8888,8388"
             - name: DNS_UPSTREAM_RESOLVER_TYPE
               value: "plain"
             - name: DNS_UPSTREAM_PLAIN_ADDRESSES
               value: "1.1.1.1:53,8.8.8.8:53"
-            
-            # STABILIZER: Prevents Gluetun from aggressively restarting the tunnel 
-            # if a transient internal K3s lookup delays the startup check
             - name: HEALTH_RESTART_VPN
               value: "off"
-            
             - name: HTTPPROXY
               value: "on"
             - name: HTTPPROXY_PORT
