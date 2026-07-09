@@ -8,7 +8,7 @@
 * **Memory Capacity:**
 ```text
                total        used        free      shared  buff/cache   available
-Mem:           3.7Gi       1.2Gi       288Mi       2.1Mi       2.5Gi       2.5Gi
+Mem:           3.7Gi       1.2Gi       193Mi       2.1Mi       2.6Gi       2.5Gi
 Swap:          3.7Gi       1.0Mi       3.7Gi
 ```
 ## Local Storage Topography
@@ -39,8 +39,8 @@ overlay                             98G   33G   61G  35% /run/k3s/containerd/io.
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/cd7508e5f1068502bc2a0f5699bc0513e8195b4b07c3a27f026c0f1c74dc116f/rootfs
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/b945589930e9674e209e9ce7872a817c011ef0e59c4c411e438abfbbe9ca1664/rootfs
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/6d0951f48dfa28e11eea6df3e171224232d8e5e445d9c6a1d80016a79ab1d4ce/rootfs
-overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/482c989aa76f38d00abccf8cd799013a19038a4a1a6635464884c278c696a166/rootfs
 overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/26110328abecb51b5b4238ab5daffd704ec84001a43b6b1ef1e72c2f6bf74795/rootfs
-overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/53de0d91a2d78cfcf9a61378ff042585c2fc1e90bec198c542ff29cc916e581d/rootfs
+overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/842bec90816dffe45015c8fa1dd81e449ecd37650f9a56ead9500bcf778810b2/rootfs
+overlay                             98G   33G   61G  35% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/95eb291236b3951170b3fcae495d04be2b2c719e955318a963d518acda7732d7/rootfs
 ```
 * **Last Profile Update:** $(date)

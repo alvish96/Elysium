@@ -1,23 +1,31 @@
 # Hardware & Software Manifest: ATLANTIS (Control Plane)
 ## System Details
+## System Details
+* **OS Image:** $(hostnamectl | grep 'Operating System' | cut -d: -f2- | xargs)
 * **OS Image:** $(hostnamectl | grep 'Operating System' | cut -d: -f2- | xargs)
 * **Kernel Version:** $(uname -r)
+* **Kernel Version:** $(uname -r)
+* **Architecture:** $(uname -m)
 * **Architecture:** $(uname -m)
 ## Compute Footprint
+## Compute Footprint
+* **CPU Cores:** $(nproc)
 * **CPU Cores:** $(nproc)
 * **Memory Capacity:**
+* **Memory Capacity:**
+```text
 ```text
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       2.5Gi       212Mi       127Mi       1.0Gi       839Mi
-Swap:          3.3Gi       716Mi       2.6Gi
+Mem:           3.3Gi       2.5Gi       286Mi       127Mi       912Mi       823Mi
+Swap:          3.3Gi       715Mi       2.6Gi
+               total        used        free      shared  buff/cache   available
+Mem:           3.3Gi       2.5Gi       286Mi       127Mi       912Mi       823Mi
+Swap:          3.3Gi       715Mi       2.6Gi
 ```
+```
+## Local Storage & Volume Array Topography (LVM + Devices)
 ## Local Storage & Volume Array Topography (LVM + Devices)
 ```text
-               total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       2.5Gi       212Mi       127Mi       1.0Gi       838Mi
-Swap:          3.3Gi       716Mi       2.6Gi
-```
-## Local Storage & Volume Array Topography (LVM + Devices)
 ```text
 NAME                      FSTYPE        SIZE TYPE MOUNTPOINTS
 sda                                   447.1G disk 
@@ -45,9 +53,6 @@ sdo                       ext4        894.3G disk /mnt/databox_07_894G_5
 sdp                                     1.8T disk 
 └─sdp1                    ext4          1.8T part /mnt/databox_15_1.8T_1
 sr0                                    1024M rom  
-```
-## Consolidated MergerFS Pools & Mount Space
-```text
 NAME                      FSTYPE        SIZE TYPE MOUNTPOINTS
 sda                                   447.1G disk 
 ├─sda1                    vfat            1G part /boot/efi
@@ -75,13 +80,16 @@ sdp                                     1.8T disk
 └─sdp1                    ext4          1.8T part /mnt/databox_15_1.8T_1
 sr0                                    1024M rom  
 ```
+```
 ## Consolidated MergerFS Pools & Mount Space
+## Consolidated MergerFS Pools & Mount Space
+```text
 ```text
 Filesystem                         Size  Used Avail Use% Mounted on
 /dev/mapper/ubuntu--vg-ubuntu--lv   98G   17G   77G  18% /
 /dev/sda2                          2.0G  201M  1.6G  11% /boot
 /dev/sda1                          1.1G  6.2M  1.1G   1% /boot/efi
-/dev/mapper/ubuntu--vg-internal    338G  615M  320G   1% /mnt/internal
+/dev/mapper/ubuntu--vg-internal    338G  622M  320G   1% /mnt/internal
 192.168.1.170:/mnt/phantom_share   119G  4.5M  113G   1% /mnt/phantom_nfs
 /dev/sdc                            59G   24K   58G   1% /mnt/databox_01_59G_1
 /dev/sdm                           880G   64K  862G   1% /mnt/databox_02_894G_1
@@ -97,39 +105,39 @@ Filesystem                         Size  Used Avail Use% Mounted on
 /dev/sdj                           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdn                           880G   28K  862G   1% /mnt/databox_13_894G_8
 /dev/sdi                           220G   28K  215G   1% /mnt/databox_14_223G_3
-nexus_pool                          12T  644G   11T   6% /mnt/nexus_pool
+nexus_pool                          12T  645G   11T   6% /mnt/nexus_pool
 overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/6429eefdf5b365770c95f6c750f2fff9b306501f7140bc60c7dc2a01035b1907/rootfs
 overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/7b5148c56f28410c6e8c3cc85570578385fd53bd48ddcb332c2d4f3ec35efbff/rootfs
 /dev/sdp1                          1.8T  644G  1.2T  36% /mnt/databox_15_1.8T_1
 overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e41a73224d0e65912cca1629a56882c472a0fc77c97dd3ab7ff868da68204e7f/rootfs
 overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/0136ae2095b3bc7cdfc5a6ea60423b078e8efbe5201204d05c0c395c26954856/rootfs
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--lv   98G   17G   77G  18% /
+/dev/sda2                          2.0G  201M  1.6G  11% /boot
+/dev/sda1                          1.1G  6.2M  1.1G   1% /boot/efi
+/dev/mapper/ubuntu--vg-internal    338G  622M  320G   1% /mnt/internal
+192.168.1.170:/mnt/phantom_share   119G  4.5M  113G   1% /mnt/phantom_nfs
+/dev/sdc                            59G   24K   58G   1% /mnt/databox_01_59G_1
+/dev/sdm                           880G   64K  862G   1% /mnt/databox_02_894G_1
+/dev/sdd                           880G   48K  862G   1% /mnt/databox_03_894G_2
+/dev/sdl                           458G   28K  449G   1% /mnt/databox_04_465G_1
+/dev/sde                           880G   28K  862G   1% /mnt/databox_05_894G_3
+/dev/sdk                           880G   28K  862G   1% /mnt/databox_06_894G_4
+/dev/sdo                           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/sdh                           880G   28K  862G   1% /mnt/databox_08_894G_6
+/dev/sdg                           220G   28K  215G   1% /mnt/databox_09_223G_1
+/dev/sdf                           916G   28K  898G   1% /mnt/databox_10_931G_1
+/dev/sdb                           220G   28K  215G   1% /mnt/databox_11_223G_2
+/dev/sdj                           880G   28K  862G   1% /mnt/databox_12_894G_7
+/dev/sdn                           880G   28K  862G   1% /mnt/databox_13_894G_8
+/dev/sdi                           220G   28K  215G   1% /mnt/databox_14_223G_3
+nexus_pool                          12T  645G   11T   6% /mnt/nexus_pool
+overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/6429eefdf5b365770c95f6c750f2fff9b306501f7140bc60c7dc2a01035b1907/rootfs
+overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/7b5148c56f28410c6e8c3cc85570578385fd53bd48ddcb332c2d4f3ec35efbff/rootfs
+/dev/sdp1                          1.8T  644G  1.2T  36% /mnt/databox_15_1.8T_1
+overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e41a73224d0e65912cca1629a56882c472a0fc77c97dd3ab7ff868da68204e7f/rootfs
+overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/0136ae2095b3bc7cdfc5a6ea60423b078e8efbe5201204d05c0c395c26954856/rootfs
+```
 ```
 * **Last Profile Update:** $(date)
-Filesystem                         Size  Used Avail Use% Mounted on
-/dev/mapper/ubuntu--vg-ubuntu--lv   98G   17G   77G  18% /
-/dev/sda2                          2.0G  201M  1.6G  11% /boot
-/dev/sda1                          1.1G  6.2M  1.1G   1% /boot/efi
-/dev/mapper/ubuntu--vg-internal    338G  615M  320G   1% /mnt/internal
-192.168.1.170:/mnt/phantom_share   119G  4.5M  113G   1% /mnt/phantom_nfs
-/dev/sdc                            59G   24K   58G   1% /mnt/databox_01_59G_1
-/dev/sdm                           880G   64K  862G   1% /mnt/databox_02_894G_1
-/dev/sdd                           880G   48K  862G   1% /mnt/databox_03_894G_2
-/dev/sdl                           458G   28K  449G   1% /mnt/databox_04_465G_1
-/dev/sde                           880G   28K  862G   1% /mnt/databox_05_894G_3
-/dev/sdk                           880G   28K  862G   1% /mnt/databox_06_894G_4
-/dev/sdo                           880G   28K  862G   1% /mnt/databox_07_894G_5
-/dev/sdh                           880G   28K  862G   1% /mnt/databox_08_894G_6
-/dev/sdg                           220G   28K  215G   1% /mnt/databox_09_223G_1
-/dev/sdf                           916G   28K  898G   1% /mnt/databox_10_931G_1
-/dev/sdb                           220G   28K  215G   1% /mnt/databox_11_223G_2
-/dev/sdj                           880G   28K  862G   1% /mnt/databox_12_894G_7
-/dev/sdn                           880G   28K  862G   1% /mnt/databox_13_894G_8
-/dev/sdi                           220G   28K  215G   1% /mnt/databox_14_223G_3
-nexus_pool                          12T  644G   11T   6% /mnt/nexus_pool
-overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/6429eefdf5b365770c95f6c750f2fff9b306501f7140bc60c7dc2a01035b1907/rootfs
-overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/7b5148c56f28410c6e8c3cc85570578385fd53bd48ddcb332c2d4f3ec35efbff/rootfs
-/dev/sdp1                          1.8T  644G  1.2T  36% /mnt/databox_15_1.8T_1
-overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e41a73224d0e65912cca1629a56882c472a0fc77c97dd3ab7ff868da68204e7f/rootfs
-overlay                             98G   17G   77G  18% /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/0136ae2095b3bc7cdfc5a6ea60423b078e8efbe5201204d05c0c395c26954856/rootfs
-```
 * **Last Profile Update:** $(date)
