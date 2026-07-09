@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: media
+  labels:
+    app: prowlarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      affinity:
+        nodeAffinity:
+          # Required: Only allow execution on these two capable nodes
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - atlantis
+                      - phantom
+          # Preferred: Heavily favor Atlantis for centralized storage IO
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - atlantis
+
+      containers:
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:latest
+          env:
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 9696
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: prowlarr-config-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr-svc
+  namespace: media
+spec:
+  selector:
+    app: prowlarr
+  type: NodePort
+  ports:
+    - name: http
+      port: 9696
+      targetPort: 9696
+      nodePort: 30396
