@@ -17,8 +17,27 @@ spec:
       labels:
         app: flaresolverr
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: phantom # Offloaded to the muscle node
+      # THE FAILOVER MATRIX
+      affinity:
+        nodeAffinity:
+          # 1. Hard Rule: Must only live on these two machines
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+                      - atlantis
+          # 2. Soft Rule: Heavily favor phantom if it is healthy
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
       containers:
         - name: flaresolverr
           image: flaresolverr/flaresolverr:latest
@@ -39,7 +58,7 @@ metadata:
 spec:
   selector:
     app: flaresolverr
-  type: ClusterIP # Keeps it purely internal
+  type: ClusterIP
   ports:
     - port: 8191
       targetPort: 8191
