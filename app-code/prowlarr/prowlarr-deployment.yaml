@@ -20,9 +20,18 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
 
+      # THE PERMANENT FIX: Disables K3s's search for AppArmor kernel profiles
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
       containers:
         - name: prowlarr
           image: lscr.io/linuxserver/prowlarr:latest
+          securityContext:
+            allowPrivilegeEscalation: true
           env:
             - name: PUID
               value: "0"
