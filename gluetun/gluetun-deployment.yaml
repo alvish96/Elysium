@@ -26,7 +26,6 @@ spec:
         appArmorProfile:
           type: Unconfined
 
-      # THE FIX: Explicit DNS bypass to solve Alpine resolution timeouts
       dnsPolicy: ClusterFirst
       dnsConfig:
         nameservers:
@@ -55,13 +54,16 @@ spec:
             - name: WIREGUARD_PUBLIC_KEY
               value: "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
             
-            # Note: We must ensure your keys are still mapped correctly here!
-            # Since I cannot see your private keys, I am leaving placeholders.
-            # YOU MUST MANUALLY EDIT THIS FILE IN STEP 2 BEFORE PUSHING.
+            # Note: Overwriting resetting template. Make sure to paste 
+            # your real cryptographic keys back here in Step 2.
             - name: WIREGUARD_PRIVATE_KEY
               value: "0AX85KU5RqySyoQJ/UqTRyNyuNKmQ5owx1izVzcRz0Y="
             - name: WIREGUARD_ADDRESSES
               value: "172.16.0.2/32"
+            
+            # THE FIX: Swaps Gluetun out of port 853 lockouts into standard port 53 routing
+            - name: DNS_UPSTREAM_RESOLVER_TYPE
+              value: "plain"
             
             - name: HTTPPROXY
               value: "on"
