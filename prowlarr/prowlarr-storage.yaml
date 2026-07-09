@@ -1,4 +1,27 @@
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prowlarr-config-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-prowlarr
+  local:
+    path: /mnt/internal/appdata/prowlarr/config
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: prowlarr-config-pvc
@@ -6,6 +29,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: local-storage-prowlarr
   resources:
     requests:
       storage: 5Gi

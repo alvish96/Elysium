@@ -17,26 +17,8 @@ spec:
       labels:
         app: prowlarr
     spec:
-      affinity:
-        nodeAffinity:
-          # Required: Only allow execution on these two capable nodes
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                      - atlantis
-                      - phantom
-          # Preferred: Heavily favor Atlantis for centralized storage IO
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                      - atlantis
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
 
       containers:
         - name: prowlarr
