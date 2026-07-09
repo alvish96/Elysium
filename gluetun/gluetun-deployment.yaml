@@ -61,9 +61,16 @@ spec:
             - name: WIREGUARD_ADDRESSES
               value: "172.16.0.2/32"
             
-            # THE FIX: Swaps Gluetun out of port 853 lockouts into standard port 53 routing
+            # THE FIX: Provides the plain addresses Gluetun was searching for
             - name: DNS_UPSTREAM_RESOLVER_TYPE
               value: "plain"
+            - name: DNS_UPSTREAM_PLAIN_ADDRESSES
+              value: "1.1.1.1:53,8.8.8.8:53"
+            
+            # STABILIZER: Prevents Gluetun from aggressively restarting the tunnel 
+            # if a transient internal K3s lookup delays the startup check
+            - name: HEALTH_RESTART_VPN
+              value: "off"
             
             - name: HTTPPROXY
               value: "on"
