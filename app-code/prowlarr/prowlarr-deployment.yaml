@@ -20,7 +20,16 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
 
-      # THE PERMANENT FIX: Disables K3s's search for AppArmor kernel profiles
+      # FIX: Force DNS resolution to public upstream servers
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 8.8.8.8
+          - 1.1.1.1
+        options:
+          - name: ndots
+            value: "1"
+
       securityContext:
         seccompProfile:
           type: Unconfined
