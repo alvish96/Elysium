@@ -73,14 +73,11 @@ spec:
 
       containers:
         - name: jellyseerr
-          image: lscr.io/linuxserver/jellyseerr:latest
+          # THE FIX: Point to the genuine official image builder
+          image: fallenbagel/jellyseerr:latest
           securityContext:
             allowPrivilegeEscalation: true
           env:
-            - name: PUID
-              value: "0"
-            - name: PGID
-              value: "0"
             - name: TZ
               value: "Asia/Kolkata"
           ports:
@@ -88,7 +85,8 @@ spec:
               name: http
           volumeMounts:
             - name: config
-              mountPath: /config
+              # THE ADJUSTMENT: Official image paths map to /app/config
+              mountPath: /app/config
       volumes:
         - name: config
           persistentVolumeClaim:
