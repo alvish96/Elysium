@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: netdata
+  namespace: media
+  labels:
+    app: netdata
+spec:
+  selector:
+    matchLabels:
+      app: netdata
+  template:
+    metadata:
+      labels:
+        app: netdata
+    spec:
+      # CRITICAL: Allows Netdata to see the physical network interfaces
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      
+      # The AppArmor fix to prevent K3s node deadlocks
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
+      containers:
+        - name: netdata
+          # This image natively supports both AMD64 and ARM64
+          image: netdata/netdata:latest
+          securityContext:
+            runAsUser: 0
+            privileged: true
+            allowPrivilegeEscalation: true
+          env:
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 19999
+              name: webui
+              protocol: TCP
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: os-release
+              mountPath: /host/etc/os-release
+              readOnly: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: os-release
+          hostPath:
+            path: /etc/os-release
