@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: glances
+  namespace: media
+  labels:
+    app: glances
+spec:
+  selector:
+    matchLabels:
+      app: glances
+  template:
+    metadata:
+      labels:
+        app: glances
+    spec:
+      # CRITICAL: Binds directly to the node's physical network and process tree
+      hostNetwork: true
+      hostPID: true
+      
+      dnsPolicy: ClusterFirstWithHostNet
+      
+      # The AppArmor fix to prevent K3s node deadlocks
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
+      containers:
+        - name: glances
+          # This is a multi-arch manifest. The Pi will natively pull the ARM64 version!
+          image: nicolargo/glances:latest-full
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 0 # Requires root to read host hardware metrics
+          env:
+            - name: GLANCES_OPT
+              value: "-w" # Starts the Web Server mode
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 61208
+              name: webui
+              protocol: TCP
