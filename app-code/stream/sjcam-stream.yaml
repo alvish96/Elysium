@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sjcam-streamer
+  namespace: media
+  labels:
+    app: sjcam-streamer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sjcam-streamer
+  template:
+    metadata:
+      labels:
+        app: sjcam-streamer
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom # Pinned to your hardware node
+      containers:
+        - name: ffmpeg
+          image: linuxserver/ffmpeg:latest
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "2500m"
+          env:
+            - name: YOUTUBE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: youtube-stream-key
+                  key: KEY
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /dev
+              name: host-dev
+            - mountPath: /sys
+              name: host-sys
+          command: ["sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "Scanning kernel space for SJCAM Action Camera node..."
+                SJCAM_DEV=""
+                
+                for syspath in /sys/class/video4linux/video*; do
+                  # Scans the kernel system files for your specific webcam interface name
+                  if cat "$syspath/name" 2>/dev/null | grep -q -i -E "usb camera|generic|sj4000"; then
+                    SJCAM_DEV="/dev/$(basename "$syspath")"
+                    break
+                  fi
+                done
+                
+                if [ -z "$SJCAM_DEV" ]; then
+                  echo "CRITICAL: SJCAM Camera not found on the USB bus! Retrying in 5 seconds..."
+                  sleep 5
+                  continue
+                fi
+                
+                echo "Success! SJCAM camera mapped on active node: $SJCAM_DEV"
+                echo "Launching High-Resolution 30fps SJCAM Ingestion Engine..."
+                
+                # High-Resolution Action Cam Optimal Pipeline:
+                # Upgraded to 1080p stream ingestion if supported natively by the action cam
+                ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
+                -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1920x1080 -framerate 30 -i "$SJCAM_DEV" \
+                -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+                -c:v libx264 -preset ultrafast -b:v 4500k -maxrate 4500k -bufsize 9000k \
+                -vf "fps=fps=30,format=yuv420p" -g 60 \
+                -c:a aac -b:a 128k \
+                -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
+                
+                echo "Camera disconnected. Re-scanning system bus in 5 seconds..."
+                sleep 5;
+              done
+      volumes:
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-sys
+          hostPath:
+            path: /sys
