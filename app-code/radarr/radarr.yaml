@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: radarr-config-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual-radarr
+  local:
+    path: /mnt/internal/appdata/radarr/config
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-config-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual-radarr
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+  namespace: media
+  labels:
+    app: radarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        nameservers:
+          - 8.8.8.8
+          - 1.1.1.1
+        options:
+          - name: ndots
+            value: "1"
+
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
+      containers:
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:latest
+          securityContext:
+            allowPrivilegeEscalation: true
+          env:
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 7878
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            # Hardlink Holy Grail: Direct mount matching exactly how qBittorrent sees it
+            - name: nexus-pool
+              mountPath: /data
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr-config-pvc
+        - name: nexus-pool
+          hostPath:
+            path: /mnt/nexus_pool
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr-svc
+  namespace: media
+spec:
+  selector:
+    app: radarr
+  type: NodePort
+  ports:
+    - name: http
+      port: 7878
+      targetPort: 7878
+      nodePort: 30478
