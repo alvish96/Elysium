@@ -7,8 +7,6 @@ metadata:
     app: flaresolverr
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: flaresolverr
@@ -17,35 +15,17 @@ spec:
       labels:
         app: flaresolverr
     spec:
-      # THE FAILOVER MATRIX
-      affinity:
-        nodeAffinity:
-          # 1. Hard Rule: Must only live on these two machines
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                      - phantom
-                      - atlantis
-          # 2. Soft Rule: Heavily favor phantom if it is healthy
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                      - phantom
+      nodeSelector:
+        kubernetes.io/hostname: phantom
       containers:
         - name: flaresolverr
-          image: flaresolverr/flaresolverr:latest
+          image: ghcr.io/flaresolverr/flaresolverr:latest
           env:
-            - name: LOG_LEVEL
-              value: "info"
             - name: TZ
               value: "Asia/Kolkata"
+            # THE FIX: Forces FlareSolverr to use the exact same VPN IP as Prowlarr
+            - name: PROXY
+              value: "http://qbittorrent-svc:8888"
           ports:
             - containerPort: 8191
               name: http
@@ -60,5 +40,6 @@ spec:
     app: flaresolverr
   type: ClusterIP
   ports:
-    - port: 8191
+    - name: http
+      port: 8191
       targetPort: 8191
