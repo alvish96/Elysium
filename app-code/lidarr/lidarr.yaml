@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: lidarr-config-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual-lidarr
+  local:
+    path: /mnt/internal/appdata/lidarr/config
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lidarr-config-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual-lidarr
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lidarr
+  namespace: media
+  labels:
+    app: lidarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lidarr
+  template:
+    metadata:
+      labels:
+        app: lidarr
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        nameservers:
+          - 8.8.8.8
+          - 1.1.1.1
+        options:
+          - name: ndots
+            value: "1"
+
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
+      containers:
+        - name: lidarr
+          image: lscr.io/linuxserver/lidarr:latest
+          securityContext:
+            allowPrivilegeEscalation: true
+          env:
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
+            - name: TZ
+              value: "Asia/Kolkata"
+          ports:
+            - containerPort: 8686
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: nexus-pool
+              mountPath: /data
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: lidarr-config-pvc
+        - name: nexus-pool
+          hostPath:
+            path: /mnt/nexus_pool
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lidarr-svc
+  namespace: media
+spec:
+  selector:
+    app: lidarr
+  type: NodePort
+  ports:
+    - name: http
+      port: 8686
+      targetPort: 8686
+      nodePort: 30468
