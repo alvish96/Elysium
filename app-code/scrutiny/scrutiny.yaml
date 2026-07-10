@@ -100,7 +100,6 @@ spec:
         appArmorProfile:
           type: Unconfined
 
-      # THE FIX: The InitContainer runs first to prepare the filesystem
       initContainers:
         - name: fix-permissions
           image: busybox:latest
@@ -114,6 +113,10 @@ spec:
       containers:
         - name: scrutiny
           image: ghcr.io/analogj/scrutiny:master-omnibus
+          
+          # THE FIX: Tell Kubernetes to write crash logs somewhere writable, not in the read-only /dev mount!
+          terminationMessagePath: /tmp/termination-log
+          
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
