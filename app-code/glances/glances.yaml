@@ -16,9 +16,19 @@ spec:
     spec:
       hostNetwork: true
       hostPID: true
-      
       dnsPolicy: ClusterFirstWithHostNet
       
+      # THE FIX: Explicitly exclude the Raspberry Pi
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - pi
+
       securityContext:
         seccompProfile:
           type: Unconfined
@@ -27,7 +37,6 @@ spec:
 
       containers:
         - name: glances
-          # FIXED: Versioned tag explicitly preserves multi-arch manifests
           image: nicolargo/glances:4.5.5-full
           securityContext:
             allowPrivilegeEscalation: true
