@@ -65,18 +65,22 @@ spec:
           - name: ndots
             value: "1"
 
+      # Explicitly instructs K3s to manage the filesystem as user 1000
       securityContext:
         seccompProfile:
           type: Unconfined
         appArmorProfile:
           type: Unconfined
+        fsGroup: 1000
 
       containers:
         - name: jellyseerr
-          # THE FIX: Point to the genuine official image builder
-          image: fallenbagel/jellyseerr:latest
+          # THE FIX: Pointing to the unified 3.3.0 Seerr successor branch
+          image: ghcr.io/seerr-team/seerr:latest
           securityContext:
             allowPrivilegeEscalation: true
+            runAsUser: 1000
+            runAsGroup: 1000
           env:
             - name: TZ
               value: "Asia/Kolkata"
@@ -85,7 +89,6 @@ spec:
               name: http
           volumeMounts:
             - name: config
-              # THE ADJUSTMENT: Official image paths map to /app/config
               mountPath: /app/config
       volumes:
         - name: config
