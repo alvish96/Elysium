@@ -89,23 +89,31 @@ spec:
       labels:
         app: scrutiny
     spec:
-      # Pinned to Atlantis because that is where the physical drives are attached
       nodeSelector:
         kubernetes.io/hostname: atlantis
 
       dnsPolicy: ClusterFirst
       
-      # AppArmor bypass to prevent container crash loops
       securityContext:
         seccompProfile:
           type: Unconfined
         appArmorProfile:
           type: Unconfined
 
+      # THE FIX: The InitContainer runs first to prepare the filesystem
+      initContainers:
+        - name: fix-permissions
+          image: busybox:latest
+          command: ["sh", "-c", "chmod -R 777 /opt/scrutiny/config && chmod -R 777 /opt/scrutiny/influxdb"]
+          volumeMounts:
+            - name: config
+              mountPath: /opt/scrutiny/config
+            - name: influxdb
+              mountPath: /opt/scrutiny/influxdb
+
       containers:
         - name: scrutiny
           image: ghcr.io/analogj/scrutiny:master-omnibus
-          # CRITICAL: Must be privileged to query physical hardware /dev sensors
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
