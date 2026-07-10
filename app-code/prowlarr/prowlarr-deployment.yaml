@@ -20,8 +20,9 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
 
-      # FIX: Force DNS resolution to public upstream servers
-      dnsPolicy: "None"
+      # THE FIX: "ClusterFirst" restores internal K3s routing, 
+      # while the config block keeps the external internet fallback open!
+      dnsPolicy: ClusterFirst
       dnsConfig:
         nameservers:
           - 8.8.8.8
