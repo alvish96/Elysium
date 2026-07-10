@@ -15,17 +15,52 @@ spec:
       labels:
         app: flaresolverr
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: phantom
+      # Restored from your old code: Soft affinity favoring phantom, but allowing failover!
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - phantom
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - atlantis
+                
+      # THE APPARMOR FIX: Without this, Phantom's kernel will silently crash the Chrome Browser
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+
       containers:
         - name: flaresolverr
           image: ghcr.io/flaresolverr/flaresolverr:latest
+          
+          # Restored from your old code: Prevents silent browser crashes
+          resources:
+            requests:
+              memory: "100Mi"
+            limits:
+              memory: "500Mi" # Bumped slightly to handle modern Cloudflare JS
+              
+          securityContext:
+            allowPrivilegeEscalation: true
+            
           env:
             - name: TZ
               value: "Asia/Kolkata"
-            # THE FIX: Forces FlareSolverr to use the exact same VPN IP as Prowlarr
+            # Restored from your old code: Explicit absolute K3s DNS path
             - name: PROXY
-              value: "http://qbittorrent-svc:8888"
+              value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
           ports:
             - containerPort: 8191
               name: http
@@ -38,7 +73,7 @@ metadata:
 spec:
   selector:
     app: flaresolverr
-  type: ClusterIP
+  type: ClusterIP # Kept as ClusterIP because we only want Prowlarr talking to this internally!
   ports:
     - name: http
       port: 8191
