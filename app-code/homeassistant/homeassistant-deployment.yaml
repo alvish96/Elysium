@@ -17,6 +17,10 @@ spec:
       labels:
         app: homeassistant
     spec:
+      # THE FIX: Bypasses the K3s virtual network to allow UPnP and mDNS discovery
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      
       nodeSelector:
         kubernetes.io/hostname: phantom # Offloads the compute processing to phantom
       containers:
