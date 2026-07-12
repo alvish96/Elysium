@@ -34,7 +34,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-qbittorrent
   local:
-    path: /mnt/nexus_pool/data # Unified structural anchor for atomic hardlinks
+    path: /mnt/nexus_pool/ # Unified structural anchor for atomic hardlinks
   nodeAffinity:
     required:
       nodeSelectorTerms:
