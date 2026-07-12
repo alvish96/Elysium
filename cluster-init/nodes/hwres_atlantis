@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Sat Jul 11 00:05:01 UTC 2026
+Last Updated: Sun Jul 12 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-124-generic #124-Ubuntu SMP PREEMPT_DYNAMIC Tue May 26 13:00:45 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       3.0Gi       116Mi       325Mi       787Mi       306Mi
-Swap:          3.3Gi       1.1Gi       2.2Gi
+Mem:           3.3Gi       3.1Gi       114Mi       371Mi       714Mi       192Mi
+Swap:          3.3Gi       1.4Gi       1.9Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -45,11 +45,11 @@ sr0                        1024M             rom
 
 ## Mounted Filesystems
 Filesystem                        Type           Size  Used Avail Use% Mounted on
-/dev/mapper/ubuntu--vg-ubuntu--lv ext4            98G   25G   69G  27% /
+/dev/mapper/ubuntu--vg-ubuntu--lv ext4            98G   27G   67G  29% /
 /dev/sda2                         ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                         vfat           1.1G  6.2M  1.1G   1% /boot/efi
-/dev/mapper/ubuntu--vg-internal   ext4           338G  646M  320G   1% /mnt/internal
-192.168.1.170:/mnt/phantom_share  nfs4           119G  1.5M  113G   1% /mnt/phantom_nfs
+/dev/mapper/ubuntu--vg-internal   ext4           338G  685M  320G   1% /mnt/internal
+192.168.1.170:/mnt/phantom_share  nfs4           119G  8.5M  113G   1% /mnt/phantom_nfs
 /dev/sdc                          ext4            59G   24K   58G   1% /mnt/databox_01_59G_1
 /dev/sdm                          ext4           880G   64K  862G   1% /mnt/databox_02_894G_1
 /dev/sdd                          ext4           880G   48K  862G   1% /mnt/databox_03_894G_2
