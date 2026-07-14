@@ -89,16 +89,16 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            # Hardlink configuration root mapping
-            - name: nexus-pool
+            # THE FIX: Mounts the isolated tvshows_pool directly to /data
+            - name: tvshows-pool
               mountPath: /data
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: sonarr-config-pvc
-        - name: nexus-pool
+        - name: tvshows-pool
           hostPath:
-            path: /mnt/nexus_pool
+            path: /mnt/tvshows_pool
             type: Directory
 ---
 apiVersion: v1
