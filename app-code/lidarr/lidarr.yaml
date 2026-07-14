@@ -89,15 +89,16 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: nexus-pool
+            # THE FIX: Mounts the isolated audio_pool directly to /data
+            - name: audio-pool
               mountPath: /data
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: lidarr-config-pvc
-        - name: nexus-pool
+        - name: audio-pool
           hostPath:
-            path: /mnt/nexus_pool
+            path: /mnt/audio_pool
             type: Directory
 ---
 apiVersion: v1
