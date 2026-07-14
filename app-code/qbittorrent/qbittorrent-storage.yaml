@@ -30,7 +30,7 @@ spec:
   accessModes: [ ReadWriteMany ]
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-qbittorrent
-  local: { path: /mnt/databox_06_894G_4/data/torrents } # Untagged downloads
+  local: { path: /mnt/databox_06_894G_4/data/torrents }
   nodeAffinity: { required: { nodeSelectorTerms: [ { matchExpressions: [ { key: kubernetes.io/hostname, operator: In, values: [atlantis] } ] } ] } }
 ---
 apiVersion: v1
@@ -42,7 +42,7 @@ spec:
   accessModes: [ ReadWriteMany ]
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-qbittorrent
-  local: { path: /mnt/movies_pool/data/torrents/movies } # Locked to Drives 02 & 07
+  local: { path: /mnt/movies_pool/data/torrents/movies } 
   nodeAffinity: { required: { nodeSelectorTerms: [ { matchExpressions: [ { key: kubernetes.io/hostname, operator: In, values: [atlantis] } ] } ] } }
 ---
 apiVersion: v1
@@ -54,7 +54,7 @@ spec:
   accessModes: [ ReadWriteMany ]
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-qbittorrent
-  local: { path: /mnt/tvshows_pool/data/torrents/tvshows } # Locked to Drives 03 & 08
+  local: { path: /mnt/tvshows_pool/data/torrents/tvshows } 
   nodeAffinity: { required: { nodeSelectorTerms: [ { matchExpressions: [ { key: kubernetes.io/hostname, operator: In, values: [atlantis] } ] } ] } }
 ---
 apiVersion: v1
@@ -66,7 +66,7 @@ spec:
   accessModes: [ ReadWriteMany ]
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-qbittorrent
-  local: { path: /mnt/audio_pool/data/torrents/music } # Locked to Drives 05 & 10
+  local: { path: /mnt/audio_pool/data/torrents/music } 
   nodeAffinity: { required: { nodeSelectorTerms: [ { matchExpressions: [ { key: kubernetes.io/hostname, operator: In, values: [atlantis] } ] } ] } }
 ---
 apiVersion: v1
@@ -78,10 +78,10 @@ spec:
   accessModes: [ ReadWriteMany ]
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-qbittorrent
-  local: { path: /mnt/audio_pool/data/torrents/adult } # Locked to Drives 05 & 10
+  local: { path: /mnt/audio_pool/data/torrents/adult } 
   nodeAffinity: { required: { nodeSelectorTerms: [ { matchExpressions: [ { key: kubernetes.io/hostname, operator: In, values: [atlantis] } ] } ] } }
 ---
-# === PVC CLAIMS ===
+# === HARD-LOCKED PVC CLAIMS ===
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: { name: qbittorrent-config-pvc, namespace: media }
@@ -90,24 +90,44 @@ spec: { accessModes: [ ReadWriteOnce ], storageClassName: local-storage-qbittorr
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: { name: qbit-base-pvc, namespace: media }
-spec: { accessModes: [ ReadWriteMany ], storageClassName: local-storage-qbittorrent, resources: { requests: { storage: 10Ti } } }
+spec: 
+  volumeName: qbit-base-pv  # <-- THE LOCK
+  accessModes: [ ReadWriteMany ]
+  storageClassName: local-storage-qbittorrent
+  resources: { requests: { storage: 10Ti } } 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: { name: qbit-movies-pvc, namespace: media }
-spec: { accessModes: [ ReadWriteMany ], storageClassName: local-storage-qbittorrent, resources: { requests: { storage: 10Ti } } }
+spec: 
+  volumeName: qbit-movies-pv # <-- THE LOCK
+  accessModes: [ ReadWriteMany ]
+  storageClassName: local-storage-qbittorrent
+  resources: { requests: { storage: 10Ti } } 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: { name: qbit-tvshows-pvc, namespace: media }
-spec: { accessModes: [ ReadWriteMany ], storageClassName: local-storage-qbittorrent, resources: { requests: { storage: 10Ti } } }
+spec: 
+  volumeName: qbit-tvshows-pv # <-- THE LOCK
+  accessModes: [ ReadWriteMany ]
+  storageClassName: local-storage-qbittorrent
+  resources: { requests: { storage: 10Ti } } 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: { name: qbit-music-pvc, namespace: media }
-spec: { accessModes: [ ReadWriteMany ], storageClassName: local-storage-qbittorrent, resources: { requests: { storage: 10Ti } } }
+spec: 
+  volumeName: qbit-music-pv # <-- THE LOCK
+  accessModes: [ ReadWriteMany ]
+  storageClassName: local-storage-qbittorrent
+  resources: { requests: { storage: 10Ti } } 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: { name: qbit-adult-pvc, namespace: media }
-spec: { accessModes: [ ReadWriteMany ], storageClassName: local-storage-qbittorrent, resources: { requests: { storage: 10Ti } } }
+spec: 
+  volumeName: qbit-adult-pv # <-- THE LOCK
+  accessModes: [ ReadWriteMany ]
+  storageClassName: local-storage-qbittorrent
+  resources: { requests: { storage: 10Ti } } 
