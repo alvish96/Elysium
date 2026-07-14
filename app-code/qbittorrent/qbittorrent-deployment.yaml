@@ -106,7 +106,8 @@ spec:
 
         # THE DOWNLOADER: Nested Volume Matrix
         - name: qbittorrent
-          image: linuxserver/qbittorrent:latest
+          image: lscr.io/linuxserver/qbittorrent:latest
+          imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: true
           env:
