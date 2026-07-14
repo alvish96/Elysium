@@ -89,16 +89,16 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            # Hardlink Holy Grail: Direct mount matching exactly how qBittorrent sees it
-            - name: nexus-pool
+            # THE FIX: Mounts the isolated movies_pool directly to /data
+            - name: movies-pool
               mountPath: /data
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: radarr-config-pvc
-        - name: nexus-pool
+        - name: movies-pool
           hostPath:
-            path: /mnt/nexus_pool
+            path: /mnt/movies_pool
             type: Directory
 ---
 apiVersion: v1
