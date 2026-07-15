@@ -5,70 +5,101 @@ metadata:
   namespace: media
   labels:
     app: filebrowser
+
 spec:
   replicas: 1
+
   strategy:
     type: Recreate
+
   selector:
     matchLabels:
       app: filebrowser
+
   template:
     metadata:
       labels:
         app: filebrowser
+
     spec:
       nodeSelector:
-        kubernetes.io/hostname: atlantis # STRICT PLACEMENT
-        
+        kubernetes.io/hostname: atlantis
+
       securityContext:
         runAsUser: 0
         runAsGroup: 0
-        
+
       containers:
       - name: filebrowser
-        image: filebrowser/filebrowser:latest
-        imagePullPolicy: Always
-        
-        # THE FIX: Rely entirely on native Environment Variables to configure God Mode
-        env:
-          - name: FB_ADDRESS
-            value: "0.0.0.0"
-          - name: FB_PORT
-            value: "80"
-          - name: FB_DATABASE
-            value: "/database/filebrowser.db"
-          - name: FB_AUTH_METHOD
-            value: "noauth"
-            
+        image: filebrowser/filebrowser:v2.44.0
+        imagePullPolicy: IfNotPresent
+
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+
+          mkdir -p /database
+
+          if [ ! -f /database/filebrowser.db ]; then
+            echo "Initializing File Browser database..."
+
+            filebrowser config init \
+              --database /database/filebrowser.db
+
+            filebrowser users add \
+              admin \
+              admin \
+              --perm.admin \
+              --database /database/filebrowser.db
+          fi
+
+          echo "Starting File Browser..."
+
+          exec filebrowser \
+            --database /database/filebrowser.db \
+            --root /srv \
+            --address 0.0.0.0 \
+            --port 80
+
         ports:
-        - containerPort: 80
-          name: http
+        - name: http
+          containerPort: 80
+
         volumeMounts:
         - name: storage-pool
           mountPath: /srv
+
         - name: fb-database
           mountPath: /database
-          
+
       volumes:
       - name: storage-pool
         hostPath:
-          path: /mnt 
+          path: /mnt
           type: Directory
+
       - name: fb-database
         hostPath:
           path: /mnt/internal/appdata/filebrowser
           type: DirectoryOrCreate
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: filebrowser-svc
   namespace: media
+
 spec:
   type: NodePort
+
   selector:
     app: filebrowser
+
   ports:
-  - port: 80
+  - name: http
+    port: 80
     targetPort: 80
     nodePort: 30083
