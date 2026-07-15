@@ -20,25 +20,31 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
       
-      # THE MAGIC: Binds directly to the physical 192.168.1.160 network
+      # Binds directly to the physical 192.168.1.160 network
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       
       containers:
-        # === SMB SERVER (Best for Bigscreen VR) ===
+        # === SMB SERVER ===
         - name: samba
           image: alpine:latest
-          command: ["sh", "-c"]
+          command: ["/bin/sh", "-c"]
           args:
             - |
+              echo "Installing Samba..."
               apk add --no-cache samba
+              
+              echo "Building required cache directories..."
+              mkdir -p /var/log/samba /var/run/samba /var/lib/samba/private
+              
+              echo "Injecting Configuration..."
               cat << 'CONFIG' > /etc/samba/smb.conf
               [global]
                 workgroup = WORKGROUP
                 server string = Elysium VR Server
                 server role = standalone server
                 map to guest = Bad User
-                log file = /var/log/samba/%m
+                log file = /var/log/samba/%m.log
                 max log size = 50
                 smb ports = 445 139
               [Elysium_Files]
@@ -49,30 +55,42 @@ spec:
                 browseable = yes
                 force user = root
               CONFIG
+              
+              echo "Starting NMBD Discovery..."
               nmbd -D
-              smbd --foreground --no-process-group
+              
+              echo "Starting SMBD Server..."
+              exec smbd --foreground --no-process-group
           volumeMounts:
             - name: storage-pool
               mountPath: /mnt
-              readOnly: true # Bulletproof protection against accidental deletion
+              readOnly: true
 
-        # === DLNA SERVER (Fallback/Alternative) ===
+        # === DLNA SERVER ===
         - name: dlna
           image: alpine:latest
-          command: ["sh", "-c"]
+          command: ["/bin/sh", "-c"]
           args:
             - |
+              echo "Installing MiniDLNA..."
               apk add --no-cache minidlna
+              
+              echo "Building required cache directories..."
+              mkdir -p /var/cache/minidlna /var/log/minidlna /run/minidlna
+              
+              echo "Injecting Configuration..."
               cat << 'CONFIG' > /etc/minidlna.conf
               port=8200
-              # Strictly pointing to media so it doesn't scan Kubernetes databases
               media_dir=/mnt/nexus_pool/data/media
               friendly_name=Elysium VR DLNA
               db_dir=/var/cache/minidlna
-              log_dir=/var/log
+              log_dir=/var/log/minidlna
               inotify=yes
+              user=root
               CONFIG
-              minidlnad -d
+              
+              echo "Starting MiniDLNA Server..."
+              exec minidlnad -d
           volumeMounts:
             - name: storage-pool
               mountPath: /mnt
