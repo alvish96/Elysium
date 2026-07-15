@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: elysium-primary-backup
+  namespace: kube-system
+spec:
+  # Runs at 3:00 AM every day
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          nodeSelector:
+            kubernetes.io/hostname: atlantis # Must run on atlantis to access the local SSD
+          restartPolicy: OnFailure
+          containers:
+            - name: restic
+              image: restic/restic:latest
+              env:
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-keys
+                      key: RESTIC_PASSWORD
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Starting Elysium Primary Backup..."
+                  
+                  # Backup the SQLite Databases and Configs
+                  restic -r /backups_primary/elysium_appdata backup /appdata
+                  
+                  # Deduplicate and prune old backups (Keep 7 days, 4 weeks, 6 months)
+                  restic -r /backups_primary/elysium_appdata forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+                  
+                  echo "Primary Backup completed successfully!"
+              volumeMounts:
+                - name: appdata-source
+                  mountPath: /appdata
+                  readOnly: true
+                - name: primary-target
+                  mountPath: /backups_primary
+          volumes:
+            - name: appdata-source
+              hostPath:
+                path: /mnt/internal/appdata
+                type: Directory
+            - name: primary-target
+              hostPath:
+                path: /mnt/databox_01_59G_1
+                type: Directory
