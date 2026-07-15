@@ -20,7 +20,6 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis # STRICT PLACEMENT
         
-      # FIXED: Corrected YAML indentation and set to 0 (root) so it has permission to move files across all MergerFS drives
       securityContext:
         runAsUser: 0
         runAsGroup: 0
@@ -30,13 +29,17 @@ spec:
         image: filebrowser/filebrowser:latest
         imagePullPolicy: Always
         
-        # Hardcoded command to bypass the login screen entirely
         command: ["/filebrowser"]
+        # FIXED: Corrected YAML array syntax
         args:
-          - "-a", "0.0.0.0"
-          - "-p", "80"
-          - "-d", "/database/filebrowser.db"
-          - "--auth.method", "noauth"
+          - "-a"
+          - "0.0.0.0"
+          - "-p"
+          - "80"
+          - "-d"
+          - "/database/filebrowser.db"
+          - "--auth.method"
+          - "noauth"
           
         ports:
         - containerPort: 80
@@ -50,12 +53,12 @@ spec:
       volumes:
       - name: storage-pool
         hostPath:
-          path: /mnt # Mounts ALL your pools (movies, tvshows, audio, etc.)
+          path: /mnt 
           type: Directory
       - name: fb-database
         hostPath:
           path: /mnt/internal/appdata/filebrowser
-          type: DirectoryOrCreate # Automatically creates the folder if missing
+          type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
