@@ -29,18 +29,17 @@ spec:
         image: filebrowser/filebrowser:latest
         imagePullPolicy: Always
         
-        command: ["/filebrowser"]
-        # FIXED: Corrected YAML array syntax
-        args:
-          - "-a"
-          - "0.0.0.0"
-          - "-p"
-          - "80"
-          - "-d"
-          - "/database/filebrowser.db"
-          - "--auth.method"
-          - "noauth"
-          
+        # THE FIX: Rely entirely on native Environment Variables to configure God Mode
+        env:
+          - name: FB_ADDRESS
+            value: "0.0.0.0"
+          - name: FB_PORT
+            value: "80"
+          - name: FB_DATABASE
+            value: "/database/filebrowser.db"
+          - name: FB_AUTH_METHOD
+            value: "noauth"
+            
         ports:
         - containerPort: 80
           name: http
