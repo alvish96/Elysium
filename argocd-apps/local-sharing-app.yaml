@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-sharing
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/alvish96/Elysium.git'
+    targetRevision: HEAD
+    path: app-code/local-sharing
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

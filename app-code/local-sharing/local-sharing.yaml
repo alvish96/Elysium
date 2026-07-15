@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-sharing
+  namespace: media
+  labels:
+    app: local-sharing
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: local-sharing
+  template:
+    metadata:
+      labels:
+        app: local-sharing
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      
+      # THE MAGIC: Binds directly to the physical 192.168.1.160 network
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      
+      containers:
+        # === SMB SERVER (Best for Bigscreen VR) ===
+        - name: samba
+          image: alpine:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              apk add --no-cache samba
+              cat << 'CONFIG' > /etc/samba/smb.conf
+              [global]
+                workgroup = WORKGROUP
+                server string = Elysium VR Server
+                server role = standalone server
+                map to guest = Bad User
+                log file = /var/log/samba/%m
+                max log size = 50
+                smb ports = 445 139
+              [Elysium_Files]
+                path = /mnt
+                public = yes
+                guest ok = yes
+                read only = yes
+                browseable = yes
+                force user = root
+              CONFIG
+              nmbd -D
+              smbd --foreground --no-process-group
+          volumeMounts:
+            - name: storage-pool
+              mountPath: /mnt
+              readOnly: true # Bulletproof protection against accidental deletion
+
+        # === DLNA SERVER (Fallback/Alternative) ===
+        - name: dlna
+          image: alpine:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              apk add --no-cache minidlna
+              cat << 'CONFIG' > /etc/minidlna.conf
+              port=8200
+              # Strictly pointing to media so it doesn't scan Kubernetes databases
+              media_dir=/mnt/nexus_pool/data/media
+              friendly_name=Elysium VR DLNA
+              db_dir=/var/cache/minidlna
+              log_dir=/var/log
+              inotify=yes
+              CONFIG
+              minidlnad -d
+          volumeMounts:
+            - name: storage-pool
+              mountPath: /mnt
+              readOnly: true
+              
+      volumes:
+        - name: storage-pool
+          hostPath:
+            path: /mnt
+            type: Directory
