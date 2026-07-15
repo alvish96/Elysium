@@ -28,21 +28,20 @@ spec:
     spec:
       containers:
         - name: pinger
-          image: alpine:latest
-          # The Downward API automatically tells the pod which hardware node it is sitting on
+          # Using the official curl image (no installation required)
+          image: curlimages/curl:latest
           env:
             - name: MY_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+          # We override the entrypoint to run our custom loop
           command: ["/bin/sh", "-c"]
           args:
             - |
-              apk add --no-cache curl
               echo "Started Dead Man's Snitch on node: $MY_NODE_NAME"
-              
               while true; do
-                # Look up the URL for this specific node from the ConfigMap
+                # Look up the URL
                 PING_URL=$(grep "^${MY_NODE_NAME} " /config/urls.txt | awk '{print $2}')
                 
                 if [ -n "$PING_URL" ]; then
@@ -51,8 +50,6 @@ spec:
                 else
                   echo "No URL configured for $MY_NODE_NAME, skipping..."
                 fi
-                
-                # Ping every 60 seconds (Ensure your Healthchecks.io grace period is set to ~5 mins)
                 sleep 60
               done
           volumeMounts:
