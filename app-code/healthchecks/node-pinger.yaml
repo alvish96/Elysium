@@ -26,29 +26,32 @@ spec:
       labels:
         app: node-pinger
     spec:
+      # === THE BULLETPROOF FIX ===
+      # Ignore the host's 127.0.0.53 loopback and use raw public internet DNS
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+          
       containers:
         - name: pinger
-          # Using the official curl image (no installation required)
           image: curlimages/curl:latest
           env:
             - name: MY_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-          # We override the entrypoint to run our custom loop
           command: ["/bin/sh", "-c"]
           args:
             - |
               echo "Started Dead Man's Snitch on node: $MY_NODE_NAME"
               while true; do
-                # Look up the URL
                 PING_URL=$(grep "^${MY_NODE_NAME} " /config/urls.txt | awk '{print $2}')
-                
                 if [ -n "$PING_URL" ]; then
+                  # We put > /dev/null back in so it doesn't spam your logs with HTML
                   curl -s -m 10 --retry 3 "$PING_URL" > /dev/null
                   echo "Pinged Healthchecks.io for $MY_NODE_NAME"
-                else
-                  echo "No URL configured for $MY_NODE_NAME, skipping..."
                 fi
                 sleep 60
               done
