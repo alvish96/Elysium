@@ -57,7 +57,7 @@ spec:
         kubernetes.io/hostname: olympus # STRICTLY PINNED TO THE BATTERY-BACKED NODE
       containers:
         - name: uptimekuma
-          image: louislam/uptime-kuma:latest
+          image: louislam/uptime-kuma:2.4.0
           imagePullPolicy: Always
           ports:
             - containerPort: 3001
