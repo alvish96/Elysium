@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: uptimekuma
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/alvish96/Elysium.git'
+    targetRevision: HEAD
+    path: app-code/uptimekuma
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring # We will put this in a dedicated monitoring namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
