@@ -11,7 +11,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-filebrowser
   local:
-    path: /mnt/internal/appdata/filebrowser/config
+    path: /mnt/internal/appdata/filebrowser
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -56,12 +56,33 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
 
+      # === THE FIX: Force DB Initialization ===
+      initContainers:
+        - name: init-db
+          image: filebrowser/filebrowser:latest
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Checking for database..."
+              if [ ! -f /database/filebrowser.db ]; then
+                echo "Creating new database and injecting admin user..."
+                /filebrowser config init -d /database/filebrowser.db
+                /filebrowser config set --auth.method=json -d /database/filebrowser.db
+                /filebrowser users add admin admin --perm.admin -d /database/filebrowser.db
+                echo "Database created successfully."
+              else
+                echo "Database already exists."
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /database
+
       containers:
         - name: filebrowser
           image: filebrowser/filebrowser:latest
           imagePullPolicy: Always
           securityContext:
-            runAsUser: 0   # God Mode: Runs as root to allow moving files between drives
+            runAsUser: 0   
             runAsGroup: 0
           ports:
             - containerPort: 80
@@ -69,7 +90,6 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /database
-            # God Mode Mount: Mounts all of Atlantis's storage arrays
             - name: root-mnt
               mountPath: /srv
           env:
