@@ -22,7 +22,13 @@ spec:
       
       # Binds directly to the physical 192.168.1.160 network
       hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
+      
+      # === THE FIX: Bypass Kubernetes DNS and force public resolvers ===
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
       
       containers:
         # === SMB SERVER ===
@@ -35,7 +41,7 @@ spec:
               apk add --no-cache samba
               
               echo "Building required cache directories..."
-              mkdir -p /var/log/samba /var/run/samba /var/lib/samba/private
+              mkdir -p /var/log/samba /var/run/samba /var/lib/samba/private /etc/samba
               
               echo "Injecting Configuration..."
               cat << 'CONFIG' > /etc/samba/smb.conf
@@ -76,7 +82,7 @@ spec:
               apk add --no-cache minidlna
               
               echo "Building required cache directories..."
-              mkdir -p /var/cache/minidlna /var/log/minidlna /run/minidlna
+              mkdir -p /var/cache/minidlna /var/log/minidlna /run/minidlna /etc
               
               echo "Injecting Configuration..."
               cat << 'CONFIG' > /etc/minidlna.conf
