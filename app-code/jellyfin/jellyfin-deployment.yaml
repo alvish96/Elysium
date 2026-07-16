@@ -1,3 +1,11 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority-media
+value: 1000000
+globalDefault: false
+description: "VIP priority class to guarantee seamless media streaming and eliminate playback stutter."
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +27,9 @@ spec:
       annotations:
         container.apparmor.security.beta.kubernetes.io/jellyfin: unconfined
     spec:
+      # === VIP SCHEDULING PRIORITY ===
+      priorityClassName: high-priority-media
+      
       nodeSelector:
         kubernetes.io/hostname: atlantis
       securityContext:
@@ -27,16 +38,25 @@ spec:
       containers:
         - name: jellyfin
           image: jellyfin/jellyfin:latest
-          
           securityContext:
             allowPrivilegeEscalation: true
-            privileged: true # Added to allow direct AMD GPU hardware access
+            privileged: true
           env:
             - name: JELLYFIN_LOG_DIR
               value: "/config/log"
           ports:
             - containerPort: 8096
               name: http
+              
+          # === DEDICATED RESOURCE ALLOCATION ===
+          resources:
+            requests:
+              cpu: "500m"       # Reserves half a core minimum purely for Jellyfin
+              memory: "800Mi"   # Guarantees a safe RAM cache floor
+            limits:
+              cpu: "2500m"      # Allows Jellyfin to burst across 2.5 cores if needed
+              memory: "1500Mi"  # Hard cap ceiling to protect the node from crashing
+              
           volumeMounts:
             - name: config-volume
               mountPath: /config
@@ -44,10 +64,8 @@ spec:
               mountPath: /data/nexus_pool
             - name: phantom-volume
               mountPath: /data/phantom_nfs
-            # === MOUNT THE GPU INTO THE POD ===
             - name: render-dev
               mountPath: /dev/dri
-              
       volumes:
         - name: config-volume
           persistentVolumeClaim:
@@ -58,7 +76,6 @@ spec:
         - name: phantom-volume
           persistentVolumeClaim:
             claimName: jellyfin-phantom-pvc
-        # === GRAB THE PHYSICAL GPU FROM THE HOST ===
         - name: render-dev
           hostPath:
             path: /dev/dri
