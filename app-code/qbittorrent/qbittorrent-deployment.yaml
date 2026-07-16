@@ -41,22 +41,28 @@ spec:
           command: ['sh', '-c']
           args:
             - |
-              echo "Injecting Skeleton Keys..."
               mkdir -p /config/qBittorrent
               FILE=/config/qBittorrent/qBittorrent.conf
-              echo "[Preferences]" > $FILE
-              echo "WebUI\HostHeaderValidation=false" >> $FILE
-              echo "WebUI\CSRFProtection=false" >> $FILE
-              echo "WebUI\AuthSubnetWhitelist=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16" >> $FILE
-              echo "WebUI\AuthSubnetWhitelistEnabled=true" >> $FILE
-              echo "WebUI\ReverseProxySupportEnabled=true" >> $FILE
-              echo "Skeleton Key Injection Complete."
+              
+              # === THE FIX: Only inject if the file does NOT exist ===
+              if [ ! -f "$FILE" ]; then
+                echo "First boot detected. Injecting Skeleton Keys..."
+                echo "[Preferences]" > $FILE
+                echo "WebUI\HostHeaderValidation=false" >> $FILE
+                echo "WebUI\CSRFProtection=false" >> $FILE
+                echo "WebUI\AuthSubnetWhitelist=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16" >> $FILE
+                echo "WebUI\AuthSubnetWhitelistEnabled=true" >> $FILE
+                echo "WebUI\ReverseProxySupportEnabled=true" >> $FILE
+                echo "Skeleton Key Injection Complete."
+              else
+                echo "Configuration already exists. Preserving custom user settings."
+              fi
           volumeMounts:
             - name: config-volume
               mountPath: /config
 
       containers:
-        # THE SIDECAR: VPN Proxy Engine (No storage changes needed here)
+        # THE SIDECAR: VPN Proxy Engine
         - name: gluetun
           image: qmcgaw/gluetun:latest
           securityContext:
@@ -104,7 +110,7 @@ spec:
             - containerPort: 8888
               name: http-proxy
 
-        # THE DOWNLOADER: Nested Volume Matrix
+        # THE DOWNLOADER
         - name: qbittorrent
           image: lscr.io/linuxserver/qbittorrent:latest
           imagePullPolicy: Always
@@ -131,7 +137,6 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /config
-            # === THE NESTED MOUNT MAGIC ===
             - name: base-volume
               mountPath: /data/data/torrents
             - name: movies-volume
