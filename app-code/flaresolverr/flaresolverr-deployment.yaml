@@ -7,6 +7,8 @@ metadata:
     app: flaresolverr
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: flaresolverr
@@ -15,9 +17,19 @@ spec:
       labels:
         app: flaresolverr
     spec:
-      # Restored from your old code: Soft affinity favoring phantom, but allowing failover!
+      # === STRICT FAILOVER LOGIC ===
       affinity:
         nodeAffinity:
+          # Rule 1: It MUST run on either Phantom or Atlantis (Locks out Olympus/Pi)
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - phantom
+                - atlantis
+          # Rule 2: If both are online, Phantom gets 100% priority
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
             preference:
@@ -26,15 +38,8 @@ spec:
                 operator: In
                 values:
                 - phantom
-          - weight: 50
-            preference:
-              matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - atlantis
-                
-      # THE APPARMOR FIX: Without this, Phantom's kernel will silently crash the Chrome Browser
+
+      # Prevents Chrome from crashing at the kernel level
       securityContext:
         seccompProfile:
           type: Unconfined
@@ -45,12 +50,12 @@ spec:
         - name: flaresolverr
           image: ghcr.io/flaresolverr/flaresolverr:latest
           
-          # Restored from your old code: Prevents silent browser crashes
+          # Fix: High memory limit to process Cloudflare Javascript
           resources:
             requests:
-              memory: "100Mi"
+              memory: "250Mi"
             limits:
-              memory: "500Mi" # Bumped slightly to handle modern Cloudflare JS
+              memory: "1Gi" 
               
           securityContext:
             allowPrivilegeEscalation: true
@@ -58,9 +63,9 @@ spec:
           env:
             - name: TZ
               value: "Asia/Kolkata"
-            # Restored from your old code: Explicit absolute K3s DNS path
-            - name: PROXY
-              value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
+            # Fix: Proxy removed to use clean residential IP
+            - name: LOG_LEVEL
+              value: "info"
           ports:
             - containerPort: 8191
               name: http
@@ -73,7 +78,7 @@ metadata:
 spec:
   selector:
     app: flaresolverr
-  type: ClusterIP # Kept as ClusterIP because we only want Prowlarr talking to this internally!
+  type: ClusterIP
   ports:
     - name: http
       port: 8191
