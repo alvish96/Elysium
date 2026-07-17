@@ -15,7 +15,17 @@ spec:
       labels:
         app: trawl
     spec:
-      # === PHANTOM-TO-ATLANTIS FAILOVER ===
+      # === FIX: Explicitly route browser requests past ISP DNS blocks ===
+      dnsPolicy: ClusterFirstWithHostNet
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+        options:
+          - name: ndots
+            value: "1"
+
+      # === STRICT PHANTOM-TO-ATLANTIS FAILOVER ===
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -55,7 +65,6 @@ spec:
 
         # === CONTAINER 2: Stealthy TRAWL Scraper (Baseline) ===
         - name: trawl
-          # === THE FIX: Switched from :latest to :baseline for legacy CPU compatibility ===
           image: ghcr.io/germondai/trawl:baseline
           resources:
             requests:
