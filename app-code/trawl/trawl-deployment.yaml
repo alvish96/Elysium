@@ -1,20 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flaresolverr
+  name: trawl
   namespace: media
   labels:
-    app: flaresolverr
+    app: trawl
 spec:
   replicas: 1
-  # Strategy block removed completely to fix the live cluster validation conflict
   selector:
     matchLabels:
-      app: flaresolverr
+      app: trawl
   template:
     metadata:
       labels:
-        app: flaresolverr
+        app: trawl
     spec:
       # === STRICT PHANTOM-TO-ATLANTIS FAILOVER ===
       affinity:
@@ -43,23 +42,35 @@ spec:
           type: Unconfined
 
       containers:
-        - name: flaresolverr
-          image: ghcr.io/flaresolverr/flaresolverr:latest
-          
+        # === CONTAINER 1: The Redis Memory Cache ===
+        - name: redis
+          image: redis:alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: "64Mi"
+            limits:
+              memory: "256Mi"
+
+        # === CONTAINER 2: The TRAWL Camoufox Engine ===
+        - name: trawl
+          image: germondai/trawl:latest
           resources:
             requests:
               memory: "250Mi"
             limits:
-              memory: "1Gi" # Keeps Chrome stable under heavy Cloudflare challenges
-              
+              memory: "1Gi"
           securityContext:
             allowPrivilegeEscalation: true
-            
           env:
             - name: TZ
               value: "Asia/Kolkata"
-            - name: LOG_LEVEL
-              value: "info"
+            # Link TRAWL directly to the adjacent Redis container via localhost
+            - name: REDIS_URL
+              value: "redis://localhost:6379"
+            - name: PORT_API
+              value: "8191"
           ports:
             - containerPort: 8191
               name: http
@@ -67,11 +78,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: flaresolverr-svc
+  name: trawl-svc
   namespace: media
 spec:
   selector:
-    app: flaresolverr
+    app: trawl
   type: ClusterIP
   ports:
     - name: http
