@@ -15,6 +15,7 @@ spec:
       labels:
         app: trawl
     spec:
+      # === STRICT PHANTOM-TO-ATLANTIS FAILOVER ===
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -41,26 +42,25 @@ spec:
           type: Unconfined
 
       containers:
-        # === CONTAINER 1: The Redis Memory Cache ===
+        # === CONTAINER 1: Lean Redis Cookie Cache ===
         - name: redis
           image: redis:alpine
           ports:
             - containerPort: 6379
           resources:
             requests:
-              memory: "64Mi"
+              memory: "16Mi"
             limits:
-              memory: "256Mi"
+              memory: "64Mi" # Heavily throttled to protect Atlantis
 
-        # === CONTAINER 2: The TRAWL Camoufox Engine ===
+        # === CONTAINER 2: Stealthy TRAWL Scraper ===
         - name: trawl
-          # === THE FIX: Added ghcr.io/ prefix ===
           image: ghcr.io/germondai/trawl:latest
           resources:
             requests:
-              memory: "250Mi"
+              memory: "150Mi"
             limits:
-              memory: "1Gi"
+              memory: "512Mi" # Reduced by half to ensure zero host stress
           securityContext:
             allowPrivilegeEscalation: true
           env:
@@ -73,6 +73,14 @@ spec:
           ports:
             - containerPort: 8191
               name: http
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi # Scaled down safely for text scraping
 ---
 apiVersion: v1
 kind: Service
