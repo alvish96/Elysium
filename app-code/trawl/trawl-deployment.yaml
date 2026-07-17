@@ -15,7 +15,6 @@ spec:
       labels:
         app: trawl
     spec:
-      # === STRICT PHANTOM-TO-ATLANTIS FAILOVER ===
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -55,7 +54,8 @@ spec:
 
         # === CONTAINER 2: The TRAWL Camoufox Engine ===
         - name: trawl
-          image: germondai/trawl:latest
+          # === THE FIX: Added ghcr.io/ prefix ===
+          image: ghcr.io/germondai/trawl:latest
           resources:
             requests:
               memory: "250Mi"
@@ -66,7 +66,6 @@ spec:
           env:
             - name: TZ
               value: "Asia/Kolkata"
-            # Link TRAWL directly to the adjacent Redis container via localhost
             - name: REDIS_URL
               value: "redis://localhost:6379"
             - name: PORT_API
