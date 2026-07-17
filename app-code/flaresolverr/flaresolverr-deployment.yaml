@@ -7,8 +7,7 @@ metadata:
     app: flaresolverr
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
+  # Strategy block removed completely to fix the live cluster validation conflict
   selector:
     matchLabels:
       app: flaresolverr
@@ -17,10 +16,9 @@ spec:
       labels:
         app: flaresolverr
     spec:
-      # === STRICT FAILOVER LOGIC ===
+      # === STRICT PHANTOM-TO-ATLANTIS FAILOVER ===
       affinity:
         nodeAffinity:
-          # Rule 1: It MUST run on either Phantom or Atlantis (Locks out Olympus/Pi)
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
@@ -29,7 +27,6 @@ spec:
                 values:
                 - phantom
                 - atlantis
-          # Rule 2: If both are online, Phantom gets 100% priority
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
             preference:
@@ -38,8 +35,7 @@ spec:
                 operator: In
                 values:
                 - phantom
-
-      # Prevents Chrome from crashing at the kernel level
+                
       securityContext:
         seccompProfile:
           type: Unconfined
@@ -50,12 +46,11 @@ spec:
         - name: flaresolverr
           image: ghcr.io/flaresolverr/flaresolverr:latest
           
-          # Fix: High memory limit to process Cloudflare Javascript
           resources:
             requests:
               memory: "250Mi"
             limits:
-              memory: "1Gi" 
+              memory: "1Gi" # Keeps Chrome stable under heavy Cloudflare challenges
               
           securityContext:
             allowPrivilegeEscalation: true
@@ -63,7 +58,6 @@ spec:
           env:
             - name: TZ
               value: "Asia/Kolkata"
-            # Fix: Proxy removed to use clean residential IP
             - name: LOG_LEVEL
               value: "info"
           ports:
