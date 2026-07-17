@@ -15,7 +15,7 @@ spec:
       labels:
         app: trawl
     spec:
-      # === STRICT PHANTOM-TO-ATLANTIS FAILOVER ===
+      # === PHANTOM-TO-ATLANTIS FAILOVER ===
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -51,16 +51,17 @@ spec:
             requests:
               memory: "16Mi"
             limits:
-              memory: "64Mi" # Heavily throttled to protect Atlantis
+              memory: "64Mi"
 
-        # === CONTAINER 2: Stealthy TRAWL Scraper ===
+        # === CONTAINER 2: Stealthy TRAWL Scraper (Baseline) ===
         - name: trawl
-          image: ghcr.io/germondai/trawl:latest
+          # === THE FIX: Switched from :latest to :baseline for legacy CPU compatibility ===
+          image: ghcr.io/germondai/trawl:baseline
           resources:
             requests:
               memory: "150Mi"
             limits:
-              memory: "512Mi" # Reduced by half to ensure zero host stress
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: true
           env:
@@ -80,7 +81,7 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 256Mi # Scaled down safely for text scraping
+            sizeLimit: 256Mi
 ---
 apiVersion: v1
 kind: Service
