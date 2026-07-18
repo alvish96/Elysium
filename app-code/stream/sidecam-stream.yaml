@@ -30,7 +30,6 @@ spec:
               memory: "512Mi"
               cpu: "2500m"
           env:
-            # Injecting the explicit stream key for sidecam_fish_cam3
             - name: YOUTUBE_KEY
               value: "46ju-wcg6-jdc7-bbkm-f9ac"
           securityContext:
@@ -49,7 +48,6 @@ spec:
                 echo "Scanning kernel space for USB2.0 PC CAMERA node..."
                 SIDECAM_DEV=""
                 
-                # Dynamic discovery targeted strictly at the new PC Camera name descriptor
                 for syspath in /sys/class/video4linux/video*; do
                   if cat "$syspath/name" 2>/dev/null | grep -q -i "PC CAMERA"; then
                     SIDECAM_DEV="/dev/$(basename "$syspath")"
@@ -77,13 +75,14 @@ spec:
                 echo "Connection dropped or camera link severed. Re-scanning system bus in 5 seconds..."
                 sleep 5;
               done
-          volumes:
-            - name: host-dev
-              hostPath:
-                path: /dev
-            - name: host-sys
-              hostPath:
-                path: /sys
-            - name: temp-volume
-              persistentVolumeClaim:
-                claimName: youtube-stream-local-pvc
+      # === FIX: Aligned volumes block cleanly out of container array ===
+      volumes:
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: temp-volume
+          persistentVolumeClaim:
+            claimName: youtube-stream-local-pvc
