@@ -64,9 +64,10 @@ spec:
                 echo "Success! Target camera mapped on active node: $SIDECAM_DEV"
                 echo "Launching Jitter-Free 30fps Ingestion Engine..."
                 
-                # Fixed parameters: Dropped MJPEG requirement, changed capture to native 640x480, upscaling via -vf filter
+                # Slashed wire transmission to 15fps to slip past USB bus saturation limits
+                # Inside filter map (scale=1280:720,fps=fps=30) duplicates frames to secure YouTube stream health
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
-                -thread_queue_size 1024 -f v4l2 -video_size 640x480 -framerate 30 -i "$SIDECAM_DEV" \
+                -thread_queue_size 1024 -f v4l2 -video_size 640x480 -framerate 15 -i "$SIDECAM_DEV" \
                 -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k \
                 -vf "scale=1280:720,fps=fps=30,format=yuv420p" -g 60 \
