@@ -37,21 +37,21 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: youtube-streamer
+  name: youtube-streamer-tandberg
   namespace: media
   labels:
-    app: youtube-streamer
+    app: youtube-streamer-tandberg
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: youtube-streamer
+      app: youtube-streamer-tandberg
   template:
     metadata:
       labels:
-        app: youtube-streamer
+        app: youtube-streamer-tandberg
     spec:
       nodeSelector:
         kubernetes.io/hostname: phantom
@@ -67,10 +67,7 @@ spec:
               cpu: "2500m"
           env:
             - name: YOUTUBE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: youtube-stream-key
-                  key: KEY
+              value: "j2uw-dy52-xskt-fqzs-c7ys"
           securityContext:
             privileged: true
           volumeMounts:
@@ -103,9 +100,6 @@ spec:
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
                 echo "Launching Jitter-Free 30fps Ingestion Engine..."
                 
-                # Fixed Engine Parameters:
-                # -thread_queue_size 1024 prevents the container kernel line from dropping hardware frames
-                # -vf "fps=fps=30,format=yuv420p" forces perfect monotonic timestamps for YouTube ingestion compliance
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
                 -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
                 -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
