@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-streamer-sidecam
+  namespace: media
+  labels:
+    app: youtube-streamer-sidecam
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: youtube-streamer-sidecam
+  template:
+    metadata:
+      labels:
+        app: youtube-streamer-sidecam
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom
+      containers:
+        - name: ffmpeg
+          image: linuxserver/ffmpeg:latest
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "2500m"
+          env:
+            # Injecting the explicit stream key for sidecam_fish_cam3
+            - name: YOUTUBE_KEY
+              value: "46ju-wcg6-jdc7-bbkm-f9ac"
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /dev
+              name: host-dev
+            - mountPath: /sys
+              name: host-sys
+            - mountPath: /tmp/stream-run
+              name: temp-volume
+          command: ["sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "Scanning kernel space for USB2.0 PC CAMERA node..."
+                SIDECAM_DEV=""
+                
+                # Dynamic discovery targeted strictly at the new PC Camera name descriptor
+                for syspath in /sys/class/video4linux/video*; do
+                  if cat "$syspath/name" 2>/dev/null | grep -q -i "PC CAMERA"; then
+                    SIDECAM_DEV="/dev/$(basename "$syspath")"
+                    break
+                  fi
+                done
+                
+                if [ -z "$SIDECAM_DEV" ]; then
+                  echo "CRITICAL: USB2.0 PC CAMERA not found on the USB bus! Retrying in 5 seconds..."
+                  sleep 5
+                  continue
+                fi
+                
+                echo "Success! Target camera mapped on active node: $SIDECAM_DEV"
+                echo "Launching Jitter-Free 30fps Ingestion Engine..."
+                
+                ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
+                -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$SIDECAM_DEV" \
+                -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+                -c:v libx264 -preset ultrafast -b:v 4000k -maxrate 4000k -bufsize 8000k \
+                -vf "fps=fps=30,format=yuv420p" -g 60 \
+                -c:a aac -b:a 128k \
+                -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
+                
+                echo "Connection dropped or camera link severed. Re-scanning system bus in 5 seconds..."
+                sleep 5;
+              done
+          volumes:
+            - name: host-dev
+              hostPath:
+                path: /dev
+            - name: host-sys
+              hostPath:
+                path: /sys
+            - name: temp-volume
+              persistentVolumeClaim:
+                claimName: youtube-stream-local-pvc
