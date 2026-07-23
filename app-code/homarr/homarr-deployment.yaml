@@ -17,35 +17,52 @@ spec:
       labels:
         app: homarr
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: phantom
+      # === FAILOVER SCHEDULING: PREFER PHANTOM, FALLBACK TO ATLANTIS ===
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+                      - atlantis
       containers:
         - name: homarr
-          image: ghcr.io/ajnart/homarr:latest
+          image: ghcr.io/homarr-labs/homarr:latest
           ports:
             - containerPort: 7575
               name: http
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "256Mi"
+              cpu: "200m"
             limits:
-              memory: "512Mi"
-              cpu: "1000m"
+              memory: "1024Mi"
+              cpu: "1500m"
           env:
             - name: TZ
               value: "Asia/Kolkata"
+            - name: SECRET_ENCRYPTION_KEY
+              value: "a031a6649d8204b80d5271b46906ce72a2d1e0821d5b0859ad873cee2264346f"
+            - name: AUTH_PROVIDERS
+              value: "credentials"
           volumeMounts:
             - name: homarr-data
-              mountPath: /app/data/configs
-            - name: homarr-icons
-              mountPath: /app/public/icons
+              mountPath: /appdata
       volumes:
         - name: homarr-data
           persistentVolumeClaim:
-            claimName: homarr-local-pvc
-        - name: homarr-icons
-          emptyDir: {}
+            claimName: homarr-nfs-pvc
 ---
 apiVersion: v1
 kind: Service

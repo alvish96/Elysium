@@ -1,35 +1,28 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: homarr-local-pv
+  name: homarr-nfs-pv
 spec:
   capacity:
     storage: 5Gi
   volumeMode: Filesystem
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage-ssd
-  local:
-    path: /mnt/phantom_share/appdata/homarr
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - phantom
+  storageClassName: nfs-storage
+  nfs:
+    server: 192.168.1.160 # Atlantis Control Plane IP
+    path: /mnt/internal/appdata/homarr_v1
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: homarr-local-pvc
+  name: homarr-nfs-pvc
   namespace: media
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: local-storage-ssd
+    - ReadWriteMany
+  storageClassName: nfs-storage
   resources:
     requests:
       storage: 5Gi
