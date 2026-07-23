@@ -56,6 +56,9 @@ spec:
               value: "http"
             - name: NODE_ENV
               value: "production"
+            # === CRITICAL FIX: Allow HTTP cookies over LAN ===
+            - name: N8N_SECURE_COOKIE
+              value: "false"
             - name: WEBHOOK_URL
               value: "http://192.168.1.160:30567/"
             - name: GENERIC_TIMEZONE
