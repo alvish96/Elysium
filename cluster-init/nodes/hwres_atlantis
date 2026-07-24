@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Thu Jul 23 00:05:01 UTC 2026
+Last Updated: Fri Jul 24 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-136-generic #136-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul  1 21:53:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       3.0Gi       123Mi       346Mi       758Mi       266Mi
-Swap:          3.3Gi       857Mi       2.5Gi
+Mem:           3.3Gi       3.0Gi        95Mi       384Mi       842Mi       278Mi
+Swap:          3.3Gi       1.1Gi       2.2Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -26,44 +26,45 @@ sda                       447.1G             disk
   ├─ubuntu--vg-ubuntu--lv   100G ext4        lvm  /
   └─ubuntu--vg-internal   344.1G ext4        lvm  /mnt/internal
 sdb                        59.5G ext4        disk /mnt/databox_01_59G_1
-sdc                       894.3G ext4        disk /mnt/databox_02_894G_1
-sdd                       894.3G ext4        disk /mnt/databox_03_894G_2
-sde                       465.8G ext4        disk /mnt/databox_04_465G_1
-sdf                       931.5G ext4        disk /mnt/databox_10_931G_1
-sdg                       894.3G ext4        disk /mnt/databox_05_894G_3
-sdh                       894.3G ext4        disk /mnt/databox_07_894G_5
-sdi                       894.3G ext4        disk /mnt/databox_06_894G_4
-sdj                       894.3G ext4        disk /mnt/databox_08_894G_6
-sdk                       223.6G ext4        disk /mnt/databox_09_223G_1
-sdl                       223.6G ext4        disk /mnt/databox_11_223G_2
-sdm                       894.3G ext4        disk /mnt/databox_12_894G_7
-sdn                       894.3G ext4        disk /mnt/databox_13_894G_8
-sdo                       223.6G ext4        disk /mnt/databox_14_223G_3
+sdp                       223.6G ext4        disk /mnt/databox_11_223G_2
 sr0                        1024M             rom  
+sdq                       894.3G ext4        disk /mnt/databox_03_894G_2
+sdr                       894.3G ext4        disk /mnt/databox_05_894G_3
+sds                       931.5G ext4        disk /mnt/databox_10_931G_1
+sdt                       894.3G ext4        disk /mnt/databox_08_894G_6
+sdu                       223.6G ext4        disk /mnt/databox_09_223G_1
+sdv                       223.6G ext4        disk /mnt/databox_14_223G_3
+sdw                       894.3G ext4        disk /mnt/databox_12_894G_7
+sdx                       894.3G ext4        disk /mnt/databox_06_894G_4
+sdy                       465.8G ext4        disk /mnt/databox_04_465G_1
+sdz                       894.3G ext4        disk /mnt/databox_07_894G_5
+sdaa                      894.3G ext4        disk /mnt/databox_13_894G_8
+sdab                      894.3G ext4        disk /mnt/databox_02_894G_1
 
 ## Mounted Filesystems
 Filesystem                        Type           Size  Used Avail Use% Mounted on
 efivarfs                          efivarfs        84K   51K   29K  64% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv ext4            98G   61G   33G  65% /
+/dev/mapper/ubuntu--vg-ubuntu--lv ext4            98G   68G   26G  73% /
 audio_pool                        fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audio_pool
 movies_pool                       fuse.mergerfs  1.8T   36G  1.7T   3% /mnt/movies_pool
-nexus_pool                        fuse.mergerfs  9.4T  432G  8.8T   5% /mnt/nexus_pool
+nexus_pool                        fuse.mergerfs  9.4T  439G  8.8T   5% /mnt/nexus_pool
 tvshows_pool                      fuse.mergerfs  1.8T   18G  1.7T   1% /mnt/tvshows_pool
-/dev/mapper/ubuntu--vg-internal   ext4           338G  811M  320G   1% /mnt/internal
-/dev/sdb                          ext4            59G  8.1G   49G  15% /mnt/databox_01_59G_1
-/dev/sdd                          ext4           880G   18G  845G   2% /mnt/databox_03_894G_2
-/dev/sdi                          ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
-/dev/sdc                          ext4           880G   36G  826G   5% /mnt/databox_02_894G_1
-/dev/sdk                          ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
-/dev/sdn                          ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
+/dev/mapper/ubuntu--vg-internal   ext4           338G  900M  320G   1% /mnt/internal
+/dev/sdb                          ext4            59G  8.2G   49G  15% /mnt/databox_01_59G_1
 /dev/sda2                         ext4           2.0G  201M  1.6G  11% /boot
-/dev/sdg                          ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
-/dev/sdh                          ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
-/dev/sdj                          ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
-/dev/sdl                          ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
-/dev/sde                          ext4           458G   28K  449G   1% /mnt/databox_04_465G_1
-/dev/sdo                          ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
-/dev/sdf                          ext4           916G   28K  898G   1% /mnt/databox_10_931G_1
-/dev/sdm                          ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sda1                         vfat           1.1G  6.2M  1.1G   1% /boot/efi
 192.168.1.170:/mnt/phantom_share  nfs4           119G   24M  112G   1% /mnt/phantom_nfs
+/dev/sdi                          ext4           880G   52K  862G   1% /var/lib/kubelet/pods/d79c4cbb-1ee0-4314-868e-5d28f6df4e22/volumes/kubernetes.io~local-volume/qbit-base-pv
+/dev/sdab                         ext4           880G   36G  826G   5% /mnt/databox_02_894G_1
+/dev/sdq                          ext4           880G   18G  845G   2% /mnt/databox_03_894G_2
+/dev/sdy                          ext4           458G   28K  449G   1% /mnt/databox_04_465G_1
+/dev/sdr                          ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
+/dev/sdx                          ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
+/dev/sdz                          ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/sdt                          ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
+/dev/sdu                          ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
+/dev/sds                          ext4           916G   28K  898G   1% /mnt/databox_10_931G_1
+/dev/sdp                          ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
+/dev/sdw                          ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
+/dev/sdaa                         ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
+/dev/sdv                          ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
