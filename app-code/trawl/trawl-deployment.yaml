@@ -15,79 +15,34 @@ spec:
       labels:
         app: trawl
     spec:
-      # === THE BULLETPROOF DNS FIX: Completely decouple from ISP & Cluster DNS ===
-      dnsPolicy: None
-      dnsConfig:
-        nameservers:
-          - 1.1.1.1
-          - 8.8.8.8
-
-      # === PHANTOM-TO-ATLANTIS FAILOVER ===
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - phantom
-                - atlantis
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            preference:
-              matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - phantom
-                
-      securityContext:
-        seccompProfile:
-          type: Unconfined
-        appArmorProfile:
-          type: Unconfined
-
+      nodeSelector:
+        kubernetes.io/hostname: avalon
       containers:
-        # === CONTAINER 1: Lean Redis Cookie Cache ===
-        - name: redis
-          image: redis:alpine
-          ports:
-            - containerPort: 6379
-          resources:
-            requests:
-              memory: "16Mi"
-            limits:
-              memory: "64Mi"
-
-        # === CONTAINER 2: Stealthy TRAWL Scraper (Baseline) ===
         - name: trawl
-          image: ghcr.io/germondai/trawl:baseline
-          resources:
-            requests:
-              memory: "150Mi"
-            limits:
-              memory: "512Mi"
-          securityContext:
-            allowPrivilegeEscalation: true
+          image: ghcr.io/joshua-s/trawl:latest
+          imagePullPolicy: IfNotPresent
           env:
-            - name: TZ
-              value: "Asia/Kolkata"
-            - name: REDIS_URL
-              value: "redis://localhost:6379"
-            - name: PORT_API
-              value: "8191"
+            - name: PORT
+              value: "8080"
+            - name: LOG_LEVEL
+              value: "info"
           ports:
-            - containerPort: 8191
+            - containerPort: 8080
               name: http
           volumeMounts:
-            - name: dshm
-              mountPath: /dev/shm
+            - name: trawl-data
+              mountPath: /data
+          resources:
+            limits:
+              cpu: "2"
+              memory: 1536Mi
+            requests:
+              cpu: 200m
+              memory: 256Mi
       volumes:
-        - name: dshm
-          emptyDir:
-            medium: Memory
-            sizeLimit: 256Mi
+        - name: trawl-data
+          persistentVolumeClaim:
+            claimName: trawl-config-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -95,10 +50,10 @@ metadata:
   name: trawl-svc
   namespace: media
 spec:
+  type: ClusterIP
   selector:
     app: trawl
-  type: ClusterIP
   ports:
     - name: http
-      port: 8191
-      targetPort: 8191
+      port: 8080
+      targetPort: 8080
