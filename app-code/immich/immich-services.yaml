@@ -57,7 +57,7 @@ spec:
         kubernetes.io/hostname: avalon
       containers:
         - name: postgres
-          image: tensorchord/pgvecto-rs:pg14-v0.2.0
+          image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
           env:
             - name: POSTGRES_USER
               value: "immich"
@@ -65,6 +65,8 @@ spec:
               value: "immich_db_pass_2026"
             - name: POSTGRES_DB
               value: "immich"
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
           ports:
             - containerPort: 5432
               name: postgres
