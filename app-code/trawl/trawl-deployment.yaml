@@ -29,6 +29,11 @@ spec:
               value: "8191"
             - name: BROWSER_POOL_SIZE
               value: "2"
+            # Route all Trawl browser queries through Gluetun VPN
+            - name: PROXY_URL
+              value: "http://gluetun-svc:8888"
+            - name: DEFAULT_PROXY
+              value: "http://gluetun-svc:8888"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
@@ -45,7 +50,6 @@ spec:
         - name: trawl-data
           persistentVolumeClaim:
             claimName: trawl-config-pvc
-        # Allocate shared memory for Firefox browser pool
         - name: dshm
           emptyDir:
             medium: Memory
