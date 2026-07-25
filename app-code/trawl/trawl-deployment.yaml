@@ -27,9 +27,13 @@ spec:
           env:
             - name: PORT
               value: "8191"
+            # Expand browser pool size to 4 concurrent browsers
             - name: BROWSER_POOL_SIZE
-              value: "2"
-            # Route all Trawl browser queries through qbittorrent-svc VPN sidecar proxy
+              value: "4"
+            # Auto-recycle hung sessions after 30 seconds
+            - name: BROWSER_TIMEOUT
+              value: "30000"
+            # Route all browser traffic through qbittorrent VPN proxy
             - name: PROXY_URL
               value: "http://qbittorrent-svc:8888"
             - name: DEFAULT_PROXY
@@ -46,15 +50,15 @@ spec:
           resources:
             limits:
               cpu: "2"
-              memory: 1536Mi
+              memory: 2Gi
             requests:
               cpu: 200m
-              memory: 256Mi
+              memory: 512Mi
       volumes:
         - name: trawl-data
           persistentVolumeClaim:
             claimName: trawl-config-pvc
-        # Allocate shared memory for browser engine
+        # Allocate 1GB shared memory for the 4 browser instances
         - name: dshm
           emptyDir:
             medium: Memory
