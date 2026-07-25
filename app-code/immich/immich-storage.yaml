@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: immich-library-nfs-pv
+spec:
+  capacity:
+    storage: 400Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-immich-library
+  nfs:
+    server: 192.168.1.160
+    path: /mnt/databox_04_465G_1/immich/library
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library-pvc
+  namespace: backup
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-immich-library
+  resources:
+    requests:
+      storage: 400Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: immich-postgres-nfs-pv
+spec:
+  capacity:
+    storage: 50Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-immich-postgres
+  nfs:
+    server: 192.168.1.160
+    path: /mnt/databox_04_465G_1/immich/postgres
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-postgres-pvc
+  namespace: backup
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-immich-postgres
+  resources:
+    requests:
+      storage: 50Gi
