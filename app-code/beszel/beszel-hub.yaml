@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beszel-hub
+  namespace: media
+  labels:
+    app: beszel-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: beszel-hub
+  template:
+    metadata:
+      labels:
+        app: beszel-hub
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      containers:
+        - name: beszel-hub
+          image: henrygd/beszel:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+              name: http
+          volumeMounts:
+            - name: beszel-hub-data
+              mountPath: /beszel_data
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: beszel-hub-data
+          persistentVolumeClaim:
+            claimName: beszel-hub-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: beszel-hub-svc
+  namespace: media
+spec:
+  type: NodePort
+  selector:
+    app: beszel-hub
+  ports:
+    - name: http
+      port: 8090
+      targetPort: 8090
+      nodePort: 30890
