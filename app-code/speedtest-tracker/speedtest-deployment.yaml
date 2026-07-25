@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-tracker
+  namespace: monitoring
+  labels:
+    app: speedtest-tracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: speedtest-tracker
+  template:
+    metadata:
+      labels:
+        app: speedtest-tracker
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: avalon
+      containers:
+        - name: speedtest-tracker
+          image: lscr.io/linuxserver/speedtest-tracker:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Asia/Kolkata"
+            - name: APP_KEY
+              value: "base64:4eX8q7Q2rM9k3P0z1W5v8X2y4Z6a1B3c5D7e9F0g2H4="
+            - name: DB_CONNECTION
+              value: "sqlite"
+            - name: SPEEDTEST_SCHEDULE
+              value: "0 * * * *"
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - name: speedtest-config
+              mountPath: /config
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: speedtest-config
+          persistentVolumeClaim:
+            claimName: speedtest-tracker-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: speedtest-tracker-svc
+  namespace: monitoring
+spec:
+  type: NodePort
+  selector:
+    app: speedtest-tracker
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30880
