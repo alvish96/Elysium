@@ -29,9 +29,11 @@ spec:
               value: "8191"
             - name: BROWSER_POOL_SIZE
               value: "4"
-            # Force close stale sessions after 20 seconds
             - name: BROWSER_TIMEOUT
-              value: "20000"
+              value: "30000"
+            # FIX: Disable Firefox content sandbox inside container environment
+            - name: MOZ_DISABLE_CONTENT_SANDBOX
+              value: "1"
             - name: LOG_LEVEL
               value: "debug"
             # Route through qbittorrent VPN proxy
