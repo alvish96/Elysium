@@ -169,8 +169,9 @@ spec:
               value: "immich_db_pass_2026"
             - name: DB_DATABASE_NAME
               value: "immich"
+            # FIX: Must be "vectorchord" (or "pgvector")
             - name: DB_VECTOR_EXTENSION
-              value: "vchord"
+              value: "vectorchord"
             - name: REDIS_HOSTNAME
               value: "immich-redis"
             - name: IMMICH_MACHINE_LEARNING_URL
