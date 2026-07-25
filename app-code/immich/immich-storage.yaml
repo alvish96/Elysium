@@ -30,18 +30,25 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: immich-postgres-nfs-pv
+  name: immich-postgres-local-pv
 spec:
   capacity:
     storage: 50Gi
   volumeMode: Filesystem
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: nfs-immich-postgres
-  nfs:
-    server: 192.168.1.160
+  storageClassName: local-immich-postgres
+  local:
     path: /mnt/databox_04_465G_1/immich/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -50,8 +57,8 @@ metadata:
   namespace: backup
 spec:
   accessModes:
-    - ReadWriteMany
-  storageClassName: nfs-immich-postgres
+    - ReadWriteOnce
+  storageClassName: local-immich-postgres
   resources:
     requests:
       storage: 50Gi

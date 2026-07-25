@@ -53,8 +53,9 @@ spec:
       labels:
         app: immich-postgres
     spec:
+      # CRITICAL: Run database engine natively on the storage node
       nodeSelector:
-        kubernetes.io/hostname: avalon
+        kubernetes.io/hostname: atlantis
       containers:
         - name: postgres
           image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
@@ -67,7 +68,6 @@ spec:
               value: "immich"
             - name: POSTGRES_INITDB_ARGS
               value: "--data-checksums"
-            # CRITICAL FIX 1: Force initdb into a subfolder to bypass NFS hidden files
             - name: PGDATA
               value: "/var/lib/postgresql/data/pgdata"
           ports:
@@ -164,7 +164,6 @@ spec:
             - containerPort: 2283
               name: http
           env:
-            # CRITICAL FIX 2: Use unified DB_URL with sslmode=disable
             - name: DB_URL
               value: "postgresql://immich:immich_db_pass_2026@immich-postgres:5432/immich?sslmode=disable"
             - name: DB_VECTOR_EXTENSION
