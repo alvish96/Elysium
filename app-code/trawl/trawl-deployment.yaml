@@ -31,20 +31,14 @@ spec:
               value: "4"
             - name: BROWSER_TIMEOUT
               value: "30000"
-            # FIX: Disable Firefox content sandbox inside container environment
             - name: MOZ_DISABLE_CONTENT_SANDBOX
               value: "1"
+            - name: HOME
+              value: "/tmp"
+            - name: MOZ_ACCELERATED
+              value: "0"
             - name: LOG_LEVEL
               value: "debug"
-            # Route through qbittorrent VPN proxy
-            - name: PROXY_URL
-              value: "http://qbittorrent-svc:8888"
-            - name: DEFAULT_PROXY
-              value: "http://qbittorrent-svc:8888"
-            - name: HTTP_PROXY
-              value: "http://qbittorrent-svc:8888"
-            - name: HTTPS_PROXY
-              value: "http://qbittorrent-svc:8888"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
