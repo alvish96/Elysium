@@ -39,7 +39,7 @@ spec:
               value: "0"
             - name: LOG_LEVEL
               value: "debug"
-            # Re-enable VPN proxy routing via qBittorrent/Gluetun sidecar
+            # Route external web traffic through Gluetun VPN
             - name: PROXY_URL
               value: "http://qbittorrent-svc:8888"
             - name: DEFAULT_PROXY
@@ -48,6 +48,11 @@ spec:
               value: "http://qbittorrent-svc:8888"
             - name: HTTPS_PROXY
               value: "http://qbittorrent-svc:8888"
+            # CRITICAL FIX: Keep internal browser IPC & K3s network traffic local!
+            - name: NO_PROXY
+              value: "127.0.0.1,localhost,::1,.svc,.cluster.local,10.42.0.0/16,10.43.0.0/16"
+            - name: no_proxy
+              value: "127.0.0.1,localhost,::1,.svc,.cluster.local,10.42.0.0/16,10.43.0.0/16"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
