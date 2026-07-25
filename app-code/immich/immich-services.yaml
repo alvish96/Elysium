@@ -67,6 +67,9 @@ spec:
               value: "immich"
             - name: POSTGRES_INITDB_ARGS
               value: "--data-checksums"
+            # CRITICAL FIX 1: Force initdb into a subfolder to bypass NFS hidden files
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
           ports:
             - containerPort: 5432
               name: postgres
@@ -161,15 +164,9 @@ spec:
             - containerPort: 2283
               name: http
           env:
-            - name: DB_HOSTNAME
-              value: "immich-postgres"
-            - name: DB_USERNAME
-              value: "immich"
-            - name: DB_PASSWORD
-              value: "immich_db_pass_2026"
-            - name: DB_DATABASE_NAME
-              value: "immich"
-            # FIX: Must be "vectorchord" (or "pgvector")
+            # CRITICAL FIX 2: Use unified DB_URL with sslmode=disable
+            - name: DB_URL
+              value: "postgresql://immich:immich_db_pass_2026@immich-postgres:5432/immich?sslmode=disable"
             - name: DB_VECTOR_EXTENSION
               value: "vectorchord"
             - name: REDIS_HOSTNAME
