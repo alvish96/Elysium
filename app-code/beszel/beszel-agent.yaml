@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: beszel-agent
-  namespace: media
+  namespace: monitoring
   labels:
     app: beszel-agent
 spec:

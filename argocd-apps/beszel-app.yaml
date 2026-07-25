@@ -13,7 +13,7 @@ spec:
     path: app-code/beszel
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: media
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
