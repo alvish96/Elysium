@@ -19,19 +19,21 @@ spec:
         kubernetes.io/hostname: avalon
       containers:
         - name: trawl
-          image: ghcr.io/joshua-s/trawl:latest
+          image: ghcr.io/germondai/trawl:latest
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8191
+              name: http
           env:
             - name: PORT
-              value: "8080"
-            - name: LOG_LEVEL
-              value: "info"
-          ports:
-            - containerPort: 8080
-              name: http
+              value: "8191"
+            - name: BROWSER_POOL_SIZE
+              value: "2"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
+            - name: dshm
+              mountPath: /dev/shm
           resources:
             limits:
               cpu: "2"
@@ -43,6 +45,11 @@ spec:
         - name: trawl-data
           persistentVolumeClaim:
             claimName: trawl-config-pvc
+        # Allocate shared memory for Firefox browser pool
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -55,5 +62,5 @@ spec:
     app: trawl
   ports:
     - name: http
-      port: 8080
-      targetPort: 8080
+      port: 8191
+      targetPort: 8191
