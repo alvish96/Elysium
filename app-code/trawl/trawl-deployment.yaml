@@ -29,11 +29,15 @@ spec:
               value: "8191"
             - name: BROWSER_POOL_SIZE
               value: "2"
-            # Route all Trawl browser queries through Gluetun VPN
+            # Route all Trawl browser queries through qbittorrent-svc VPN sidecar proxy
             - name: PROXY_URL
-              value: "http://gluetun-svc:8888"
+              value: "http://qbittorrent-svc:8888"
             - name: DEFAULT_PROXY
-              value: "http://gluetun-svc:8888"
+              value: "http://qbittorrent-svc:8888"
+            - name: HTTP_PROXY
+              value: "http://qbittorrent-svc:8888"
+            - name: HTTPS_PROXY
+              value: "http://qbittorrent-svc:8888"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
@@ -50,6 +54,7 @@ spec:
         - name: trawl-data
           persistentVolumeClaim:
             claimName: trawl-config-pvc
+        # Allocate shared memory for browser engine
         - name: dshm
           emptyDir:
             medium: Memory
