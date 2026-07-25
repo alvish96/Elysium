@@ -53,7 +53,6 @@ spec:
       labels:
         app: immich-postgres
     spec:
-      # CRITICAL: Run database engine natively on the storage node
       nodeSelector:
         kubernetes.io/hostname: atlantis
       containers:
