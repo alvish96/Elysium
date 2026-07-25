@@ -39,6 +39,15 @@ spec:
               value: "0"
             - name: LOG_LEVEL
               value: "debug"
+            # Re-enable VPN proxy routing via qBittorrent/Gluetun sidecar
+            - name: PROXY_URL
+              value: "http://qbittorrent-svc:8888"
+            - name: DEFAULT_PROXY
+              value: "http://qbittorrent-svc:8888"
+            - name: HTTP_PROXY
+              value: "http://qbittorrent-svc:8888"
+            - name: HTTPS_PROXY
+              value: "http://qbittorrent-svc:8888"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
