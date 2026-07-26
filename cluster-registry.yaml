@@ -1,0 +1,114 @@
+# ==============================================================================
+# ELYSIUM CLUSTER SERVICE REGISTRY
+# ==============================================================================
+# Base Domain: *.aura
+# Control Plane IP: 192.168.1.160 (atlantis)
+# ==============================================================================
+
+networking:
+  adguard:
+    domain: "adguard.aura"
+    node_port: 30053
+    internal_port: 3000
+    description: "Network-wide DNS and Ad-blocking"
+
+media_stack:
+  jellyfin:
+    domain: "jellyfin.aura"
+    node_port: 30096
+    internal_port: 8096
+  qbittorrent:
+    domain: "qbit.aura"
+    node_port: 30068       # WebUI
+    torrent_port: 31681    # TCP/UDP Torrent Traffic
+    internal_port: 8080
+  prowlarr:
+    domain: "prowlarr.aura"
+    node_port: 30396
+    internal_port: 9696
+  radarr:
+    domain: "radarr.aura"
+    node_port: 30478
+    internal_port: 7878
+  sonarr:
+    domain: "sonarr.aura"
+    node_port: 30489
+    internal_port: 8989
+  lidarr:
+    domain: "lidarr.aura"
+    node_port: 30468
+    internal_port: 8686
+  whisparr:
+    domain: "whisparr.aura"
+    node_port: 30469
+    internal_port: 6969
+  bazarr:
+    domain: "bazarr.aura"
+    node_port: 30467
+    internal_port: 6767
+  jellyseerr:
+    domain: "requests.aura"
+    node_port: 30555
+    internal_port: 5055
+
+tools_and_dashboards:
+  homarr:
+    domain: "home.aura"
+    node_port: 30575
+    internal_port: 7575
+    description: "Main homelab dashboard"
+  filebrowser:
+    domain: "files.aura"
+    node_port: 30088
+    internal_port: 80
+  n8n:
+    domain: "n8n.aura"
+    node_port: 30567
+    internal_port: 5678
+    description: "Workflow Automation"
+
+monitoring_and_maintenance:
+  beszel_hub:
+    domain: "beszel.aura"
+    node_port: 30890
+    internal_port: 8090
+    description: "Lightweight resource monitoring"
+  uptime_kuma:
+    domain: "status.aura"
+    node_port: 30301
+    internal_port: 3001
+  speedtest_tracker:
+    domain: "speed.aura"
+    node_port: 30885
+    internal_port: 80
+  scrutiny:
+    domain: "scrutiny.aura"
+    node_port: 30880
+    internal_port: 8080
+    description: "Hard Drive S.M.A.R.T monitoring"
+
+home_automation:
+  homeassistant:
+    domain: "ha.aura"
+    node_port: 31123
+    internal_port: 8123
+
+backups_and_photos:
+  immich:
+    domain: "photos.aura"
+    node_port: 30583
+    internal_port: 2283
+
+cluster_management:
+  argocd:
+    domain: "gitops.aura"
+    node_port: 30346       # HTTPS
+    internal_port: 443
+
+headless_services: # No UI / Internal API only
+  gluetun:
+    internal_port: 8888
+    description: "VPN SOCKS5/HTTP Proxy"
+  flaresolverr_trawl:
+    internal_port: 8191
+    description: "Cloudflare CAPTCHA bypass"
