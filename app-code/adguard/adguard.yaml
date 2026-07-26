@@ -60,12 +60,10 @@ spec:
         - name: adguard
           image: adguard/adguardhome:latest
           ports:
-            # Bind DNS ports directly to the atlantis host interface
+            # Removed hostPort so the LoadBalancer can bind properly!
             - containerPort: 53
-              hostPort: 53
               protocol: UDP
             - containerPort: 53
-              hostPort: 53
               protocol: TCP
             # Internal Web UI Port
             - containerPort: 3000
