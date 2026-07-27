@@ -104,7 +104,7 @@ spec:
                 -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
                 -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset ultrafast -b:v 4000k -maxrate 4000k -bufsize 8000k \
-                -vf "fps=fps=30,format=yuv420p" -g 60 \
+                -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=fps=30,format=yuv420p" -g 60 \
                 -c:a aac -b:a 128k \
                 -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
                 
