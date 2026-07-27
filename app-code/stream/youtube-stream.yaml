@@ -63,7 +63,6 @@ spec:
               memory: "256Mi"
               cpu: "1000m"
             limits:
-              # Boosted to 4 CPU Cores and 1GB RAM for smooth 1080p encoding
               memory: "1024Mi"
               cpu: "4000m"
           env:
@@ -85,6 +84,7 @@ spec:
                 echo "Scanning kernel space for TANDBERG PrecisionHD Camera node..."
                 TANDBERG_DEV=""
                 
+                # Isolated first video channel to avoid control-node collision
                 for syspath in /sys/class/video4linux/video*; do
                   if cat "$syspath/name" 2>/dev/null | grep -q -i "TANDBERG"; then
                     TANDBERG_DEV="/dev/$(basename "$syspath")"
@@ -99,14 +99,14 @@ spec:
                 fi
                 
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
-                echo "Launching 1080p 1x-Zoom Ingestion Engine..."
+                echo "Launching Hardware-Accelerated 30fps MJPEG 1080p Engine..."
                 
-                # Boosted bitrate to 6000k for 1080p YouTube standard
+                # UNLOCKED MJPEG 1280x720 @ 30fps + Smooth 1080p Upscale
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
-                -thread_queue_size 1024 -f v4l2 -i "$TANDBERG_DEV" \
-                -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
-                -c:v libx264 -preset ultrafast -b:v 6000k -maxrate 6000k -bufsize 12000k \
-                -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p" -g 60 \
+                -thread_queue_size 2048 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
+                -thread_queue_size 2048 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+                -c:v libx264 -preset ultrafast -b:v 5500k -maxrate 5500k -bufsize 11000k \
+                -vf "scale=1920:1080:flags=bicubic,fps=30,format=yuv420p" -g 60 \
                 -c:a aac -b:a 128k \
                 -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
                 
