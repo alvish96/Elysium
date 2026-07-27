@@ -84,7 +84,6 @@ spec:
                 echo "Scanning kernel space for TANDBERG PrecisionHD Camera node..."
                 TANDBERG_DEV=""
                 
-                # Isolated first video channel to avoid control-node collision
                 for syspath in /sys/class/video4linux/video*; do
                   if cat "$syspath/name" 2>/dev/null | grep -q -i "TANDBERG"; then
                     TANDBERG_DEV="/dev/$(basename "$syspath")"
@@ -99,14 +98,15 @@ spec:
                 fi
                 
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
-                echo "Launching Hardware-Accelerated 30fps MJPEG 1080p Engine..."
+                echo "Launching Native 720p 30fps Zero-Latency Engine..."
                 
-                # UNLOCKED MJPEG 1280x720 @ 30fps + Smooth 1080p Upscale
+                # Stream Native 720p @ 30fps without CPU Upscaling
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
-                -thread_queue_size 2048 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
-                -thread_queue_size 2048 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
-                -c:v libx264 -preset ultrafast -b:v 5500k -maxrate 5500k -bufsize 11000k \
-                -vf "scale=1920:1080:flags=bicubic,fps=30,format=yuv420p" -g 60 \
+                -use_wallclock_as_timestamps 1 -thread_queue_size 1024 \
+                -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
+                -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+                -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3000k -maxrate 3500k -bufsize 6000k \
+                -pix_fmt yuv420p -g 60 \
                 -c:a aac -b:a 128k \
                 -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
                 
