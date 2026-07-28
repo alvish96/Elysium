@@ -18,24 +18,24 @@ spec:
         - name: sync
           image: ghcr.io/bakito/adguardhome-sync:latest
           env:
-            # Primary Source (Atlantis)
+            # Origin Source (atlantis)
             - name: ORIGIN_URL
               value: "http://192.168.1.160:3000"
             - name: ORIGIN_USERNAME
               value: "admin"
             - name: ORIGIN_PASSWORD
-              value: "adminlogin@123"
+              value: "YourAdguardPassword"
             
-            # Replica 1 (Phantom)
-            - name: REPLICA1_URL
+            # Secondary Replica (phantom)
+            - name: REPLICA_URL
               value: "http://192.168.1.170:3000"
-            - name: REPLICA1_USERNAME
+            - name: REPLICA_USERNAME
               value: "admin"
-            - name: REPLICA1_PASSWORD
-              value: "adminlogin@123"
+            - name: REPLICA_PASSWORD
+              value: "YourAdguardPassword"
 
-            # Sync Frequency (Every 10 Seconds)
+            # 5-field standard cron: Runs sync every 1 minute
             - name: CRON
-              value: "*/10 * * * * *"
+              value: "*/1 * * * *"
             - name: RUN_ON_START
               value: "true"
