@@ -24,7 +24,7 @@ spec:
             - name: ORIGIN_USERNAME
               value: "admin"
             - name: ORIGIN_PASSWORD
-              value: "YourAdguardPassword"
+              value: "adminlogin@123"
             
             # Secondary Replica (phantom)
             - name: REPLICA_URL
@@ -32,7 +32,7 @@ spec:
             - name: REPLICA_USERNAME
               value: "admin"
             - name: REPLICA_PASSWORD
-              value: "YourAdguardPassword"
+              value: "adminlogin@123"
 
             # 5-field standard cron: Runs sync every 1 minute
             - name: CRON
