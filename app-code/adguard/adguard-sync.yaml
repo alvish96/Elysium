@@ -24,7 +24,7 @@ spec:
             - name: ORIGIN_USERNAME
               value: "admin"
             - name: ORIGIN_PASSWORD
-              value: "adminlogin@123"
+              value: "YourAdguardPassword"
             
             # Replica 1 (Phantom)
             - name: REPLICA1_URL
@@ -32,15 +32,7 @@ spec:
             - name: REPLICA1_USERNAME
               value: "admin"
             - name: REPLICA1_PASSWORD
-              value: "adminlogin@123"
-
-            # Replica 2 (Olympus)
-            - name: REPLICA2_URL
-              value: "http://192.168.1.243:3000"
-            - name: REPLICA2_USERNAME
-              value: "admin"
-            - name: REPLICA2_PASSWORD
-              value: "adminlogin@123"
+              value: "YourAdguardPassword"
 
             # Sync Frequency (Every 10 Seconds)
             - name: CRON
