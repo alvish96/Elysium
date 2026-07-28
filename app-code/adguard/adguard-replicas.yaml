@@ -1,0 +1,96 @@
+---
+# ==============================================
+# AdGuard Replica 1: PHANTOM (192.168.1.170)
+# ==============================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguard-phantom-pvc
+  namespace: networking
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adguard-phantom
+  namespace: networking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adguard-phantom
+  template:
+    metadata:
+      labels:
+        app: adguard-phantom
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: adguard
+          image: adguard/adguardhome:latest
+          volumeMounts:
+            - name: adguard-data
+              mountPath: /opt/adguardhome/work
+            - name: adguard-data
+              mountPath: /opt/adguardhome/conf
+      volumes:
+        - name: adguard-data
+          persistentVolumeClaim:
+            claimName: adguard-phantom-pvc
+---
+# ==============================================
+# AdGuard Replica 2: OLYMPUS (192.168.1.243)
+# ==============================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguard-olympus-pvc
+  namespace: networking
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adguard-olympus
+  namespace: networking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adguard-olympus
+  template:
+    metadata:
+      labels:
+        app: adguard-olympus
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: olympus
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: adguard
+          image: adguard/adguardhome:latest
+          volumeMounts:
+            - name: adguard-data
+              mountPath: /opt/adguardhome/work
+            - name: adguard-data
+              mountPath: /opt/adguardhome/conf
+      volumes:
+        - name: adguard-data
+          persistentVolumeClaim:
+            claimName: adguard-olympus-pvc
