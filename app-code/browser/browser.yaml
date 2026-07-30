@@ -20,7 +20,7 @@ metadata:
   labels:
     app: browser
 spec:
-  replicas: 1
+  replicas: 0  # Scaled down to preserve CPU/RAM on avalon
   strategy:
     type: Recreate
   selector:
