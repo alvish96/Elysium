@@ -1,4 +1,17 @@
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: media
+data:
+  config.yaml: |
+    model_list:
+      - model_name: gemini-pro
+        litellm_params:
+          model: gemini/gemini-1.5-pro
+          api_key: "os.environ/GEMINI_API_KEY"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,16 +51,29 @@ spec:
       containers:
         - name: litellm
           image: ghcr.io/berriai/litellm:latest
+          args:
+            - "--config"
+            - "/app/config.yaml"
+            - "--port"
+            - "4000"
           resources:
             requests:
               memory: "256Mi"
               cpu: "250m"
             limits:
-              memory: "1024Mi"
-              cpu: "1000m"
+              memory: "2048Mi"
+              cpu: "1500m"
           ports:
             - containerPort: 4000
               name: http
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config-volume
+          configMap:
+            name: litellm-config
 ---
 apiVersion: v1
 kind: Service
@@ -62,23 +88,3 @@ spec:
     - port: 4000
       targetPort: 4000
       nodePort: 30400
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: litellm-ingress
-  namespace: media
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-spec:
-  rules:
-    - host: litellm.aura
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: litellm-svc
-                port:
-                  number: 4000

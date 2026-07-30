@@ -41,28 +41,22 @@ spec:
           env:
             - name: WEBUI_SECRET_KEY
               value: "elysium-open-webui-secret-key"
-            
-            # Use the Postgres Database on Atlantis
             - name: DATABASE_URL
               value: "postgresql://webui:webui-secure-pass@open-webui-db-svc:5432/openwebui"
-
-            # Enable Google Gemini API
             - name: ENABLE_OLLAMA_API
               value: "false"
             - name: ENABLE_OPENAI_API
               value: "true"
             - name: OPENAI_API_BASE_URL
               value: "https://generativelanguage.googleapis.com/v1beta/openai/"
-            # Ensure you replace this with your actual Gemini API Key later
             - name: OPENAI_API_KEY
-              value: "AQ.Ab8RN6KptZ0OEWs_JyXYdo0Z_CHtspm739P7r2aRCpDWoUpstw"
-          
+              value: "YOUR_GEMINI_API_KEY_HERE"
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "1024Mi"
+              memory: "2048Mi"
               cpu: "1500m"
           ports:
             - containerPort: 8080
