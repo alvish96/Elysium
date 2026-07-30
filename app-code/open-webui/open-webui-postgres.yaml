@@ -1,0 +1,87 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: open-webui-db-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-webui
+  local:
+    path: /mnt/internal/appdata/open-webui/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-db-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-storage-webui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui-db
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: open-webui-db
+  template:
+    metadata:
+      labels:
+        app: open-webui-db
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_USER
+              value: "webui"
+            - name: POSTGRES_PASSWORD
+              value: "webui-secure-pass"
+            - name: POSTGRES_DB
+              value: "openwebui"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: open-webui-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-webui-db-svc
+  namespace: media
+spec:
+  selector:
+    app: open-webui-db
+  ports:
+    - port: 5432
+      targetPort: 5432
