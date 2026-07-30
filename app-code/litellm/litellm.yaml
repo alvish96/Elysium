@@ -7,7 +7,7 @@ metadata:
   labels:
     app: litellm
 spec:
-  replicas: 1  # Exactly 1 instance cluster-wide
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -37,7 +37,7 @@ spec:
                       - phantom
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-v1.0.0
+          image: ghcr.io/berriai/litellm:latest
           resources:
             requests:
               memory: "256Mi"
