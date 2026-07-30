@@ -51,8 +51,8 @@ spec:
               memory: "1024Mi"
               cpu: "1500m"
           ports:
-            - containerPort: 3000
-              name: http
+            - containerPort: 3001
+              name: https
           volumeMounts:
             - name: config
               mountPath: /config
@@ -71,27 +71,6 @@ spec:
   selector:
     app: browser
   ports:
-    - port: 3000
-      targetPort: 3000
+    - port: 3001
+      targetPort: 3001
       nodePort: 31880
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: browser-ingress
-  namespace: media
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/service.serversscheme: https
-spec:
-  rules:
-    - host: browser.aura
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: browser-svc
-                port:
-                  number: 3000
