@@ -55,9 +55,30 @@ metadata:
   name: litellm-svc
   namespace: media
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: litellm
   ports:
     - port: 4000
       targetPort: 4000
+      nodePort: 30400
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: litellm-ingress
+  namespace: media
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: litellm.aura
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: litellm-svc
+                port:
+                  number: 4000
