@@ -49,8 +49,12 @@ spec:
               value: "true"
             - name: OPENAI_API_BASE_URL
               value: "https://generativelanguage.googleapis.com/v1beta/openai/"
+            # Pull API Key safely from Kubernetes Secret
             - name: OPENAI_API_KEY
-              value: "YOUR_GEMINI_API_KEY_HERE"
+              valueFrom:
+                secretKeyRef:
+                  name: gemini-secret
+                  key: GEMINI_API_KEY
           resources:
             requests:
               memory: "512Mi"

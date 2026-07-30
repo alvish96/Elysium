@@ -56,6 +56,13 @@ spec:
             - "/app/config.yaml"
             - "--port"
             - "4000"
+          env:
+            # Inject API Key from Secret into environment for os.environ lookup
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gemini-secret
+                  key: GEMINI_API_KEY
           resources:
             requests:
               memory: "256Mi"
