@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: media
+  labels:
+    app: litellm
+spec:
+  replicas: 1  # Exactly 1 instance cluster-wide
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - avalon
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm:main-v1.0.0
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "1000m"
+          ports:
+            - containerPort: 4000
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm-svc
+  namespace: media
+spec:
+  type: ClusterIP
+  selector:
+    app: litellm
+  ports:
+    - port: 4000
+      targetPort: 4000
