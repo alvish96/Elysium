@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Fri Jul 31 00:05:02 UTC 2026
+Last Updated: Sat Aug  1 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-136-generic #136-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul  1 21:53:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:           3.3Gi       3.0Gi       104Mi       372Mi       926Mi       346Mi
-Swap:          3.3Gi       972Mi       2.3Gi
+Mem:           3.3Gi       2.9Gi       115Mi       353Mi       882Mi       365Mi
+Swap:          3.3Gi       1.0Gi       2.3Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -35,7 +35,6 @@ sdt                       223.6G ext4        disk /mnt/databox_09_223G_1
 sdu                       894.3G ext4        disk /mnt/databox_08_894G_6
 sdv                       223.6G ext4        disk /mnt/databox_14_223G_3
 sdw                       894.3G ext4        disk /mnt/databox_06_894G_4
-sdx                       465.8G ext4        disk 
 sdy                       894.3G ext4        disk /mnt/databox_12_894G_7
 sdz                       894.3G ext4        disk /mnt/databox_07_894G_5
 sdaa                      894.3G ext4        disk /mnt/databox_13_894G_8
@@ -44,19 +43,17 @@ sdab                      894.3G ext4        disk /mnt/databox_02_894G_1
 ## Mounted Filesystems
 Filesystem                        Type           Size  Used Avail Use% Mounted on
 efivarfs                          efivarfs        84K   58K   22K  73% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv ext4            98G   31G   63G  33% /
-/dev/mapper/ubuntu--vg-internal   ext4           338G  994M  320G   1% /mnt/internal
+/dev/mapper/ubuntu--vg-ubuntu--lv ext4            98G   31G   62G  34% /
+/dev/mapper/ubuntu--vg-internal   ext4           338G  1.1G  320G   1% /mnt/internal
 /dev/sda2                         ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                         vfat           1.1G  6.2M  1.1G   1% /boot/efi
 /dev/sde                          ext4           458G   28K  449G   1% /mnt/databox_04_465G_1
-nexus_pool                        fuse.mergerfs  9.3T  378G  8.7T   5% /mnt/nexus_pool
-192.168.1.170:/mnt/phantom_share  nfs4           119G   29M  112G   1% /var/lib/kubelet/pods/489b9ec7-f036-4a03-8d0e-15b363eb1fdb/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
-movies_pool                       fuse.mergerfs  1.8T   42G  1.7T   3% /mnt/movies_pool
-/dev/sdk                          ext4           880G   52K  862G   1% /var/lib/kubelet/pods/ca1b312e-c016-481e-8030-65184e86e679/volumes/kubernetes.io~local-volume/qbit-base-pv
+nexus_pool                        fuse.mergerfs  9.3T  359G  8.7T   4% /mnt/nexus_pool
+movies_pool                       fuse.mergerfs  1.8T   23G  1.7T   2% /mnt/movies_pool
 tvshows_pool                      fuse.mergerfs  1.8T   18G  1.7T   1% /mnt/tvshows_pool
 audio_pool                        fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audio_pool
 /dev/sdb                          ext4            59G  8.3G   49G  15% /mnt/databox_01_59G_1
-/dev/sdab                         ext4           880G   42G  820G   5% /mnt/databox_02_894G_1
+/dev/sdab                         ext4           880G   23G  839G   3% /mnt/databox_02_894G_1
 /dev/sdp                          ext4           880G   18G  845G   2% /mnt/databox_03_894G_2
 /dev/sdz                          ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
 /dev/sdu                          ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
@@ -68,3 +65,5 @@ audio_pool                        fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audi
 /dev/sdy                          ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdaa                         ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
 /dev/sdv                          ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
+movies_pool                       fuse.mergerfs  1.8T   23G  1.7T   2% /var/lib/kubelet/pods/75aa1618-2042-4452-bca4-2967839ec288/volumes/kubernetes.io~local-volume/qbit-movies-pv
+192.168.1.170:/mnt/phantom_share  nfs4           119G   31M  112G   1% /var/lib/kubelet/pods/055165a9-f5b1-4844-aee2-ddc4d90e2bb1/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
