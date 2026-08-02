@@ -15,8 +15,25 @@ spec:
       labels:
         app: trawl
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: avalon
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            # Preferred Primary Node: avalon (Weight 100)
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - avalon
+            # Preferred Failover Node: phantom (Weight 50)
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
       containers:
         - name: trawl
           image: ghcr.io/germondai/trawl:latest
@@ -57,9 +74,10 @@ spec:
               cpu: 200m
               memory: 512Mi
       volumes:
+        # Temporary stateless storage per pod
         - name: trawl-data
-          persistentVolumeClaim:
-            claimName: trawl-config-pvc
+          emptyDir: {}
+        # Shared memory allocation for Firefox browser contexts
         - name: dshm
           emptyDir:
             medium: Memory
