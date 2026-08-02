@@ -6,6 +6,7 @@ metadata:
 data:
   urls.txt: |
     atlantis https://hc-ping.com/b414992a-2ffd-4103-aaa9-52a731e95c96
+    avalon https://hc-ping.com/13f6bea3-5c26-4d75-9fc4-85f45864597e
     phantom https://hc-ping.com/34119d38-0611-4056-ba24-9b2a77aca0cf
     olympus https://hc-ping.com/fedfffd3-c28f-4738-955c-ed7cd1490e04
     pi https://hc-ping.com/a9ce951e-2443-45e4-9945-f6b7292f6b17
@@ -26,14 +27,11 @@ spec:
       labels:
         app: node-pinger
     spec:
-      # === THE BULLETPROOF FIX ===
-      # Ignore the host's 127.0.0.53 loopback and use raw public internet DNS
       dnsPolicy: None
       dnsConfig:
         nameservers:
           - 1.1.1.1
           - 8.8.8.8
-          
       containers:
         - name: pinger
           image: curlimages/curl:latest
@@ -49,7 +47,6 @@ spec:
               while true; do
                 PING_URL=$(grep "^${MY_NODE_NAME} " /config/urls.txt | awk '{print $2}')
                 if [ -n "$PING_URL" ]; then
-                  # We put > /dev/null back in so it doesn't spam your logs with HTML
                   curl -s -m 10 --retry 3 "$PING_URL" > /dev/null
                   echo "Pinged Healthchecks.io for $MY_NODE_NAME"
                 fi
