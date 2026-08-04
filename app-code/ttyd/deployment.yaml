@@ -30,7 +30,7 @@ spec:
             - /bin/sh
             - -c
             - |
-              ttyd -p 3022 -W -c "admin:MY_SECURE_PASSWORD" chroot /host /usr/bin/env KUBECONFIG=/etc/rancher/k3s/k3s.yaml /bin/bash --login
+              ttyd -p 3022 -W -c "atlan:admin" chroot /host /usr/bin/env KUBECONFIG=/etc/rancher/k3s/k3s.yaml /bin/bash --login
           ports:
             - containerPort: 3022
               name: http
