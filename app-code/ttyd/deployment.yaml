@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ttyd
+  namespace: monitoring
+  labels:
+    app: ttyd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ttyd
+  template:
+    metadata:
+      labels:
+        app: ttyd
+    spec:
+      # Pin directly to Atlantis host
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      containers:
+        - name: ttyd
+          image: tsl0922/ttyd:latest
+          securityContext:
+            privileged: true
+          # Launch ttyd with built-in HTTP auth and chroot into host root filesystem
+          command:
+            - /bin/sh
+            - -c
+            - |
+              ttyd -p 3000 -c "admin:MY_SECURE_PASSWORD" chroot /host /bin/bash
+          ports:
+            - containerPort: 3000
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ttyd-svc
+  namespace: monitoring
+spec:
+  selector:
+    app: ttyd
+  ports:
+    - port: 80
+      targetPort: 3000
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ttyd-ingress
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`terminal.local`)
+      kind: Rule
+      services:
+        - name: ttyd-svc
+          port: 80
