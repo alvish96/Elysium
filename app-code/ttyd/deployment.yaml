@@ -26,7 +26,7 @@ spec:
             - /bin/sh
             - -c
             - |
-              ttyd -p 3022 -W -c "admin:MY_SECURE_PASSWORD" chroot /host /bin/bash
+              ttyd -p 3022 -W -c "atlan:admin" chroot /host /bin/bash
           ports:
             - containerPort: 3022
               name: http
