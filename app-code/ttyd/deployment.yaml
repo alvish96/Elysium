@@ -17,16 +17,20 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
+      # === CRITICAL: ENABLE HOST NETWORK & PROCESS NAMESPACES ===
+      hostNetwork: true
+      hostPID: true
       containers:
         - name: ttyd
           image: tsl0922/ttyd:latest
           securityContext:
             privileged: true
+          # Use a login shell and explicitly pass the K3s KUBECONFIG path
           command:
             - /bin/sh
             - -c
             - |
-              ttyd -p 3022 -W -c "atlan:admin" chroot /host /bin/bash
+              ttyd -p 3022 -W -c "admin:MY_SECURE_PASSWORD" chroot /host /usr/bin/env KUBECONFIG=/etc/rancher/k3s/k3s.yaml /bin/bash --login
           ports:
             - containerPort: 3022
               name: http
