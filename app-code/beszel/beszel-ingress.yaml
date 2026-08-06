@@ -4,7 +4,9 @@ metadata:
   name: beszel-ingress
   namespace: monitoring
 spec:
-  entryPoints: [web, websecure]
+  entryPoints:
+    - web
+    - websecure
   routes:
     - match: Host(`beszel.aura`)
       kind: Rule
