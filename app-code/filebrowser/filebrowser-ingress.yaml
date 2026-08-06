@@ -8,12 +8,9 @@ spec:
     - web
     - websecure
   routes:
-    - match: Host(`atlantis.fynbos-prometheus.ts.net`) && PathPrefix(`/files`)
+    - match: Host(`files.aura`)
       kind: Rule
-      priority: 10
       middlewares:
-        - name: filebrowser-stripprefix
-          namespace: media
         - name: authentik-forwardauth
           namespace: security
       services:

@@ -8,9 +8,8 @@ spec:
     - web
     - websecure
   routes:
-    - match: Host(`atlantis.fynbos-prometheus.ts.net`) && PathPrefix(`/`) || Host(`100.110.100.1`)
+    - match: Host(`aura`) || Host(`homarr.aura`) || Host(`100.110.100.1`)
       kind: Rule
-      priority: 1
       services:
         - name: homarr-svc
           port: 7575

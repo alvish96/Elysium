@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  aura.override: |
+    aura:53 {
+        errors
+        cache 30
+        hosts {
+            100.110.100.1 aura homarr.aura auth.aura ttyd.aura beszel.aura files.aura jellyfin.aura
+            fallthrough
+        }
+    }

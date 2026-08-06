@@ -8,12 +8,9 @@ spec:
     - web
     - websecure
   routes:
-    - match: Host(`atlantis.fynbos-prometheus.ts.net`) && PathPrefix(`/ttyd`)
+    - match: Host(`ttyd.aura`)
       kind: Rule
-      priority: 10
       middlewares:
-        - name: ttyd-stripprefix
-          namespace: monitoring
         - name: authentik-forwardauth
           namespace: security
       services:
