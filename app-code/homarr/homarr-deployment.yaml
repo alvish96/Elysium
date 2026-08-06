@@ -88,7 +88,7 @@ spec:
     - web
     - websecure
   routes:
-    - match: Host(`192.168.1.160`) || Host(`homarr.local`)
+    - match: Host(`192.168.1.160`) || Host(`100.110.100.1`) || Host(`homarr.local`)
       kind: Rule
       services:
         - name: homarr-svc
