@@ -1,0 +1,29 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: ttyd-stripprefix
+  namespace: monitoring
+spec:
+  stripPrefix:
+    prefixes:
+      - /ttyd
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: beszel-stripprefix
+  namespace: monitoring
+spec:
+  stripPrefix:
+    prefixes:
+      - /beszel
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: filebrowser-stripprefix
+  namespace: media
+spec:
+  stripPrefix:
+    prefixes:
+      - /files

@@ -1,0 +1,21 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: filebrowser-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`atlantis.fynbos-prometheus.ts.net`) && PathPrefix(`/files`)
+      kind: Rule
+      priority: 10
+      middlewares:
+        - name: filebrowser-stripprefix
+          namespace: media
+        - name: authentik-forwardauth
+          namespace: security
+      services:
+        - name: filebrowser-svc
+          port: 80
