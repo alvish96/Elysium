@@ -4,9 +4,7 @@ metadata:
   name: ttyd-ingress
   namespace: monitoring
 spec:
-  entryPoints:
-    - web
-    - websecure
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`ttyd.aura`)
       kind: Rule

@@ -4,9 +4,7 @@ metadata:
   name: homarr-ingress
   namespace: media
 spec:
-  entryPoints:
-    - web
-    - websecure
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`aura`) || Host(`homarr.aura`) || Host(`100.110.100.1`)
       kind: Rule

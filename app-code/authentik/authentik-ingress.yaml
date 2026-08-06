@@ -4,9 +4,7 @@ metadata:
   name: authentik-ingress
   namespace: security
 spec:
-  entryPoints:
-    - web
-    - websecure
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`auth.aura`) || Host(`auth.local`)
       kind: Rule
