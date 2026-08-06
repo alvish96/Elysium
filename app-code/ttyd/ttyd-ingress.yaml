@@ -12,7 +12,7 @@ spec:
       kind: Rule
       middlewares:
         - name: authentik-forwardauth
-          namespace: security
+          namespace: monitoring
       services:
         - name: ttyd-svc
           port: 3022

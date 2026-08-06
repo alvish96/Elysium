@@ -17,7 +17,6 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
-      # === CRITICAL: ENABLE HOST NETWORK & PROCESS NAMESPACES ===
       hostNetwork: true
       hostPID: true
       containers:
@@ -25,7 +24,6 @@ spec:
           image: tsl0922/ttyd:latest
           securityContext:
             privileged: true
-          # Use a login shell and explicitly pass the K3s KUBECONFIG path
           command:
             - /bin/sh
             - -c
@@ -62,18 +60,3 @@ spec:
     - port: 3022
       targetPort: 3022
       nodePort: 30022
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: ttyd-ingress
-  namespace: monitoring
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`terminal.local`)
-      kind: Rule
-      services:
-        - name: ttyd-svc
-          port: 3022
