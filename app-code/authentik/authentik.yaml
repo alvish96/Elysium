@@ -199,19 +199,3 @@ spec:
       port: 9000
       targetPort: 9000
       nodePort: 30900
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: authentik-ingress
-  namespace: security
-spec:
-  entryPoints:
-    - web
-    - websecure
-  routes:
-    - match: Host(`auth.local`)
-      kind: Rule
-      services:
-        - name: authentik-svc
-          port: 9000
