@@ -1,12 +1,12 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: filebrowser-ingress
+  name: bazarr-ingress
   namespace: media
 spec:
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`files.nexus.link`)
+    - match: Host(`bazarr.nexus.link`)
       kind: Rule
       middlewares: [{name: authentik-forwardauth, namespace: media}]
-      services: [{name: filebrowser-svc, port: 80}]
+      services: [{name: bazarr-svc, port: 6767}]
