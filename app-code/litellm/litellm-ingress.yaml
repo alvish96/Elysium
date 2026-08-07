@@ -1,0 +1,12 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: litellm-ingress
+  namespace: media
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`llm.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: media}]
+      services: [{name: litellm-svc, port: 4000}]

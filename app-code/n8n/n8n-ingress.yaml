@@ -1,0 +1,12 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: n8n-ingress
+  namespace: media
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`n8n.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: media}]
+      services: [{name: n8n-svc, port: 5678}]

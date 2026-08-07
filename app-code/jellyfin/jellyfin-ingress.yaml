@@ -1,0 +1,11 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin-ingress
+  namespace: media
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`jellyfin.nexus.link`)
+      kind: Rule
+      services: [{name: jellyfin-svc, port: 8096}]
