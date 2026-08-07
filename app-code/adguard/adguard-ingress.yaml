@@ -1,0 +1,13 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: adguard-ingress
+  namespace: networking
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`adguard.nexus.link`)
+      kind: Rule
+      services:
+        - name: adguard-svc
+          port: 3000

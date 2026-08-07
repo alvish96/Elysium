@@ -1,0 +1,13 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: immich-ingress
+  namespace: backup
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`photos.nexus.link`)
+      kind: Rule
+      services:
+        - name: immich-svc
+          port: 2283
