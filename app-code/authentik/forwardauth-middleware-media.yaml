@@ -14,4 +14,3 @@ spec:
       - X-authentik-name
       - X-authentik-uid
       - X-authentik-jwt
-      - Authorization
