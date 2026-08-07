@@ -6,7 +6,7 @@ metadata:
 spec:
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`auth.aura`) || Host(`auth.local`)
+    - match: Host(`auth.nexus.link`)
       kind: Rule
       services:
         - name: authentik-svc

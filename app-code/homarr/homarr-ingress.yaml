@@ -6,7 +6,7 @@ metadata:
 spec:
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`aura`) || Host(`homarr.aura`) || Host(`100.110.100.1`)
+    - match: Host(`nexus.link`) || Host(`homarr.nexus.link`) || Host(`100.110.100.1`)
       kind: Rule
       services:
         - name: homarr-svc
