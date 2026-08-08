@@ -1,12 +1,188 @@
+# ==========================================
+# 1. ATLANTIS NODE (192.168.1.160)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: netdata-atlantis-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 19999
+      targetPort: 19999
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: netdata-atlantis-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.160
+    ports:
+      - port: 19999
+---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: netdata-ingress
+  name: netdata-atlantis-ingress
   namespace: monitoring
 spec:
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`netdata.nexus.link`)
+    - match: Host(`netdata-atlantis.nexus.link`)
       kind: Rule
       middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
-      services: [{name: netdata-svc, port: 19999}]
+      services: [{name: netdata-atlantis-svc, port: 19999}]
+
+---
+# ==========================================
+# 2. AVALON NODE (192.168.1.164)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: netdata-avalon-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 19999
+      targetPort: 19999
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: netdata-avalon-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.164
+    ports:
+      - port: 19999
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netdata-avalon-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`netdata-avalon.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: netdata-avalon-svc, port: 19999}]
+
+---
+# ==========================================
+# 3. PHANTOM NODE (192.168.1.170)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: netdata-phantom-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 19999
+      targetPort: 19999
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: netdata-phantom-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.170
+    ports:
+      - port: 19999
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netdata-phantom-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`netdata-phantom.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: netdata-phantom-svc, port: 19999}]
+
+---
+# ==========================================
+# 4. OLYMPUS NODE (192.168.1.243)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: netdata-olympus-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 19999
+      targetPort: 19999
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: netdata-olympus-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.243
+    ports:
+      - port: 19999
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netdata-olympus-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`netdata-olympus.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: netdata-olympus-svc, port: 19999}]
+
+---
+# ==========================================
+# 5. PI NODE (192.168.1.130)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: netdata-pi-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 19999
+      targetPort: 19999
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: netdata-pi-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.130
+    ports:
+      - port: 19999
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netdata-pi-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`netdata-pi.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: netdata-pi-svc, port: 19999}]

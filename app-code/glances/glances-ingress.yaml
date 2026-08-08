@@ -1,12 +1,150 @@
+# ==========================================
+# 1. ATLANTIS NODE (192.168.1.160)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: glances-atlantis-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 61208
+      targetPort: 61208
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: glances-atlantis-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.160
+    ports:
+      - port: 61208
+---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: glances-ingress
+  name: glances-atlantis-ingress
   namespace: monitoring
 spec:
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`glances.nexus.link`)
+    - match: Host(`glances-atlantis.nexus.link`)
       kind: Rule
       middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
-      services: [{name: glances-svc, port: 61208}]
+      services: [{name: glances-atlantis-svc, port: 61208}]
+
+---
+# ==========================================
+# 2. AVALON NODE (192.168.1.164)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: glances-avalon-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 61208
+      targetPort: 61208
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: glances-avalon-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.164
+    ports:
+      - port: 61208
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: glances-avalon-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`glances-avalon.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: glances-avalon-svc, port: 61208}]
+
+---
+# ==========================================
+# 3. PHANTOM NODE (192.168.1.170)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: glances-phantom-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 61208
+      targetPort: 61208
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: glances-phantom-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.170
+    ports:
+      - port: 61208
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: glances-phantom-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`glances-phantom.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: glances-phantom-svc, port: 61208}]
+
+---
+# ==========================================
+# 4. OLYMPUS NODE (192.168.1.243)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: glances-olympus-svc
+  namespace: monitoring
+spec:
+  ports:
+    - port: 61208
+      targetPort: 61208
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: glances-olympus-svc
+  namespace: monitoring
+subsets:
+  - addresses:
+      - ip: 192.168.1.243
+    ports:
+      - port: 61208
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: glances-olympus-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`glances-olympus.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: glances-olympus-svc, port: 61208}]
