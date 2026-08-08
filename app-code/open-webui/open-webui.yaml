@@ -48,22 +48,24 @@ spec:
             - name: ENABLE_OPENAI_API
               value: "true"
             
-            # --- AUTHENTIK OIDC INTEGRATION ---
+            # --- FIXED AUTHENTIK OIDC CONFIGURATION ---
             - name: ENABLE_OAUTH_SIGNUP
+              value: "true"
+            - name: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
               value: "true"
             - name: OAUTH_CLIENT_ID
               value: "LvMCwae06SSuFfvaKwuOlEBNZofuzNavdNt7hR9Q"
             - name: OAUTH_CLIENT_SECRET
               value: "Tr0H20FHJ8bmjwJ7TOJK42cdjISntGWx45giIpdH8TtywI5YVCTVpkFBRQ3N1M2uUDMsPfZXJxHtOLc1GElF9p0bRpmMW0jqEudyHIZ2of6gCx5MKQvFicw3ZXnx9SCv"
+            # Base provider URL without the .well-known suffix:
             - name: OPENID_PROVIDER_URL
-              value: "http://auth.nexus.link/application/o/open-webui/.well-known/openid-configuration"
+              value: "http://auth.nexus.link/application/o/open-webui"
             - name: OAUTH_PROVIDER_NAME
               value: "Authentik"
             - name: WEBUI_URL
               value: "http://chat.nexus.link"
-            # ----------------------------------
+            # ------------------------------------------
 
-            # Pull individual API keys from K8s Secret
             - name: GEMINI_KEY
               valueFrom:
                 secretKeyRef:
@@ -85,7 +87,6 @@ spec:
                   name: ai-secrets
                   key: COPILOT_BASE_URL
 
-            # Combine endpoints and keys into semicolon-separated lists
             - name: OPENAI_API_BASE_URLS
               value: "https://generativelanguage.googleapis.com/v1beta/openai/;https://openrouter.ai/api/v1;$(COPILOT_URL)"
             - name: OPENAI_API_KEYS

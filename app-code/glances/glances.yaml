@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: glances
-  namespace: media
+  namespace: monitoring
   labels:
     app: glances
 spec:
@@ -18,7 +18,6 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       
-      # THE FIX: Explicitly exclude the Raspberry Pi
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -50,3 +49,17 @@ spec:
             - containerPort: 61208
               name: webui
               protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glances-svc
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: glances
+  ports:
+    - port: 61208
+      targetPort: 61208
+      name: webui

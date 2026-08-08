@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: netdata
-  namespace: media
+  namespace: monitoring
   labels:
     app: netdata
 spec:
@@ -14,12 +14,10 @@ spec:
       labels:
         app: netdata
     spec:
-      # CRITICAL: Allows Netdata to see the physical network interfaces
       hostNetwork: true
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       
-      # The AppArmor fix to prevent K3s node deadlocks
       securityContext:
         seccompProfile:
           type: Unconfined
@@ -28,7 +26,6 @@ spec:
 
       containers:
         - name: netdata
-          # This image natively supports both AMD64 and ARM64
           image: netdata/netdata:latest
           securityContext:
             runAsUser: 0
@@ -61,3 +58,17 @@ spec:
         - name: os-release
           hostPath:
             path: /etc/os-release
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netdata-svc
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: netdata
+  ports:
+    - port: 19999
+      targetPort: 19999
+      name: webui

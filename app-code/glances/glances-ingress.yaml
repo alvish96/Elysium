@@ -9,4 +9,4 @@ spec:
     - match: Host(`glances.nexus.link`)
       kind: Rule
       middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
-      services: [{name: glances-svc, port: 61208}] # Standard Glances Port
+      services: [{name: glances-svc, port: 61208}]

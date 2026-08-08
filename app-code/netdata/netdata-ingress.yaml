@@ -9,4 +9,4 @@ spec:
     - match: Host(`netdata.nexus.link`)
       kind: Rule
       middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
-      services: [{name: netdata-svc, port: 19999}] # Standard Netdata Port
+      services: [{name: netdata-svc, port: 19999}]
