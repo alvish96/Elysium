@@ -10,4 +10,4 @@ spec:
       kind: Rule
       services:
         - name: adguard-svc
-          port: 3000
+          port: 80

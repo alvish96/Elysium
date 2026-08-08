@@ -1,0 +1,12 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netdata-ingress
+  namespace: monitoring
+spec:
+  entryPoints: [web, websecure]
+  routes:
+    - match: Host(`netdata.nexus.link`)
+      kind: Rule
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: netdata-svc, port: 19999}] # Standard Netdata Port
