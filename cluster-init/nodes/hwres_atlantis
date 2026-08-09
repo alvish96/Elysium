@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Sat Aug  8 00:05:01 UTC 2026
+Last Updated: Sun Aug  9 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-136-generic #136-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul  1 21:53:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       8.2Gi       435Mi       431Mi       2.7Gi       2.4Gi
-Swap:          3.3Gi       176Mi       3.1Gi
+Mem:            10Gi       6.9Gi       717Mi       435Mi       3.8Gi       3.8Gi
+Swap:          3.3Gi       169Mi       3.1Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -44,8 +44,8 @@ sr0                        1024M             rom
 ## Mounted Filesystems
 Filesystem                                    Type           Size  Used Avail Use% Mounted on
 efivarfs                                      efivarfs        84K   68K   12K  86% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv             ext4            98G   59G   35G  63% /
-/dev/mapper/ubuntu--vg-internal               ext4           338G  1.4G  319G   1% /mnt/internal
+/dev/mapper/ubuntu--vg-ubuntu--lv             ext4            98G   54G   40G  58% /
+/dev/mapper/ubuntu--vg-internal               ext4           338G  1.4G  320G   1% /mnt/internal
 /dev/sda2                                     ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                     vfat           1.1G  6.2M  1.1G   1% /boot/efi
 nexus_pool                                    fuse.mergerfs  8.8T  474G  8.2T   6% /mnt/nexus_pool
@@ -56,8 +56,8 @@ audio_pool                                    fuse.mergerfs  1.8T  310G  1.5T  1
 /dev/sdd                                      ext4           880G   85G  777G  10% /mnt/databox_03_894G_2
 /dev/sdc                                      ext4           880G   70G  792G   9% /mnt/databox_02_894G_1
 /dev/sdg                                      ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
-192.168.1.170:/mnt/phantom_share              nfs4           119G   38M  112G   1% /var/lib/kubelet/pods/8c7d912e-b68c-4a97-bd01-81a1a355e900/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
-/dev/sdb                                      ext4            59G  8.8G   49G  16% /mnt/databox_01_59G_1
+192.168.1.170:/mnt/phantom_share              nfs4           119G   34M  112G   1% /var/lib/kubelet/pods/8c7d912e-b68c-4a97-bd01-81a1a355e900/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
+/dev/sdb                                      ext4            59G  8.9G   49G  16% /mnt/databox_01_59G_1
 /dev/sdh                                      ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
 /dev/sdl                                      ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
 /dev/sdi                                      ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
@@ -66,4 +66,4 @@ audio_pool                                    fuse.mergerfs  1.8T  310G  1.5T  1
 /dev/sdo                                      ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdn                                      ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
 /dev/sdj                                      ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
-192.168.1.160:/mnt/internal/appdata/homarr_v1 nfs4           338G  1.4G  319G   1% /var/lib/kubelet/pods/eef97e34-7ac8-440f-a7ff-538bf55804c1/volumes/kubernetes.io~nfs/homarr-nfs-pv
+192.168.1.160:/mnt/internal/appdata/homarr_v1 nfs4           338G  1.4G  320G   1% /var/lib/kubelet/pods/eef97e34-7ac8-440f-a7ff-538bf55804c1/volumes/kubernetes.io~nfs/homarr-nfs-pv
