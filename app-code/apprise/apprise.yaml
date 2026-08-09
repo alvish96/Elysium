@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apprise-config
+  namespace: monitoring
+data:
+  apprise.yml: |
+    urls:
+      # --- DEFAULT BROADCAST (Sends to both Discord and MS Teams) ---
+      # Replace placeholders with your actual webhook tokens/urls
+      - discord://H8XLCi1ijyi2oCXZ/a6beo5m8b15WvP5iOKTDNWepBK8Eb_ushJ61JPjkYfK9-veilu3JXUsYlg6qtu5iEqWu:
+          - tag: all
+          - tag: media
+          - tag: alerts
+      
+      # Microsoft Teams Incoming Webhook
+      # If using legacy webhook syntax: msteams://token_a/token_b/token_c
+      # If using modern workflow URL: paste the full https URL
+      - msteams://YOUR_TEAMS_TOKEN_A/YOUR_TEAMS_TOKEN_B/YOUR_TEAMS_TOKEN_C:
+          - tag: all
+          - tag: devops
+          - tag: alerts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apprise
+  namespace: monitoring
+  labels:
+    app: apprise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apprise
+  template:
+    metadata:
+      labels:
+        app: apprise
+    spec:
+      containers:
+        - name: apprise
+          image: caronc/apprise:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          volumeMounts:
+            - name: config-volume
+              mountPath: /opt/apprise/config/apprise.yml
+              subPath: apprise.yml
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+      volumes:
+        - name: config-volume
+          configMap:
+            name: apprise-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apprise-svc
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: apprise
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
