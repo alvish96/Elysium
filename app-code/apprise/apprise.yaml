@@ -6,20 +6,13 @@ metadata:
 data:
   apprise.yml: |
     urls:
-      # --- DEFAULT BROADCAST (Sends to both Discord and MS Teams) ---
-      # Replace placeholders with your actual webhook tokens/urls
-      - discord://H8XLCi1ijyi2oCXZ/a6beo5m8b15WvP5iOKTDNWepBK8Eb_ushJ61JPjkYfK9-veilu3JXUsYlg6qtu5iEqWu:
-          - tag: all
-          - tag: media
-          - tag: alerts
-      
-      # Microsoft Teams Incoming Webhook
-      # If using legacy webhook syntax: msteams://token_a/token_b/token_c
-      # If using modern workflow URL: paste the full https URL
-      - msteams://YOUR_TEAMS_TOKEN_A/YOUR_TEAMS_TOKEN_B/YOUR_TEAMS_TOKEN_C:
-          - tag: all
-          - tag: devops
-          - tag: alerts
+      # --- DISCORD WEBHOOK ---
+      - discord://1535861603948433508/a6beo5m8b15WvP5iOKTDNWepBK8Eb_ushJ61JPjkYfK9-veilu3JXUsYlg6qtu5iEqWu:
+          tag: all, media, alerts
+
+      # --- MS TEAMS WEBHOOK (Uncomment & paste tokens when ready) ---
+      # - msteams://YOUR_TEAMS_TOKEN_A/YOUR_TEAMS_TOKEN_B/YOUR_TEAMS_TOKEN_C:
+      #     tag: all, devops, alerts
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -38,16 +31,33 @@ spec:
       labels:
         app: apprise
     spec:
+      # --- EXCLUDE PI (32-bit ARM) ---
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - pi
       containers:
         - name: apprise
-          image: caronc/apprise:latest
+          image: lscr.io/linuxserver/apprise-api:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: "Asia/Kolkata"
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
           ports:
             - containerPort: 8000
               name: http
           volumeMounts:
             - name: config-volume
-              mountPath: /opt/apprise/config/apprise.yml
+              mountPath: /config/apprise.yml
               subPath: apprise.yml
           resources:
             requests:
