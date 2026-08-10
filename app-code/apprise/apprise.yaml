@@ -15,9 +15,16 @@ spec:
       labels:
         app: apprise
     spec:
-      # Exclude Pi (32-bit ARM)
+      # --- ALPINE DNS BUG FIX (Prevents 10s timeouts for external domains) ---
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      # --- WEIGHTED NODE PRIORITY MAP ---
       affinity:
         nodeAffinity:
+          # Hard requirement: NEVER schedule on pi (32-bit ARM)
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
@@ -25,6 +32,36 @@ spec:
                     operator: NotIn
                     values:
                       - pi
+          # Preferred ranking: olympus > avalon > phantom > atlantis
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - olympus
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - avalon
+            - weight: 60
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+            - weight: 40
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - atlantis
       containers:
         - name: apprise
           image: lscr.io/linuxserver/apprise-api:latest
@@ -36,7 +73,6 @@ spec:
               value: "1000"
             - name: PGID
               value: "1000"
-            # --- DEFAULT DISCORD (AND TEAMS) WEBHOOKS ---
             - name: APPRISE_STATELESS_URLS
               value: "discord://1535861603948433508/a6beo5m8b15WvP5iOKTDNWepBK8Eb_ushJ61JPjkYfK9-veilu3JXUsYlg6qtu5iEqWu"
           ports:
