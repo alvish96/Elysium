@@ -10,6 +10,7 @@ data:
     phantom https://hc-ping.com/34119d38-0611-4056-ba24-9b2a77aca0cf
     olympus https://hc-ping.com/fedfffd3-c28f-4738-955c-ed7cd1490e04
     pi https://hc-ping.com/a9ce951e-2443-45e4-9945-f6b7292f6b17
+    work-hcn https://hc-ping.com/bd75d724-e850-4461-b413-a4e0c55af775
 ---
 apiVersion: apps/v1
 kind: DaemonSet
