@@ -24,17 +24,63 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: jellyfin-nexus-pv
+  name: jellyfin-movies-pv
 spec:
   capacity:
-    storage: 10Ti
+    storage: 5Ti
   volumeMode: Filesystem
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage-jellyfin
   local:
-    path: /mnt/nexus_pool
+    path: /mnt/movies_pool
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jellyfin-tvshows-pv
+spec:
+  capacity:
+    storage: 5Ti
+  volumeMode: Filesystem
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-jellyfin
+  local:
+    path: /mnt/tvshows_pool
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - atlantis
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jellyfin-audio-pv
+spec:
+  capacity:
+    storage: 2Ti
+  volumeMode: Filesystem
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-jellyfin
+  local:
+    path: /mnt/audio_pool
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -83,7 +129,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jellyfin-nexus-pvc
+  name: jellyfin-movies-pvc
   namespace: media
 spec:
   accessModes:
@@ -91,7 +137,33 @@ spec:
   storageClassName: local-storage-jellyfin
   resources:
     requests:
-      storage: 10Ti
+      storage: 5Ti
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-tvshows-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: local-storage-jellyfin
+  resources:
+    requests:
+      storage: 5Ti
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-audio-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: local-storage-jellyfin
+  resources:
+    requests:
+      storage: 2Ti
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

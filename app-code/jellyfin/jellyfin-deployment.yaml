@@ -27,9 +27,7 @@ spec:
       annotations:
         container.apparmor.security.beta.kubernetes.io/jellyfin: unconfined
     spec:
-      # === VIP SCHEDULING PRIORITY ===
       priorityClassName: high-priority-media
-      
       nodeSelector:
         kubernetes.io/hostname: atlantis
       securityContext:
@@ -47,21 +45,22 @@ spec:
           ports:
             - containerPort: 8096
               name: http
-              
-          # === DEDICATED RESOURCE ALLOCATION ===
           resources:
             requests:
-              cpu: "500m"       # Reserves half a core minimum purely for Jellyfin
-              memory: "800Mi"   # Guarantees a safe RAM cache floor
+              cpu: "500m"
+              memory: "800Mi"
             limits:
-              cpu: "2500m"      # Allows Jellyfin to burst across 2.5 cores if needed
-              memory: "1500Mi"  # Hard cap ceiling to protect the node from crashing
-              
+              cpu: "2500m"
+              memory: "1500Mi"
           volumeMounts:
             - name: config-volume
               mountPath: /config
-            - name: nexus-volume
-              mountPath: /data/nexus_pool
+            - name: movies-volume
+              mountPath: /data/movies
+            - name: tvshows-volume
+              mountPath: /data/tvshows
+            - name: audio-volume
+              mountPath: /data/audio
             - name: phantom-volume
               mountPath: /data/phantom_nfs
             - name: render-dev
@@ -70,9 +69,15 @@ spec:
         - name: config-volume
           persistentVolumeClaim:
             claimName: jellyfin-config-pvc
-        - name: nexus-volume
+        - name: movies-volume
           persistentVolumeClaim:
-            claimName: jellyfin-nexus-pvc
+            claimName: jellyfin-movies-pvc
+        - name: tvshows-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-tvshows-pvc
+        - name: audio-volume
+          persistentVolumeClaim:
+            claimName: jellyfin-audio-pvc
         - name: phantom-volume
           persistentVolumeClaim:
             claimName: jellyfin-phantom-pvc
