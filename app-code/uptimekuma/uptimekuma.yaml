@@ -11,7 +11,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage-uptimekuma
   nfs:
-    server: 192.168.1.160 # ANCHORED STRICTLY TO ATLANTIS SSD
+    server: 100.110.100.1 # ATLANTIS TAILSCALE IP (REACHABLE BY ALL NODES)
     path: /mnt/internal/appdata/uptimekuma
 ---
 apiVersion: v1
@@ -51,10 +51,9 @@ spec:
         options:
           - name: ndots
             value: "1"
-      # --- COMPUTE FAILOVER MATRIX (Data anchored on Atlantis NFS) ---
+      # --- COMPUTE FAILOVER MATRIX ---
       affinity:
         nodeAffinity:
-          # Hard requirement: NEVER schedule on pi (32-bit ARM)
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
@@ -62,7 +61,6 @@ spec:
                     operator: NotIn
                     values:
                       - pi
-          # Preference Ranking: hcnvedl1108401 > olympus > avalon > phantom > atlantis
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               preference:
