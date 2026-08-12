@@ -9,17 +9,10 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage-uptimekuma
-  local:
+  storageClassName: nfs-storage-uptimekuma
+  nfs:
+    server: 192.168.1.160 # ANCHORED STRICTLY TO ATLANTIS SSD
     path: /mnt/internal/appdata/uptimekuma
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - olympus # STRICTLY PINNED TO THE BATTERY-BACKED NODE
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -29,7 +22,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-storage-uptimekuma
+  storageClassName: nfs-storage-uptimekuma
   resources:
     requests:
       storage: 2Gi
@@ -53,13 +46,59 @@ spec:
       labels:
         app: uptimekuma
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: olympus # STRICTLY PINNED TO THE BATTERY-BACKED NODE
       dnsPolicy: ClusterFirst
       dnsConfig:
         options:
           - name: ndots
             value: "1"
+      # --- COMPUTE FAILOVER MATRIX (Data anchored on Atlantis NFS) ---
+      affinity:
+        nodeAffinity:
+          # Hard requirement: NEVER schedule on pi (32-bit ARM)
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - pi
+          # Preference Ranking: hcnvedl1108401 > olympus > avalon > phantom > atlantis
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - hcnvedl1108401
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - olympus
+            - weight: 60
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - avalon
+            - weight: 40
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+            - weight: 20
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - atlantis
       containers:
         - name: uptimekuma
           image: louislam/uptime-kuma:2.4.0
