@@ -6,6 +6,6 @@ metadata:
 spec:
   entryPoints: [web, websecure]
   routes:
-    - match: Host(`jellyfin.nexus.link`)
+    - match: Host(`jellyfin.nexus.link`) || Host(`jellyfin.local`)
       kind: Rule
       services: [{name: jellyfin-svc, port: 8096}]
