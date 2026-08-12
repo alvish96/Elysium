@@ -15,25 +15,36 @@ spec:
       labels:
         app: trawl
     spec:
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
       affinity:
         nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - pi
+                      - hcnvedl1108401
           preferredDuringSchedulingIgnoredDuringExecution:
-            # Preferred Primary Node: avalon (Weight 100)
             - weight: 100
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - avalon
-            # Preferred Failover Node: phantom (Weight 50)
-            - weight: 50
+                      - avalon # PRIMARY WORKER
+            - weight: 80
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - phantom
+                      - phantom # SECONDARY WORKER
       containers:
         - name: trawl
           image: ghcr.io/germondai/trawl:latest
@@ -56,11 +67,11 @@ spec:
               value: "0"
             - name: LOG_LEVEL
               value: "debug"
-            # Route browser scraping contexts through Gluetun VPN
+            # FULL CLUSTER FQDN PROXY URL
             - name: PROXY_URL
-              value: "http://qbittorrent-svc:8888"
+              value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
             - name: DEFAULT_PROXY
-              value: "http://qbittorrent-svc:8888"
+              value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
           volumeMounts:
             - name: trawl-data
               mountPath: /data
@@ -74,10 +85,8 @@ spec:
               cpu: 200m
               memory: 512Mi
       volumes:
-        # Temporary stateless storage per pod
         - name: trawl-data
           emptyDir: {}
-        # Shared memory allocation for Firefox browser contexts
         - name: dshm
           emptyDir:
             medium: Memory
