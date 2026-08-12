@@ -11,7 +11,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage-uptimekuma
   nfs:
-    server: 100.110.100.1 # ATLANTIS TAILSCALE IP (REACHABLE BY ALL NODES)
+    server: 192.168.1.160
     path: /mnt/internal/appdata/uptimekuma
 ---
 apiVersion: v1
@@ -51,7 +51,6 @@ spec:
         options:
           - name: ndots
             value: "1"
-      # --- COMPUTE FAILOVER MATRIX ---
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -68,29 +67,22 @@ spec:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - hcnvedl1108401
+                      - olympus
             - weight: 80
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - olympus
+                      - avalon
             - weight: 60
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - avalon
-            - weight: 40
-              preference:
-                matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
                       - phantom
-            - weight: 20
+            - weight: 40
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname

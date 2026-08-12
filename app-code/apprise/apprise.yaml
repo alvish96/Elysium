@@ -15,16 +15,13 @@ spec:
       labels:
         app: apprise
     spec:
-      # --- ALPINE DNS BUG FIX ---
       dnsPolicy: ClusterFirst
       dnsConfig:
         options:
           - name: ndots
             value: "1"
-      # --- OFF-SITE PRIMARY & WEIGHTED FAILOVER MATRIX ---
       affinity:
         nodeAffinity:
-          # Hard requirement: NEVER schedule on pi (32-bit ARM)
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
@@ -32,7 +29,6 @@ spec:
                     operator: NotIn
                     values:
                       - pi
-          # Priority: hcnvedl1108401 > olympus > avalon > phantom > atlantis
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               preference:
@@ -40,29 +36,22 @@ spec:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - hcnvedl1108401
+                      - olympus
             - weight: 80
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - olympus
+                      - avalon
             - weight: 60
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: In
                     values:
-                      - avalon
-            - weight: 40
-              preference:
-                matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
                       - phantom
-            - weight: 20
+            - weight: 40
               preference:
                 matchExpressions:
                   - key: kubernetes.io/hostname
