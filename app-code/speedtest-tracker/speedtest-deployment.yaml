@@ -7,6 +7,8 @@ metadata:
     app: speedtest-tracker
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: speedtest-tracker
@@ -15,6 +17,15 @@ spec:
       labels:
         app: speedtest-tracker
     spec:
+      # === DIRECT UPSTREAM DNS: BYPASS CLUSTER SEARCH PATHS & WILDCARDS ===
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+        options:
+          - name: ndots
+            value: "1"
       nodeSelector:
         kubernetes.io/hostname: avalon
       containers:
@@ -41,12 +52,12 @@ spec:
             - name: speedtest-config
               mountPath: /config
           resources:
-            limits:
-              cpu: "1"
-              memory: 512Mi
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1024Mi
       volumes:
         - name: speedtest-config
           persistentVolumeClaim:
