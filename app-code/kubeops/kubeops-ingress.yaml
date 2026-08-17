@@ -16,3 +16,4 @@ spec:
       services:
         - name: kube-ops-view-svc
           port: 8080
+          scheme: http
