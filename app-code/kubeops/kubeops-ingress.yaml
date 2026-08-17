@@ -1,0 +1,18 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kubeops-ingress
+  namespace: monitoring
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`kubeops.nexus.link`)
+      kind: Rule
+      middlewares:
+        - name: forwardauth-middleware-monitoring
+          namespace: security
+      services:
+        - name: kube-ops-view-svc
+          port: 8080
