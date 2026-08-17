@@ -9,18 +9,9 @@ kind: ClusterRole
 metadata:
   name: kube-ops-view
 rules:
-  - apiGroups: [""]
-    resources: ["nodes", "pods", "namespaces", "services", "replicationcontrollers", "persistentvolumes", "persistentvolumeclaims"]
+  - apiGroups: ["*"]
+    resources: ["*"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["apps"]
-    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["batch"]
-    resources: ["jobs", "cronjobs"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["metrics.k8s.io"]
-    resources: ["nodes", "pods"]
-    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -90,18 +81,22 @@ spec:
           ports:
             - containerPort: 8080
               name: http
-          livenessProbe:
+          startupProbe:
             httpGet:
-              path: /healthz
+              path: /
               port: 8080
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            failureThreshold: 20
+            periodSeconds: 3
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /
               port: 8080
-            initialDelaySeconds: 5
             periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
           resources:
             requests:
               cpu: 50m
