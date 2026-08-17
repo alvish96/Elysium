@@ -69,27 +69,14 @@ kind: Service
 metadata:
   name: homarr-svc
   namespace: media
+  labels:
+    app: homarr
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: homarr
   ports:
     - name: http
       port: 7575
       targetPort: 7575
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: homarr-ingress
-  namespace: media
-spec:
-  entryPoints:
-    - web
-    - websecure
-  routes:
-    - match: Host(`192.168.1.160`) || Host(`100.110.100.1`) || Host(`homarr.local`)
-      kind: Rule
-      services:
-        - name: homarr-svc
-          port: 7575
+      nodePort: 30575

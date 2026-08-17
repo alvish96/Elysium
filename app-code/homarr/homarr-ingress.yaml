@@ -4,9 +4,11 @@ metadata:
   name: homarr-ingress
   namespace: media
 spec:
-  entryPoints: [web, websecure]
+  entryPoints:
+    - web
+    - websecure
   routes:
-    - match: Host(`nexus.link`) || Host(`homarr.nexus.link`) || Host(`100.110.100.1`)
+    - match: Host(`nexus.link`) || Host(`homarr.nexus.link`) || Host(`100.110.100.1`) || Host(`192.168.1.160`)
       kind: Rule
       services:
         - name: homarr-svc
