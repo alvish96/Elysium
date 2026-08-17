@@ -4,16 +4,9 @@ metadata:
   name: kubeops-ingress
   namespace: monitoring
 spec:
-  entryPoints:
-    - web
-    - websecure
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`kubeops.nexus.link`)
       kind: Rule
-      middlewares:
-        - name: forwardauth-middleware-monitoring
-          namespace: security
-      services:
-        - name: kube-ops-view-svc
-          port: 8080
-          scheme: http
+      middlewares: [{name: authentik-forwardauth, namespace: monitoring}]
+      services: [{name: kube-ops-view-svc, port: 8080}]
