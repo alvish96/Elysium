@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Tue Aug 18 00:05:01 UTC 2026
+Last Updated: Wed Aug 19 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-137-generic #137-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 17 20:28:23 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       8.4Gi       444Mi       497Mi       2.7Gi       2.3Gi
-Swap:          3.3Gi       457Mi       2.8Gi
+Mem:            10Gi       8.0Gi       361Mi       504Mi       3.1Gi       2.6Gi
+Swap:          3.3Gi       550Mi       2.8Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -48,8 +48,8 @@ efivarfs                                               efivarfs        84K   71K
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  1.8G  319G   1% /mnt/internal
-nexus_pool                                             fuse.mergerfs  8.8T  684G  8.0T   8% /mnt/nexus_pool
-movies_pool                                            fuse.mergerfs  1.8T  163G  1.6T  10% /mnt/movies_pool
+nexus_pool                                             fuse.mergerfs  8.8T  691G  8.0T   8% /mnt/nexus_pool
+movies_pool                                            fuse.mergerfs  1.8T  170G  1.6T  10% /mnt/movies_pool
 tvshows_pool                                           fuse.mergerfs  1.8T  201G  1.5T  12% /mnt/tvshows_pool
 audio_pool                                             fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audio_pool
 /dev/sdb                                               ext4            59G  9.6G   48G  17% /mnt/databox_01_59G_1
@@ -59,7 +59,7 @@ audio_pool                                             fuse.mergerfs  1.8T  310G
 192.168.1.160:/mnt/internal/appdata/homarr_v1          nfs4           338G  1.8G  319G   1% /var/lib/kubelet/pods/eef97e34-7ac8-440f-a7ff-538bf55804c1/volumes/kubernetes.io~nfs/homarr-nfs-pv
 /dev/sdl                                               ext4           880G   52K  862G   1% /var/lib/kubelet/pods/f0cbb8ab-fcf7-4b40-9e45-ac710d51becb/volumes/kubernetes.io~local-volume/qbit-base-pv
 192.168.1.170:/mnt/phantom_share                       nfs4           119G   39M  112G   1% /var/lib/kubelet/pods/5f90f750-fca8-403b-a0ac-c3d2eb3477c2/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
-/dev/sdo                                               ext4           880G  163G  699G  19% /mnt/databox_02_894G_1
+/dev/sdo                                               ext4           880G  170G  693G  20% /mnt/databox_02_894G_1
 /dev/sde                                               ext4           880G  201G  661G  24% /mnt/databox_03_894G_2
 /dev/sdi                                               ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
