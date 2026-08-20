@@ -51,7 +51,6 @@ spec:
           image: ghcr.io/haveagitgat/tdarr_node:latest
           securityContext:
             privileged: true
-          # === FIX: EXPOSE NODE API PORT ===
           ports:
             - containerPort: 8267
               name: node-api
@@ -66,17 +65,17 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # === FIX: TELL THE SERVER EXACTLY HOW TO ROUTE BACK TO THIS POD ===
             - name: nodeIP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
             - name: nodePort
               value: "8267"
+            # === THE FIX: DIRECT LAN TCP COMMUNICATION ===
             - name: serverIP
-              value: "tdarr-svc.media.svc.cluster.local"
+              value: "192.168.1.160"
             - name: serverPort
-              value: "8266"
+              value: "30266"
           resources:
             requests:
               cpu: 500m
