@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdarr-node-phantom
+  namespace: media
+  labels:
+    app: tdarr-node-phantom
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tdarr-node-phantom
+  template:
+    metadata:
+      labels:
+        app: tdarr-node-phantom
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: phantom
+      containers:
+        - name: tdarr-node
+          image: ghcr.io/haveagitgat/tdarr_node:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: TZ
+              value: "Asia/Kolkata"
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
+            - name: nodeID
+              value: "elysium-worker-phantom"
+            - name: serverIP
+              value: "tdarr-svc.media.svc.cluster.local"
+            - name: serverPort
+              value: "8266"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1024Mi
+            limits:
+              cpu: "4"
+              memory: 4096Mi
+          volumeMounts:
+            - name: movies-pool
+              mountPath: /movies
+            - name: tvshows-pool
+              mountPath: /tv
+            - name: temp-cache
+              mountPath: /temp
+            # Pass Intel QuickSync GPU for hardware transcode
+            - name: dri-dev
+              mountPath: /dev/dri
+      volumes:
+        # Native K8s NFS routing back to Atlantis
+        - name: movies-pool
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/movies_pool
+        - name: tvshows-pool
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/tvshows_pool
+        - name: temp-cache
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/internal/appdata/tdarr/temp
+        - name: dri-dev
+          hostPath:
+            path: /dev/dri
+            type: DirectoryOrCreate
