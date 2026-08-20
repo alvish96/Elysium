@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdarr-nodes
+  namespace: media
+  labels:
+    app: tdarr-node
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tdarr-node
+  template:
+    metadata:
+      labels:
+        app: tdarr-node
+    spec:
+      affinity:
+        # STRICT RULE: Never put two Tdarr workers on the same physical server
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - tdarr-node
+              topologyKey: kubernetes.io/hostname
+        # PREFERENCE RULE: Pick Phantom and Avalon first. Fail over to Atlantis.
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+                      - avalon
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - phantom
+                      - avalon
+                      - atlantis
+      containers:
+        - name: tdarr-node
+          image: ghcr.io/haveagitgat/tdarr_node:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: TZ
+              value: "Asia/Kolkata"
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
+            # Automatically names the worker after the host it lands on (e.g., worker-phantom)
+            - name: nodeID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: serverIP
+              value: "tdarr-svc.media.svc.cluster.local"
+            - name: serverPort
+              value: "8266"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1024Mi
+            limits:
+              cpu: "4"
+              memory: 4096Mi
+          volumeMounts:
+            - name: configs-data
+              mountPath: /app/configs
+            - name: movies-pool
+              mountPath: /movies
+            - name: tvshows-pool
+              mountPath: /tv
+            - name: temp-cache
+              mountPath: /temp
+            # Mount QuickSync / VAAPI GPU 
+            - name: dri-dev
+              mountPath: /dev/dri
+      volumes:
+        - name: configs-data
+          persistentVolumeClaim:
+            claimName: tdarr-configs-pvc
+        # Connect to media over NFS so path translations are identical across all servers
+        - name: movies-pool
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/movies_pool
+        - name: tvshows-pool
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/tvshows_pool
+        - name: temp-cache
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/internal/appdata/tdarr/temp
+        - name: dri-dev
+          hostPath:
+            path: /dev/dri
+            type: DirectoryOrCreate

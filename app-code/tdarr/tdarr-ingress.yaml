@@ -4,15 +4,9 @@ metadata:
   name: tdarr-ingress
   namespace: media
 spec:
-  entryPoints:
-    - web
-    - websecure
+  entryPoints: [web, websecure]
   routes:
     - match: Host(`tdarr.nexus.link`)
       kind: Rule
-      middlewares:
-        - name: authentik-forwardauth
-          namespace: media
-      services:
-        - name: tdarr-svc
-          port: 8265
+      middlewares: [{name: authentik-forwardauth, namespace: media}]
+      services: [{name: tdarr-svc, port: 8265}]
