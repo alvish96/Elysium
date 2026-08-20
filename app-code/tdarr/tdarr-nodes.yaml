@@ -51,6 +51,10 @@ spec:
           image: ghcr.io/haveagitgat/tdarr_node:latest
           securityContext:
             privileged: true
+          # === FIX: EXPOSE NODE API PORT ===
+          ports:
+            - containerPort: 8267
+              name: node-api
           env:
             - name: TZ
               value: "Asia/Kolkata"
@@ -62,6 +66,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            # === FIX: TELL THE SERVER EXACTLY HOW TO ROUTE BACK TO THIS POD ===
+            - name: nodeIP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: nodePort
+              value: "8267"
             - name: serverIP
               value: "tdarr-svc.media.svc.cluster.local"
             - name: serverPort
@@ -85,7 +96,6 @@ spec:
             - name: dri-dev
               mountPath: /dev/dri
       volumes:
-        # Replaced PVC with NFS for cross-node compatibility
         - name: configs-data
           nfs:
             server: 192.168.1.160
