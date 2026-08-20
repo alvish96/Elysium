@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdarr-node
+  namespace: media
+  labels:
+    app: tdarr-node
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tdarr-node
+  template:
+    metadata:
+      labels:
+        app: tdarr-node
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      containers:
+        - name: tdarr-node
+          image: ghcr.io/haveased/tdarr_node:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: TZ
+              value: "Asia/Kolkata"
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
+            - name: nodeID
+              value: "elysium-worker-atlantis"
+            - name: serverIP
+              value: "tdarr-svc.media.svc.cluster.local"
+            - name: serverPort
+              value: "8266"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1024Mi
+            limits:
+              cpu: "3"
+              memory: 4096Mi
+          volumeMounts:
+            - name: configs-data
+              mountPath: /app/configs
+            - name: movies-pool
+              mountPath: /movies
+            - name: tvshows-pool
+              mountPath: /tv
+            - name: temp-cache
+              mountPath: /temp
+            - name: dri-dev
+              mountPath: /dev/dri
+      volumes:
+        - name: configs-data
+          persistentVolumeClaim:
+            claimName: tdarr-configs-pvc
+        - name: movies-pool
+          hostPath:
+            path: /mnt/movies_pool
+            type: Directory
+        - name: tvshows-pool
+          hostPath:
+            path: /mnt/tvshows_pool
+            type: Directory
+        - name: temp-cache
+          hostPath:
+            path: /mnt/internal/appdata/tdarr/temp
+            type: Directory
+        - name: dri-dev
+          hostPath:
+            path: /dev/dri
+            type: DirectoryOrCreate
