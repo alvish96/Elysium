@@ -18,7 +18,6 @@ spec:
         app: tdarr-node
     spec:
       affinity:
-        # STRICT RULE: Never put two Tdarr workers on the same physical server
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -28,7 +27,6 @@ spec:
                     values:
                       - tdarr-node
               topologyKey: kubernetes.io/hostname
-        # PREFERENCE RULE: Pick Phantom and Avalon first. Fail over to Atlantis.
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
@@ -60,7 +58,6 @@ spec:
               value: "0"
             - name: PGID
               value: "0"
-            # Automatically names the worker after the host it lands on (e.g., worker-phantom)
             - name: nodeID
               valueFrom:
                 fieldRef:
@@ -85,14 +82,14 @@ spec:
               mountPath: /tv
             - name: temp-cache
               mountPath: /temp
-            # Mount QuickSync / VAAPI GPU 
             - name: dri-dev
               mountPath: /dev/dri
       volumes:
+        # Replaced PVC with NFS for cross-node compatibility
         - name: configs-data
-          persistentVolumeClaim:
-            claimName: tdarr-configs-pvc
-        # Connect to media over NFS so path translations are identical across all servers
+          nfs:
+            server: 192.168.1.160
+            path: /mnt/internal/appdata/tdarr/configs
         - name: movies-pool
           nfs:
             server: 192.168.1.160
