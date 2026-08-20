@@ -99,16 +99,3 @@ spec:
     - name: server-api
       port: 8266
       targetPort: 8266
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: tdarr-ingress
-  namespace: media
-spec:
-  entryPoints: [web, websecure]
-  routes:
-    - match: Host(`tdarr.nexus.link`)
-      kind: Rule
-      middlewares: [{name: authentik-forwardauth, namespace: media}]
-      services: [{name: tdarr-svc, port: 8265}]
