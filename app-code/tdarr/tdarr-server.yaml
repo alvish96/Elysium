@@ -21,7 +21,7 @@ spec:
         kubernetes.io/hostname: atlantis
       containers:
         - name: tdarr-server
-          image: ghcr.io/haveased/tdarr:latest
+          image: ghcr.io/haveagitgat/tdarr:latest
           ports:
             - containerPort: 8265
               name: web-ui
