@@ -56,6 +56,9 @@ spec:
               value: "a031a6649d8204b80d5271b46906ce72a2d1e0821d5b0859ad873cee2264346f"
             - name: AUTH_PROVIDERS
               value: "credentials"
+            # === THE FIX: ALLOW AUTH SESSION OVER KUBERNETES NODEPORT ===
+            - name: AUTH_TRUST_HOST
+              value: "true"
           volumeMounts:
             - name: homarr-data
               mountPath: /appdata
