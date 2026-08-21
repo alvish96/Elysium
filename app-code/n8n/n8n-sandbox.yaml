@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n-sandbox
+  namespace: media
+  labels:
+    app: n8n-sandbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n-sandbox
+  template:
+    metadata:
+      labels:
+        app: n8n-sandbox
+    spec:
+      # Pinning to phantom to keep AI compute off the control plane
+      nodeSelector:
+        kubernetes.io/hostname: phantom
+      initContainers:
+        - name: sandbox-certs
+          image: ghcr.io/n8n-io/n8n-sandbox-service-api:latest
+          user: '0:0'
+          command: ['sh', '-c']
+          args:
+            - "bootstrap-mtls.sh --out-dir /tls --api-san n8n-sandbox-svc --control-san-prefix n8n-sandbox-runner && chown -R sandbox-api:sandbox-api /tls/api"
+          volumeMounts:
+            - name: sandbox-tls
+              mountPath: /tls
+      containers:
+        - name: sandbox-api
+          image: ghcr.io/n8n-io/n8n-sandbox-service-api:latest
+          env:
+            - name: NUM_RUNNERS
+              value: '1'
+            - name: SANDBOX_API_KEYS
+              value: 'ElysiumSandboxKey2026'
+            - name: SANDBOX_RUNNER_REGISTRATION_TOKEN
+              value: 'ElysiumRunnerToken2026'
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8443
+              name: grpc
+          volumeMounts:
+            - name: sandbox-tls
+              mountPath: /tls
+        - name: sandbox-runner
+          image: ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: SANDBOX_RUNNER_API_KEYS
+              value: 'ElysiumRunnerKey2026'
+            - name: SANDBOX_RUNNER_REGISTRATION_TOKEN
+              value: 'ElysiumRunnerToken2026'
+            - name: SANDBOX_RUNNER_API_GRPC_ADDR
+              value: 'n8n-sandbox-svc:8443'
+          volumeMounts:
+            - name: sandbox-tls
+              mountPath: /tls
+      volumes:
+        - name: sandbox-tls
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n-sandbox-svc
+  namespace: media
+spec:
+  selector:
+    app: n8n-sandbox
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 8443
+      targetPort: 8443
