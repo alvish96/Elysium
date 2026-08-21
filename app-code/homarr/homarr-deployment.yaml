@@ -17,7 +17,6 @@ spec:
       labels:
         app: homarr
     spec:
-      # === FAILOVER SCHEDULING: PREFER PHANTOM, FALLBACK TO ATLANTIS ===
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -52,11 +51,14 @@ spec:
           env:
             - name: TZ
               value: "Asia/Kolkata"
+            # === DATABASE ENCRYPTION ===
             - name: SECRET_ENCRYPTION_KEY
               value: "a031a6649d8204b80d5271b46906ce72a2d1e0821d5b0859ad873cee2264346f"
+            # === NEW: CRITICAL FOR AUTH.JS SESSION COOKIES ===
+            - name: AUTH_SECRET
+              value: "c9b83b3e215f4e1f822a101b439c3e4141d8e1261a8689551c6c0393d2545802"
             - name: AUTH_PROVIDERS
               value: "credentials"
-            # === THE FIX: ALLOW AUTH SESSION OVER KUBERNETES NODEPORT ===
             - name: AUTH_TRUST_HOST
               value: "true"
           volumeMounts:
