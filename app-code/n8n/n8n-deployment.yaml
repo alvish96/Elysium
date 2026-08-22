@@ -20,6 +20,12 @@ spec:
       # === PIN TO ATLANTIS: REQUIRED FOR DIRECT LOCAL GITOPS REPO ACCESS ===
       nodeSelector:
         kubernetes.io/hostname: atlantis
+      # === MODERN K3S APPARMOR BYPASS (FIXES CRASH) ===
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
       containers:
         - name: n8n
           image: docker.n8n.io/n8nio/n8n:latest
@@ -75,12 +81,16 @@ spec:
               value: "n8n_user"
             - name: DB_POSTGRESDB_PASSWORD
               value: "ElysiumN8nSecurePass2026"
+            # === AI SANDBOX ENABLEMENT ===
+            - name: N8N_ENABLED_MODULES
+              value: "instance-ai"
+            - name: N8N_INSTANCE_AI_SANDBOX_ENABLED
+              value: "true"
           volumeMounts:
             - name: elysium-repo
               mountPath: /root/Elysium
             - name: git-config
               mountPath: /root/.gitconfig
-              subPath: .gitconfig
             - name: ssh-keys
               mountPath: /root/.ssh
       volumes:
