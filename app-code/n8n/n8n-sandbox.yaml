@@ -19,33 +19,36 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
-      # === NATIVE STORAGE PERMISSIONS & APPARMOR BYPASS ===
+      # === K3S APPARMOR BYPASS ===
       securityContext:
         seccompProfile:
           type: Unconfined
         appArmorProfile:
           type: Unconfined
-        fsGroup: 1000
       volumes:
         - name: tls-data
+          emptyDir: {}
+        - name: dind-storage
           emptyDir: {}
       initContainers:
         - name: sandbox-certs
           image: n8nio/n8n-sandbox-service-api:latest
-          # === BYPASS SHELL QUIRKS: EXECUTE SCRIPT DIRECTLY ===
-          command: 
-            - "bootstrap-mtls.sh"
-            - "--out-dir"
-            - "/tls"
-            - "--api-san"
-            - "localhost"
-            - "--control-san-prefix"
-            - "localhost"
-            - "--force"
+          # === PROPER KUBERNETES ROOT EXECUTION ===
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              rm -rf /tls/*
+              bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix localhost --force
+              chmod -R 777 /tls
           volumeMounts:
             - name: tls-data
               mountPath: /tls
       containers:
+        # === 1. SANDBOX API GATEWAY ===
         - name: sandbox-api
           image: n8nio/n8n-sandbox-service-api:latest
           ports:
@@ -64,9 +67,17 @@ spec:
               value: "/tls/api/server.crt"
             - name: SANDBOX_API_GRPC_TLS_KEY
               value: "/tls/api/server.key"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
           volumeMounts:
             - name: tls-data
               mountPath: /tls
+        # === 2. SANDBOX RUNNER (DOCKER-IN-DOCKER) ===
         - name: sandbox-runner
           image: n8nio/n8n-sandbox-service-runner-dind:latest
           securityContext:
@@ -84,9 +95,18 @@ spec:
               value: "/tls/runner/client.crt"
             - name: SANDBOX_RUNNER_API_GRPC_TLS_KEY
               value: "/tls/runner/client.key"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2048Mi"
+              cpu: "2000m"
           volumeMounts:
             - name: tls-data
               mountPath: /tls
+            - name: dind-storage
+              mountPath: /var/lib/docker
 ---
 apiVersion: v1
 kind: Service
