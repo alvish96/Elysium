@@ -31,12 +31,14 @@ spec:
       initContainers:
         - name: sandbox-certs
           image: n8nio/n8n-sandbox-service-api:latest
-          user: '0:0'
+          # === NATIVE KUBERNETES ROOT EXECUTION ===
+          securityContext:
+            runAsUser: 0
           command:
             - 'sh'
             - '-c'
             - >
-              bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix localhost &&
+              bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix localhost --force &&
               chmod -R 777 /tls
           volumeMounts:
             - name: tls-data
