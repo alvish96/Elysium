@@ -15,13 +15,15 @@ spec:
       labels:
         app: n8n-sandbox
     spec:
-      # Pinning to phantom to keep AI compute off the control plane
       nodeSelector:
         kubernetes.io/hostname: phantom
       initContainers:
         - name: sandbox-certs
           image: ghcr.io/n8n-io/n8n-sandbox-service-api:latest
-          user: '0:0'
+          # [FIXED] Converted Docker Compose 'user' to K8s Security Context
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           command: ['sh', '-c']
           args:
             - "bootstrap-mtls.sh --out-dir /tls --api-san n8n-sandbox-svc --control-san-prefix n8n-sandbox-runner && chown -R sandbox-api:sandbox-api /tls/api"
@@ -36,8 +38,10 @@ spec:
               value: '1'
             - name: SANDBOX_API_KEYS
               value: 'ElysiumSandboxKey2026'
-            - name: SANDBOX_RUNNER_REGISTRATION_TOKEN
+            - name: SANDBOX_API_RUNNER_REGISTRATION_TOKEN
               value: 'ElysiumRunnerToken2026'
+            - name: SANDBOX_API_RUNNER_API_KEY
+              value: 'ElysiumRunnerKey2026'
           ports:
             - containerPort: 8080
               name: http
