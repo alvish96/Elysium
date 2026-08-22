@@ -16,14 +16,14 @@ spec:
     metadata:
       labels:
         app: n8n
-      annotations:
-        container.apparmor.security.beta.kubernetes.io/n8n: unconfined
     spec:
+      # === PIN TO ATLANTIS: REQUIRED FOR DIRECT LOCAL GITOPS REPO ACCESS ===
       nodeSelector:
         kubernetes.io/hostname: atlantis
       containers:
         - name: n8n
           image: docker.n8n.io/n8nio/n8n:latest
+          # === RUN AS ROOT TO WRITE TO /root/Elysium ===
           securityContext:
             runAsUser: 0
           ports:
@@ -43,6 +43,7 @@ spec:
               value: "http"
             - name: NODE_ENV
               value: "production"
+            # === CRITICAL HOMELAB FIXES ===
             - name: N8N_SECURE_COOKIE
               value: "false"
             - name: NODE_TLS_REJECT_UNAUTHORIZED
@@ -53,12 +54,15 @@ spec:
               value: "Asia/Kolkata"
             - name: TZ
               value: "Asia/Kolkata"
+            # === PERSISTENT ENCRYPTION KEY (PREVENTS CREDENTIAL CORRUPTION) ===
             - name: N8N_ENCRYPTION_KEY
               value: "ElysiumSecureN8nEncryptionKey2026RootMaster"
+            # === EXECUTE COMMAND PERMISSIONS ===
             - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
               value: "false"
             - name: N8N_ENABLE_EXECUTE_COMMAND
               value: "true"
+            # === POSTGRESQL DATABASE CONFIGURATION ===
             - name: DB_TYPE
               value: "postgresdb"
             - name: DB_POSTGRESDB_HOST
@@ -71,16 +75,12 @@ spec:
               value: "n8n_user"
             - name: DB_POSTGRESDB_PASSWORD
               value: "ElysiumN8nSecurePass2026"
-            - name: N8N_ENABLED_MODULES
-              value: "instance-ai"
-            - name: N8N_INSTANCE_AI_SANDBOX_ENABLED
-              value: "true"
           volumeMounts:
             - name: elysium-repo
               mountPath: /root/Elysium
             - name: git-config
               mountPath: /root/.gitconfig
-              # REMOVED subPath to prevent CreateContainerConfigError
+              subPath: .gitconfig
             - name: ssh-keys
               mountPath: /root/.ssh
       volumes:
