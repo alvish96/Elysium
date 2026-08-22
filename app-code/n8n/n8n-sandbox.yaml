@@ -19,7 +19,6 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
-      # === POD-LEVEL ROOT & APPARMOR BYPASS ===
       securityContext:
         runAsUser: 0
         runAsGroup: 0
@@ -33,7 +32,6 @@ spec:
         - name: dind-storage
           emptyDir: {}
       initContainers:
-        # === 1. CERTIFICATE BOOTSTRAPPER ===
         - name: sandbox-certs
           image: n8nio/n8n-sandbox-service-api:latest
           command:
@@ -43,7 +41,6 @@ spec:
               mkdir -p /tls
               bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix localhost --force
               
-              # Normalize runner cert directory structure
               if [ -d /tls/runner-0 ] && [ ! -d /tls/runner ]; then
                 cp -r /tls/runner-0 /tls/runner
               fi
@@ -56,7 +53,7 @@ spec:
             - name: tls-data
               mountPath: /tls
       containers:
-        # === 2. SANDBOX API GATEWAY ===
+        # === 1. SANDBOX API GATEWAY ===
         - name: sandbox-api
           image: n8nio/n8n-sandbox-service-api:latest
           ports:
@@ -71,11 +68,11 @@ spec:
               value: "ElysiumSandboxKey2026"
             - name: SANDBOX_API_RUNNER_REGISTRATION_TOKEN
               value: "ElysiumRunnerToken2026"
-            - name: SANDBOX_API_GRPC_TLS_CA_CERT
+            - name: SANDBOX_API_GRPC_TLS_CLIENT_CA_FILE
               value: "/tls/api/ca.crt"
-            - name: SANDBOX_API_GRPC_TLS_CERT
+            - name: SANDBOX_API_GRPC_TLS_CERT_FILE
               value: "/tls/api/server.crt"
-            - name: SANDBOX_API_GRPC_TLS_KEY
+            - name: SANDBOX_API_GRPC_TLS_KEY_FILE
               value: "/tls/api/server.key"
           resources:
             requests:
@@ -87,7 +84,7 @@ spec:
           volumeMounts:
             - name: tls-data
               mountPath: /tls
-        # === 3. DOCKER-IN-DOCKER RUNNER ===
+        # === 2. SANDBOX RUNNER (DOCKER-IN-DOCKER) ===
         - name: sandbox-runner
           image: n8nio/n8n-sandbox-service-runner-dind:latest
           securityContext:
@@ -99,11 +96,13 @@ spec:
               value: "ElysiumRunnerToken2026"
             - name: SANDBOX_RUNNER_API_GRPC_ADDR
               value: "127.0.0.1:8081"
-            - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_CERT
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_CERT_FILE
               value: "/tls/runner/ca.crt"
-            - name: SANDBOX_RUNNER_API_GRPC_TLS_CERT
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_FILE
+              value: "/tls/runner/ca.crt"
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_CERT_FILE
               value: "/tls/runner/client.crt"
-            - name: SANDBOX_RUNNER_API_GRPC_TLS_KEY
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_KEY_FILE
               value: "/tls/runner/client.key"
           resources:
             requests:
