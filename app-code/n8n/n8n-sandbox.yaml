@@ -7,6 +7,8 @@ metadata:
     app: n8n-sandbox
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: n8n-sandbox
@@ -16,57 +18,65 @@ spec:
         app: n8n-sandbox
     spec:
       nodeSelector:
-        kubernetes.io/hostname: phantom
+        kubernetes.io/hostname: atlantis
+      volumes:
+        - name: tls-data
+          emptyDir: {}
       initContainers:
         - name: sandbox-certs
-          image: ghcr.io/n8n-io/n8n-sandbox-service-api:latest
-          # [FIXED] Converted Docker Compose 'user' to K8s Security Context
-          securityContext:
-            runAsUser: 0
-            runAsGroup: 0
-          command: ['sh', '-c']
-          args:
-            - "bootstrap-mtls.sh --out-dir /tls --api-san n8n-sandbox-svc --control-san-prefix n8n-sandbox-runner && chown -R sandbox-api:sandbox-api /tls/api"
+          image: n8nio/n8n-sandbox-service-api:latest
+          user: '0:0'
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix localhost &&
+              chmod -R 777 /tls
           volumeMounts:
-            - name: sandbox-tls
+            - name: tls-data
               mountPath: /tls
       containers:
         - name: sandbox-api
-          image: ghcr.io/n8n-io/n8n-sandbox-service-api:latest
-          env:
-            - name: NUM_RUNNERS
-              value: '1'
-            - name: SANDBOX_API_KEYS
-              value: 'ElysiumSandboxKey2026'
-            - name: SANDBOX_API_RUNNER_REGISTRATION_TOKEN
-              value: 'ElysiumRunnerToken2026'
-            - name: SANDBOX_API_RUNNER_API_KEY
-              value: 'ElysiumRunnerKey2026'
+          image: n8nio/n8n-sandbox-service-api:latest
           ports:
             - containerPort: 8080
               name: http
-            - containerPort: 8443
-              name: grpc
+          env:
+            - name: NUM_RUNNERS
+              value: "1"
+            - name: SANDBOX_API_KEYS
+              value: "ElysiumSandboxKey2026"
+            - name: SANDBOX_API_RUNNER_REGISTRATION_TOKEN
+              value: "ElysiumRunnerToken2026"
+            - name: SANDBOX_API_GRPC_TLS_CA_CERT
+              value: "/tls/api/ca.crt"
+            - name: SANDBOX_API_GRPC_TLS_CERT
+              value: "/tls/api/server.crt"
+            - name: SANDBOX_API_GRPC_TLS_KEY
+              value: "/tls/api/server.key"
           volumeMounts:
-            - name: sandbox-tls
+            - name: tls-data
               mountPath: /tls
         - name: sandbox-runner
-          image: ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:latest
+          image: n8nio/n8n-sandbox-service-runner-dind:latest
           securityContext:
             privileged: true
           env:
             - name: SANDBOX_RUNNER_API_KEYS
-              value: 'ElysiumRunnerKey2026'
+              value: "ElysiumSandboxKey2026"
             - name: SANDBOX_RUNNER_REGISTRATION_TOKEN
-              value: 'ElysiumRunnerToken2026'
+              value: "ElysiumRunnerToken2026"
             - name: SANDBOX_RUNNER_API_GRPC_ADDR
-              value: 'n8n-sandbox-svc:8443'
+              value: "localhost:8081"
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_CERT
+              value: "/tls/runner/ca.crt"
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_CERT
+              value: "/tls/runner/client.crt"
+            - name: SANDBOX_RUNNER_API_GRPC_TLS_KEY
+              value: "/tls/runner/client.key"
           volumeMounts:
-            - name: sandbox-tls
+            - name: tls-data
               mountPath: /tls
-      volumes:
-        - name: sandbox-tls
-          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -74,12 +84,10 @@ metadata:
   name: n8n-sandbox-svc
   namespace: media
 spec:
+  type: ClusterIP
   selector:
     app: n8n-sandbox
   ports:
     - name: http
-      port: 8080
+      port: 3200
       targetPort: 8080
-    - name: grpc
-      port: 8443
-      targetPort: 8443

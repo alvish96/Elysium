@@ -75,6 +75,11 @@ spec:
               value: "n8n_user"
             - name: DB_POSTGRESDB_PASSWORD
               value: "ElysiumN8nSecurePass2026"
+            # === AI SANDBOX ENABLEMENT ===
+            - name: N8N_ENABLED_MODULES
+              value: "instance-ai"
+            - name: N8N_INSTANCE_AI_SANDBOX_ENABLED
+              value: "true"
           volumeMounts:
             - name: elysium-repo
               mountPath: /root/Elysium
