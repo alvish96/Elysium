@@ -32,20 +32,41 @@ spec:
         - name: dind-storage
           emptyDir: {}
       initContainers:
+        # === 1. CERTIFICATE BOOTSTRAPPER ===
         - name: sandbox-certs
           image: n8nio/n8n-sandbox-service-api:latest
           command:
             - /bin/sh
             - -c
             - |
+              set -e
               mkdir -p /tls
-              bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix localhost --force
+              bootstrap-mtls.sh --out-dir /tls --api-san localhost,127.0.0.1 --control-san-prefix runner --force
               
-              if [ -d /tls/runner-0 ] && [ ! -d /tls/runner ]; then
-                cp -r /tls/runner-0 /tls/runner
+              # Normalize runner cert directory structure
+              mkdir -p /tls/runner
+              if [ -d /tls/runner-0 ]; then
+                cp -rf /tls/runner-0/* /tls/runner/
               fi
-              if [ -d /tls/localhost-0 ] && [ ! -d /tls/runner ]; then
-                cp -r /tls/localhost-0 /tls/runner
+              
+              # Ensure both server and client pairs exist for API control calls
+              if [ -f /tls/api/server.crt ] && [ ! -f /tls/api/client.crt ]; then
+                cp /tls/api/server.crt /tls/api/client.crt
+                cp /tls/api/server.key /tls/api/client.key
+              fi
+              if [ -f /tls/api/client.crt ] && [ ! -f /tls/api/server.crt ]; then
+                cp /tls/api/client.crt /tls/api/server.crt
+                cp /tls/api/client.key /tls/api/server.key
+              fi
+              
+              # Ensure both pairs exist for the runner
+              if [ -f /tls/runner/server.crt ] && [ ! -f /tls/runner/client.crt ]; then
+                cp /tls/runner/server.crt /tls/runner/client.crt
+                cp /tls/runner/server.key /tls/runner/client.key
+              fi
+              if [ -f /tls/runner/client.crt ] && [ ! -f /tls/runner/server.crt ]; then
+                cp /tls/runner/client.crt /tls/runner/server.crt
+                cp /tls/runner/client.key /tls/runner/server.key
               fi
               
               chmod -R 777 /tls
@@ -53,7 +74,7 @@ spec:
             - name: tls-data
               mountPath: /tls
       containers:
-        # === 1. SANDBOX API GATEWAY ===
+        # === 2. SANDBOX API GATEWAY ===
         - name: sandbox-api
           image: n8nio/n8n-sandbox-service-api:latest
           ports:
@@ -68,12 +89,20 @@ spec:
               value: "ElysiumSandboxKey2026"
             - name: SANDBOX_API_RUNNER_REGISTRATION_TOKEN
               value: "ElysiumRunnerToken2026"
+            # Runner Registry Server (mTLS Server)
             - name: SANDBOX_API_GRPC_TLS_CLIENT_CA_FILE
               value: "/tls/api/ca.crt"
             - name: SANDBOX_API_GRPC_TLS_CERT_FILE
               value: "/tls/api/server.crt"
             - name: SANDBOX_API_GRPC_TLS_KEY_FILE
               value: "/tls/api/server.key"
+            # Runner Control Client (mTLS Client to Runner)
+            - name: SANDBOX_API_RUNNER_CONTROL_GRPC_TLS_CA_FILE
+              value: "/tls/api/ca.crt"
+            - name: SANDBOX_API_RUNNER_CONTROL_GRPC_TLS_CERT_FILE
+              value: "/tls/api/client.crt"
+            - name: SANDBOX_API_RUNNER_CONTROL_GRPC_TLS_KEY_FILE
+              value: "/tls/api/client.key"
           resources:
             requests:
               memory: "128Mi"
@@ -84,7 +113,7 @@ spec:
           volumeMounts:
             - name: tls-data
               mountPath: /tls
-        # === 2. SANDBOX RUNNER (DOCKER-IN-DOCKER) ===
+        # === 3. DOCKER-IN-DOCKER RUNNER ===
         - name: sandbox-runner
           image: n8nio/n8n-sandbox-service-runner-dind:latest
           securityContext:
@@ -96,8 +125,6 @@ spec:
               value: "ElysiumRunnerToken2026"
             - name: SANDBOX_RUNNER_API_GRPC_ADDR
               value: "127.0.0.1:8081"
-            - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_CERT_FILE
-              value: "/tls/runner/ca.crt"
             - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_FILE
               value: "/tls/runner/ca.crt"
             - name: SANDBOX_RUNNER_API_GRPC_TLS_CERT_FILE
