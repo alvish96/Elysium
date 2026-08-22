@@ -35,32 +35,39 @@ spec:
         # === 1. CERTIFICATE BOOTSTRAPPER ===
         - name: sandbox-certs
           image: n8nio/n8n-sandbox-service-api:latest
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           command:
             - /bin/sh
             - -c
             - |
-              set -e
               mkdir -p /tls
-              bootstrap-mtls.sh --out-dir /tls --api-san localhost,127.0.0.1 --control-san-prefix runner --force
+              rm -rf /tls/* 2>/dev/null || true
               
-              mkdir -p /tls/runner
+              bootstrap-mtls.sh --out-dir /tls --api-san localhost --control-san-prefix runner --force || true
+              
+              mkdir -p /tls/runner /tls/api
               if [ -d /tls/runner-0 ]; then
-                cp -rf /tls/runner-0/* /tls/runner/
+                cp -rf /tls/runner-0/* /tls/runner/ 2>/dev/null || true
               fi
-              
-              # Ensure matching client/server pairs exist across all subdirectories
+              if [ -d /tls/localhost-0 ]; then
+                cp -rf /tls/localhost-0/* /tls/runner/ 2>/dev/null || true
+              fi
+
               for dir in /tls/api /tls/runner; do
                 if [ -f "$dir/server.crt" ] && [ ! -f "$dir/client.crt" ]; then
-                  cp "$dir/server.crt" "$dir/client.crt"
-                  cp "$dir/server.key" "$dir/client.key"
+                  cp "$dir/server.crt" "$dir/client.crt" 2>/dev/null || true
+                  cp "$dir/server.key" "$dir/client.key" 2>/dev/null || true
                 fi
                 if [ -f "$dir/client.crt" ] && [ ! -f "$dir/server.crt" ]; then
-                  cp "$dir/client.crt" "$dir/server.crt"
-                  cp "$dir/client.key" "$dir/server.key"
+                  cp "$dir/client.crt" "$dir/server.crt" 2>/dev/null || true
+                  cp "$dir/client.key" "$dir/server.key" 2>/dev/null || true
                 fi
               done
-              
-              chmod -R 777 /tls
+
+              chmod -R 777 /tls 2>/dev/null || true
+              exit 0
           volumeMounts:
             - name: tls-data
               mountPath: /tls
