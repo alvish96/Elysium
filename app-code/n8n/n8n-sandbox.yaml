@@ -16,6 +16,11 @@ spec:
     metadata:
       labels:
         app: n8n-sandbox
+      # === APPARMOR BYPASS FOR ALL 3 CONTAINERS ===
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/sandbox-certs: unconfined
+        container.apparmor.security.beta.kubernetes.io/sandbox-api: unconfined
+        container.apparmor.security.beta.kubernetes.io/sandbox-runner: unconfined
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
