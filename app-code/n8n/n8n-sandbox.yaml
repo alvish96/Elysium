@@ -110,7 +110,7 @@ spec:
               memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "2048Mi"
+              memory: "1536Mi"
               cpu: "2000m"
           volumeMounts:
             - name: tls-data
