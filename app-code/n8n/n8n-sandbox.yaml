@@ -43,31 +43,22 @@ spec:
               mkdir -p /tls
               bootstrap-mtls.sh --out-dir /tls --api-san localhost,127.0.0.1 --control-san-prefix runner --force
               
-              # Normalize runner cert directory structure
               mkdir -p /tls/runner
               if [ -d /tls/runner-0 ]; then
                 cp -rf /tls/runner-0/* /tls/runner/
               fi
               
-              # Ensure both server and client pairs exist for API control calls
-              if [ -f /tls/api/server.crt ] && [ ! -f /tls/api/client.crt ]; then
-                cp /tls/api/server.crt /tls/api/client.crt
-                cp /tls/api/server.key /tls/api/client.key
-              fi
-              if [ -f /tls/api/client.crt ] && [ ! -f /tls/api/server.crt ]; then
-                cp /tls/api/client.crt /tls/api/server.crt
-                cp /tls/api/client.key /tls/api/server.key
-              fi
-              
-              # Ensure both pairs exist for the runner
-              if [ -f /tls/runner/server.crt ] && [ ! -f /tls/runner/client.crt ]; then
-                cp /tls/runner/server.crt /tls/runner/client.crt
-                cp /tls/runner/server.key /tls/runner/client.key
-              fi
-              if [ -f /tls/runner/client.crt ] && [ ! -f /tls/runner/server.crt ]; then
-                cp /tls/runner/client.crt /tls/runner/server.crt
-                cp /tls/runner/client.key /tls/runner/server.key
-              fi
+              # Ensure matching client/server pairs exist across all subdirectories
+              for dir in /tls/api /tls/runner; do
+                if [ -f "$dir/server.crt" ] && [ ! -f "$dir/client.crt" ]; then
+                  cp "$dir/server.crt" "$dir/client.crt"
+                  cp "$dir/server.key" "$dir/client.key"
+                fi
+                if [ -f "$dir/client.crt" ] && [ ! -f "$dir/server.crt" ]; then
+                  cp "$dir/client.crt" "$dir/server.crt"
+                  cp "$dir/client.key" "$dir/server.key"
+                fi
+              done
               
               chmod -R 777 /tls
           volumeMounts:
@@ -125,12 +116,22 @@ spec:
               value: "ElysiumRunnerToken2026"
             - name: SANDBOX_RUNNER_API_GRPC_ADDR
               value: "127.0.0.1:8081"
+            # Registration Client
             - name: SANDBOX_RUNNER_API_GRPC_TLS_CA_FILE
               value: "/tls/runner/ca.crt"
             - name: SANDBOX_RUNNER_API_GRPC_TLS_CERT_FILE
               value: "/tls/runner/client.crt"
             - name: SANDBOX_RUNNER_API_GRPC_TLS_KEY_FILE
               value: "/tls/runner/client.key"
+            # Control Server
+            - name: SANDBOX_RUNNER_CONTROL_GRPC_TLS_CLIENT_CA_FILE
+              value: "/tls/runner/ca.crt"
+            - name: SANDBOX_RUNNER_CONTROL_GRPC_TLS_CA_FILE
+              value: "/tls/runner/ca.crt"
+            - name: SANDBOX_RUNNER_CONTROL_GRPC_TLS_CERT_FILE
+              value: "/tls/runner/server.crt"
+            - name: SANDBOX_RUNNER_CONTROL_GRPC_TLS_KEY_FILE
+              value: "/tls/runner/server.key"
           resources:
             requests:
               memory: "512Mi"
