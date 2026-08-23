@@ -67,9 +67,7 @@ spec:
           persistentVolumeClaim:
             claimName: jellyfin-config-pvc
         - name: cache-volume
-          emptyDir:
-            medium: Memory
-            sizeLimit: 1Gi
+          emptyDir: {}
         - name: movies-volume
           persistentVolumeClaim:
             claimName: jellyfin-movies-pvc
