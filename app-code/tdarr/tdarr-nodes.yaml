@@ -71,17 +71,21 @@ spec:
                   fieldPath: status.podIP
             - name: nodePort
               value: "8267"
-            # === THE FIX: DIRECT LAN TCP COMMUNICATION ===
             - name: serverIP
               value: "192.168.1.160"
             - name: serverPort
               value: "30266"
+            # Explicitly load legacy Intel drivers for older Core i3 architectures
+            - name: LIBVA_DRIVER_NAME
+              value: "i965"
+            - name: LIBVA_DRIVERS_PATH
+              value: "/usr/lib/x86_64-linux-gnu/dri"
           resources:
             requests:
               cpu: 500m
               memory: 1024Mi
             limits:
-              cpu: "4"
+              cpu: "3"
               memory: 4096Mi
           volumeMounts:
             - name: configs-data
