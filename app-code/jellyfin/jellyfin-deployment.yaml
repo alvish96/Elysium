@@ -4,7 +4,7 @@ metadata:
   name: high-priority-media
 value: 1000000
 globalDefault: false
-description: "VIP priority class to guarantee seamless media streaming."
+description: "VIP priority class to guarantee seamless media streaming and eliminate playback stutter."
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -42,23 +42,19 @@ spec:
           env:
             - name: JELLYFIN_LOG_DIR
               value: "/config/log"
-            - name: JELLYFIN_CACHE_DIR
-              value: "/cache"
           ports:
             - containerPort: 8096
               name: http
           resources:
             requests:
-              cpu: "3000m"
-              memory: "4096Mi"
+              cpu: "500m"
+              memory: "800Mi"
             limits:
-              cpu: "3000m"
-              memory: "4096Mi"
+              cpu: "2500m"
+              memory: "1500Mi"
           volumeMounts:
             - name: config-volume
               mountPath: /config
-            - name: cache-volume
-              mountPath: /cache
             - name: movies-volume
               mountPath: /data/movies
             - name: tvshows-volume
@@ -73,8 +69,6 @@ spec:
         - name: config-volume
           persistentVolumeClaim:
             claimName: jellyfin-config-pvc
-        - name: cache-volume
-          emptyDir: {}
         - name: movies-volume
           persistentVolumeClaim:
             claimName: jellyfin-movies-pvc
