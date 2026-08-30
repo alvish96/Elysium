@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Fri Aug 28 00:05:01 UTC 2026
+Last Updated: Sun Aug 30 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-138-generic #138-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 22:41:49 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       6.7Gi       142Mi       451Mi       4.5Gi       3.9Gi
-Swap:          3.3Gi       163Mi       3.1Gi
+Mem:            10Gi       9.0Gi       140Mi       489Mi       2.3Gi       1.7Gi
+Swap:          3.3Gi       530Mi       2.8Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -27,44 +27,46 @@ sda                       447.1G             disk
   └─ubuntu--vg-internal   344.1G ext4        lvm  /mnt/internal
 sdb                        59.5G ext4        disk /mnt/databox_01_59G_1
 sdc                       894.3G ext4        disk /mnt/databox_02_894G_1
-sdd                       894.3G ext4        disk /mnt/databox_03_894G_2
-sdf                       931.5G ext4        disk /mnt/databox_10_931G_1
-sdg                       894.3G ext4        disk /mnt/databox_05_894G_3
-sdh                       894.3G ext4        disk /mnt/databox_07_894G_5
-sdi                       894.3G ext4        disk /mnt/databox_06_894G_4
-sdj                       223.6G ext4        disk /mnt/databox_14_223G_3
-sdk                       223.6G ext4        disk /mnt/databox_09_223G_1
-sdl                       894.3G ext4        disk /mnt/databox_08_894G_6
-sdm                       223.6G ext4        disk /mnt/databox_11_223G_2
+sde                       894.3G ext4        disk /mnt/databox_08_894G_6
+sdf                       894.3G ext4        disk /mnt/databox_07_894G_5
+sdg                       223.6G ext4        disk /mnt/databox_09_223G_1
+sdh                       894.3G ext4        disk /mnt/databox_03_894G_2
+sdi                       894.3G ext4        disk /mnt/databox_12_894G_7
+sdj                       223.6G ext4        disk /mnt/databox_11_223G_2
+sdk                       894.3G ext4        disk /mnt/databox_06_894G_4
+sdl                       894.3G ext4        disk /mnt/databox_05_894G_3
 sdn                       894.3G ext4        disk /mnt/databox_13_894G_8
-sdo                       894.3G ext4        disk /mnt/databox_12_894G_7
 sr0                        1024M             rom  
 
 ## Mounted Filesystems
 Filesystem                                             Type           Size  Used Avail Use% Mounted on
-efivarfs                                               efivarfs        84K   72K  7.3K  91% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   63G   31G  68% /
-/dev/mapper/ubuntu--vg-internal                        ext4           338G  2.1G  319G   1% /mnt/internal
+efivarfs                                               efivarfs        84K   73K  6.7K  92% /sys/firmware/efi/efivars
+/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   69G   25G  74% /
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
-tvshows_pool                                           fuse.mergerfs  1.8T  275G  1.5T  16% /mnt/tvshows_pool
-movies_pool                                            fuse.mergerfs  1.8T  180G  1.6T  11% /mnt/movies_pool
-nexus_pool                                             fuse.mergerfs  8.8T  777G  7.9T   9% /mnt/nexus_pool
-/dev/sdc                                               ext4           880G  180G  682G  21% /mnt/databox_02_894G_1
-/dev/sdd                                               ext4           880G  275G  587G  32% /mnt/databox_03_894G_2
-192.168.1.160:/mnt/internal/appdata/uptimekuma         nfs4           338G  2.1G  319G   1% /var/lib/kubelet/pods/40d356a5-cade-4416-9b0d-68f46dd0a9dd/volumes/kubernetes.io~nfs/uptimekuma-pv
-audio_pool                                             fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audio_pool
-192.168.1.170:/mnt/phantom_share                       nfs4           119G   39M  112G   1% /var/lib/kubelet/pods/943d2fd3-31c5-4689-b402-a3cfcfa36bcf/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
-/dev/sdg                                               ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
-/dev/sdi                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
-192.168.1.160:/mnt/internal/appdata/authentik/postgres nfs4           338G  2.1G  319G   1% /var/lib/kubelet/pods/eefdd6d9-97a6-4d6e-b6b0-f460a42359ff/volumes/kubernetes.io~nfs/authentik-postgres-pv
-/dev/sdl                                               ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
-/dev/sdh                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/mapper/ubuntu--vg-internal                        ext4           338G  2.2G  319G   1% /mnt/internal
+tvshows_pool                                           fuse.mergerfs  1.8T  316G  1.4T  19% /mnt/tvshows_pool
+movies_pool                                            fuse.mergerfs  1.8T  199G  1.5T  12% /mnt/movies_pool
+nexus_pool                                             fuse.mergerfs  7.7T  837G  6.7T  11% /mnt/nexus_pool
+audio_pool                                             fuse.mergerfs  880G  310G  552G  36% /mnt/audio_pool
 /dev/sdb                                               ext4            59G   11G   47G  19% /mnt/databox_01_59G_1
-/dev/sdk                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
-/dev/sdf                                               ext4           916G   36K  898G   1% /mnt/databox_10_931G_1
-/dev/sdm                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
-/dev/sdo                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
+192.168.1.160:/mnt/internal/appdata/uptimekuma         nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/40d356a5-cade-4416-9b0d-68f46dd0a9dd/volumes/kubernetes.io~nfs/uptimekuma-pv
+192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/332fcb9f-db14-4008-a952-317bf16d7767/volumes/kubernetes.io~nfs/authentik-media-pv
+192.168.1.160:/mnt/internal/appdata/authentik/postgres nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/eefdd6d9-97a6-4d6e-b6b0-f460a42359ff/volumes/kubernetes.io~nfs/authentik-postgres-pv
+192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/5ede58ca-3da4-406a-818b-ab4e460af8a9/volumes/kubernetes.io~nfs/authentik-media-pv
+192.168.1.160:/mnt/internal/appdata/homarr_v1          nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/7595567a-64fd-4b8b-a2bf-2c413da325c0/volumes/kubernetes.io~nfs/homarr-nfs-pv
+192.168.1.160:/mnt/internal/appdata/tdarr/configs      nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/b27b86ec-98af-4119-aa17-931cbe6962f1/volumes/kubernetes.io~nfs/configs-data
+192.168.1.160:/mnt/internal/appdata/tdarr/temp         nfs4           338G  2.2G  319G   1% /var/lib/kubelet/pods/b27b86ec-98af-4119-aa17-931cbe6962f1/volumes/kubernetes.io~nfs/temp-cache
+192.168.1.160:/mnt/movies_pool                         nfs            1.8T  199G  1.5T  12% /var/lib/kubelet/pods/b27b86ec-98af-4119-aa17-931cbe6962f1/volumes/kubernetes.io~nfs/movies-pool
+/dev/sdk                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
+/dev/sdc                                               ext4           880G  199G  663G  24% /mnt/databox_02_894G_1
+/dev/sdh                                               ext4           880G  316G  546G  37% /mnt/databox_03_894G_2
+192.168.1.170:/mnt/phantom_share                       nfs4           119G   39M  112G   1% /var/lib/kubelet/pods/46b81c79-6f45-45e3-96a5-3fa6ac37bb0d/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
+/dev/sdf                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/sde                                               ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
+192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  316G  1.4T  19% /var/lib/kubelet/pods/b27b86ec-98af-4119-aa17-931cbe6962f1/volumes/kubernetes.io~nfs/tvshows-pool
+/dev/sdg                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
+/dev/sdj                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
+/dev/sdi                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdn                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
-/dev/sdj                                               ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
-192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.1G  319G   1% /var/lib/kubelet/pods/332fcb9f-db14-4008-a952-317bf16d7767/volumes/kubernetes.io~nfs/authentik-media-pv
+/dev/sdl                                               ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
