@@ -68,6 +68,9 @@ spec:
               value: "false"
             - name: N8N_ENABLE_EXECUTE_COMMAND
               value: "true"
+            - name: NODES_EXCLUDE
+              value: "[]"
+
             # === POSTGRESQL DATABASE CONFIGURATION ===
             - name: DB_TYPE
               value: "postgresdb"
