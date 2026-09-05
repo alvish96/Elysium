@@ -1,0 +1,26 @@
+{
+  "cyberpunk": {
+    "game_name": "Cyberpunk 2077",
+    "title_template": "Cyberpunk 2077: Phantom Liberty | Episode {ep} | PC Gameplay (4K 60FPS)",
+    "episode": 1,
+    "category_id": "20",
+    "tags": ["Cyberpunk 2077", "Phantom Liberty", "PC Gameplay", "RTX 4090", "Deathstar"],
+    "description": "Streaming Cyberpunk 2077 live from the Deathstar rig.\n\nPC Specs:\n- System: Deathstar\n- Quality: 4K 60FPS\n\nDrop a like and subscribe!"
+  },
+  "elden_ring": {
+    "game_name": "Elden Ring",
+    "title_template": "Elden Ring: Shadow of the Erdtree | Part {ep} | Blind Playthrough",
+    "episode": 1,
+    "category_id": "20",
+    "tags": ["Elden Ring", "Shadow of the Erdtree", "FromSoftware", "Deathstar"],
+    "description": "Exploring the Lands Between on Deathstar.\n\nSubscribe for daily walkthroughs and boss attempts!"
+  },
+  "general": {
+    "game_name": "Gaming",
+    "title_template": "Late Night Gaming on Deathstar | Episode {ep}",
+    "episode": 1,
+    "category_id": "20",
+    "tags": ["Gaming", "Livestream", "PC", "Deathstar"],
+    "description": "Casual gameplay session live from Deathstar."
+  }
+}
