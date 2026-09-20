@@ -106,13 +106,24 @@ spec:
                 fi
                 
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
-                echo "Launching Native 720p 30fps Zero-Latency Engine..."
+                
+                # Determine audio source: loop audio.mp3 if present, otherwise fall back to silence
+                AUDIO_ARGS="-thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100"
+                if [ -f "/tmp/stream-run/audio.mp3" ]; then
+                  echo "Found /tmp/stream-run/audio.mp3. Looping background audio track..."
+                  AUDIO_ARGS="-stream_loop -1 -i /tmp/stream-run/audio.mp3"
+                else
+                  echo "Notice: /tmp/stream-run/audio.mp3 not found. Falling back to silent audio."
+                fi
+                
+                echo "Launching Native 720p 30fps Streaming Engine with Audio..."
                 
                 ffmpeg -loglevel info -fflags +genpts+nobuffer -flags low_delay \
                 -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
-                -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+                $AUDIO_ARGS \
+                -map 0:v:0 -map 1:a:0 \
                 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3000k -maxrate 3500k -bufsize 6000k \
-                -pix_fmt yuv420p -g 60 -reset_timestamps 1 \
+                -pix_fmt yuv420p -g 60 \
                 -c:a aac -b:a 128k -ar 44100 \
                 -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
                 
