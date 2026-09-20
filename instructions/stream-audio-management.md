@@ -27,7 +27,7 @@ chmod a+rx /usr/local/bin/yt-dlp
 apt-get update && apt-get install -y ffmpeg
 
 
-3. How to Download or Replace the Background Track
+## 3. How to Download or Replace the Background Track
 To replace the background track with a new YouTube link or audio source:
 
 Step A: Download & Extract Audio on Phantom
@@ -68,7 +68,7 @@ Followed by active encoding metrics (frame= ... fps=30 ...).
 
 
 
-4. How to Use a Local Audio File (MP3)
+## 4. How to Use a Local Audio File (MP3)
 If you have your own MP3 or AAC file on your machine or on atlantis:
 
 Copy the file to phantom:
@@ -82,7 +82,7 @@ kubectl delete pod -n media -l app=youtube-streamer-tandberg --force --grace-per
 
 
 
-5. How to Revert to Silent Audio
+## 5. How to Revert to Silent Audio
 If you want to stream video without background music:
 
 Delete the audio file on phantom:
