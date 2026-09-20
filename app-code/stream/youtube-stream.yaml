@@ -53,6 +53,14 @@ spec:
       labels:
         app: youtube-streamer-tandberg
     spec:
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+        options:
+          - name: ndots
+            value: "1"
       nodeSelector:
         kubernetes.io/hostname: phantom
       containers:
@@ -100,7 +108,7 @@ spec:
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
                 echo "Launching Native 720p 30fps Zero-Latency Engine..."
                 
-                # Stream Native 720p @ 30fps without CPU Upscaling
+                # Stream Native 720p @ 30fps without CPU Upscaling via standard RTMP
                 ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
                 -use_wallclock_as_timestamps 1 -thread_queue_size 1024 \
                 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
@@ -108,7 +116,7 @@ spec:
                 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3000k -maxrate 3500k -bufsize 6000k \
                 -pix_fmt yuv420p -g 60 \
                 -c:a aac -b:a 128k \
-                -f flv rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY;
+                -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
                 
                 echo "Connection dropped or camera link severed. Re-scanning system bus in 5 seconds..."
                 sleep 5;
