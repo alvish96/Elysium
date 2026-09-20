@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Sat Sep 19 00:05:01 UTC 2026
+Last Updated: Sun Sep 20 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-139-generic #139-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 03:52:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       8.6Gi       333Mi       508Mi       2.5Gi       2.1Gi
-Swap:          3.3Gi       142Mi       3.2Gi
+Mem:            10Gi       9.3Gi       319Mi       563Mi       2.0Gi       1.4Gi
+Swap:          3.3Gi       591Mi       2.7Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -37,8 +37,7 @@ sdk                       894.3G ext4        disk /mnt/databox_06_894G_4
 sdl                       223.6G ext4        disk /mnt/databox_11_223G_2
 sdm                       894.3G ext4        disk /mnt/databox_12_894G_7
 sdn                       894.3G ext4        disk /mnt/databox_13_894G_8
-sdo                       465.8G ext4        disk /mnt/databox_04_465G_1
-sdp                       223.6G ext4        disk /mnt/databox_14_223G_3
+sdo                       223.6G ext4        disk 
 sr0                        1024M             rom  
 
 ## Mounted Filesystems
@@ -48,25 +47,25 @@ efivarfs                                               efivarfs        84K   83K
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  2.6G  318G   1% /mnt/internal
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
-tvshows_pool                                           fuse.mergerfs  1.8T  438G  1.3T  26% /mnt/tvshows_pool
-movies_pool                                            fuse.mergerfs  1.8T  258G  1.5T  15% /mnt/movies_pool
-nexus_pool                                             fuse.mergerfs  9.3T 1023G  8.1T  12% /mnt/nexus_pool
-/dev/sdd                                               ext4           880G  438G  425G  51% /mnt/databox_03_894G_2
-/dev/sdc                                               ext4           880G  258G  604G  30% /mnt/databox_02_894G_1
+tvshows_pool                                           fuse.mergerfs  1.8T  436G  1.3T  26% /mnt/tvshows_pool
+movies_pool                                            fuse.mergerfs  1.8T  261G  1.5T  16% /mnt/movies_pool
+nexus_pool                                             fuse.mergerfs  8.6T  1.1T  7.4T  12% /mnt/nexus_pool
+/dev/sdd                                               ext4           880G  436G  426G  51% /mnt/databox_03_894G_2
+/dev/sdc                                               ext4           880G  261G  601G  31% /mnt/databox_02_894G_1
 192.168.1.160:/mnt/internal/appdata/uptimekuma         nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/40d356a5-cade-4416-9b0d-68f46dd0a9dd/volumes/kubernetes.io~nfs/uptimekuma-pv
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/32350053-8ae3-4114-b367-947e5bbcd57c/volumes/kubernetes.io~nfs/authentik-media-pv
 192.168.1.160:/mnt/internal/appdata/homarr_v1          nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/7595567a-64fd-4b8b-a2bf-2c413da325c0/volumes/kubernetes.io~nfs/homarr-nfs-pv
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/70b02633-9ebf-476d-b5ca-9a6f5025fdd8/volumes/kubernetes.io~nfs/authentik-media-pv
-192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  438G  1.3T  26% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/tvshows-pool
+192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  436G  1.3T  26% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/tvshows-pool
 192.168.1.160:/mnt/internal/appdata/tdarr/configs      nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/configs-data
-192.168.1.160:/mnt/movies_pool                         nfs4           1.8T  258G  1.5T  15% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/movies-pool
+192.168.1.160:/mnt/movies_pool                         nfs4           1.8T  261G  1.5T  16% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/movies-pool
 192.168.1.160:/mnt/internal/appdata/tdarr/temp         nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/temp-cache
 192.168.1.160:/mnt/internal/appdata/authentik/postgres nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/d54cc7a1-c1fb-4c1b-8bd1-d5380082a274/volumes/kubernetes.io~nfs/authentik-postgres-pv
 /dev/sdk                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
 audio_pool                                             fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audio_pool
 /dev/sdf                                               ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
 192.168.1.170:/mnt/phantom_share                       nfs4           119G   39M  112G   1% /var/lib/kubelet/pods/f66aef2f-4034-44c1-97e7-c6aeafe9d516/volumes/kubernetes.io~local-volume/jellyfin-phantom-pv
-/dev/sdb                                               ext4            59G   17G   41G  29% /mnt/databox_01_59G_1
+/dev/sdb                                               ext4            59G   17G   41G  30% /mnt/databox_01_59G_1
 /dev/sdh                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
 /dev/sdi                                               ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
 /dev/sdj                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
@@ -74,5 +73,3 @@ audio_pool                                             fuse.mergerfs  1.8T  310G
 /dev/sdl                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdn                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
-/dev/sdp                                               ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
-/dev/sdo                                               ext4           458G   28K  449G   1% /mnt/databox_04_465G_1
