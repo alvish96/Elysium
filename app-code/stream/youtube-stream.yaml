@@ -108,14 +108,12 @@ spec:
                 echo "Success! Target camera mapped on active node: $TANDBERG_DEV"
                 echo "Launching Native 720p 30fps Zero-Latency Engine..."
                 
-                # Stream Native 720p @ 30fps via unencrypted RTMP (Port 1935)
-                ffmpeg -loglevel info -fflags nobuffer -flags low_delay \
-                -use_wallclock_as_timestamps 1 -thread_queue_size 1024 \
-                -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
+                ffmpeg -loglevel info -fflags +genpts+nobuffer -flags low_delay \
+                -thread_queue_size 1024 -f v4l2 -input_format mjpeg -video_size 1280x720 -framerate 30 -i "$TANDBERG_DEV" \
                 -thread_queue_size 1024 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3000k -maxrate 3500k -bufsize 6000k \
-                -pix_fmt yuv420p -g 60 \
-                -c:a aac -b:a 128k \
+                -pix_fmt yuv420p -g 60 -reset_timestamps 1 \
+                -c:a aac -b:a 128k -ar 44100 \
                 -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY;
                 
                 echo "Connection dropped or camera link severed. Re-scanning system bus in 5 seconds..."
