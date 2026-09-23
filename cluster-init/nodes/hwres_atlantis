@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Tue Sep 22 00:05:01 UTC 2026
+Last Updated: Wed Sep 23 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-139-generic #139-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 03:52:05 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.3Gi       301Mi       595Mi       1.9Gi       1.3Gi
-Swap:          3.3Gi       657Mi       2.6Gi
+Mem:            10Gi       9.2Gi       308Mi       528Mi       2.1Gi       1.4Gi
+Swap:          3.3Gi       644Mi       2.7Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -37,7 +37,6 @@ sdk                       894.3G ext4        disk /mnt/databox_06_894G_4
 sdl                       223.6G ext4        disk /mnt/databox_11_223G_2
 sdm                       894.3G ext4        disk /mnt/databox_12_894G_7
 sdn                       894.3G ext4        disk /mnt/databox_13_894G_8
-sdo                       223.6G ext4        disk /mnt/databox_14_223G_3
 sr0                        1024M             rom  
 
 ## Mounted Filesystems
@@ -47,16 +46,16 @@ efivarfs                                               efivarfs        84K   83K
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  2.6G  318G   1% /mnt/internal
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
-tvshows_pool                                           fuse.mergerfs  1.8T  439G  1.3T  26% /mnt/tvshows_pool
+tvshows_pool                                           fuse.mergerfs  1.8T  455G  1.3T  27% /mnt/tvshows_pool
 movies_pool                                            fuse.mergerfs  1.8T  261G  1.5T  16% /mnt/movies_pool
-nexus_pool                                             fuse.mergerfs  8.8T  1.1T  7.6T  12% /mnt/nexus_pool
-/dev/sdd                                               ext4           880G  439G  423G  51% /mnt/databox_03_894G_2
+nexus_pool                                             fuse.mergerfs  8.6T  1.1T  7.4T  13% /mnt/nexus_pool
+/dev/sdd                                               ext4           880G  455G  407G  53% /mnt/databox_03_894G_2
 /dev/sdc                                               ext4           880G  261G  601G  31% /mnt/databox_02_894G_1
 192.168.1.160:/mnt/internal/appdata/uptimekuma         nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/40d356a5-cade-4416-9b0d-68f46dd0a9dd/volumes/kubernetes.io~nfs/uptimekuma-pv
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/32350053-8ae3-4114-b367-947e5bbcd57c/volumes/kubernetes.io~nfs/authentik-media-pv
 192.168.1.160:/mnt/internal/appdata/homarr_v1          nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/7595567a-64fd-4b8b-a2bf-2c413da325c0/volumes/kubernetes.io~nfs/homarr-nfs-pv
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/70b02633-9ebf-476d-b5ca-9a6f5025fdd8/volumes/kubernetes.io~nfs/authentik-media-pv
-192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  439G  1.3T  26% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/tvshows-pool
+192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  455G  1.3T  27% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/tvshows-pool
 192.168.1.160:/mnt/internal/appdata/tdarr/configs      nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/configs-data
 192.168.1.160:/mnt/movies_pool                         nfs4           1.8T  261G  1.5T  16% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/movies-pool
 192.168.1.160:/mnt/internal/appdata/tdarr/temp         nfs4           338G  2.6G  318G   1% /var/lib/kubelet/pods/dfe0f42a-2f50-4810-9b29-961b53f819b0/volumes/kubernetes.io~nfs/temp-cache
@@ -73,4 +72,3 @@ audio_pool                                             fuse.mergerfs  1.8T  310G
 /dev/sdl                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdn                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
-/dev/sdo                                               ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
