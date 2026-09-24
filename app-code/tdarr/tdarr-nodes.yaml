@@ -100,9 +100,10 @@ spec:
               mountPath: /dev/dri
       volumes:
         - name: configs-data
-          nfs:
-            server: 192.168.1.160
-            path: /mnt/internal/appdata/tdarr/configs
+          emptyDir: {}
+#          nfs:
+#            server: 192.168.1.160
+#            path: /mnt/internal/appdata/tdarr/configs
         - name: movies-pool
           nfs:
             server: 192.168.1.160
