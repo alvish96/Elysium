@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Fri Oct  2 00:05:01 UTC 2026
+Last Updated: Sat Oct  3 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-142-generic #142-Ubuntu SMP PREEMPT_DYNAMIC Wed Sep  2 14:24:27 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.1Gi       468Mi       526Mi       1.9Gi       1.6Gi
-Swap:          3.3Gi       623Mi       2.7Gi
+Mem:            10Gi       8.9Gi       346Mi       536Mi       2.2Gi       1.7Gi
+Swap:          3.3Gi       732Mi       2.6Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -43,13 +43,13 @@ sr0                        1024M             rom
 ## Mounted Filesystems
 Filesystem                                             Type           Size  Used Avail Use% Mounted on
 efivarfs                                               efivarfs        84K   11K   69K  14% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   73G   21G  79% /
+/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   74G   20G  79% /
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  2.8G  318G   1% /mnt/internal
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
 tvshows_pool                                           fuse.mergerfs  1.8T  615G  1.1T  36% /mnt/tvshows_pool
 movies_pool                                            fuse.mergerfs  1.8T  312G  1.4T  19% /mnt/movies_pool
-nexus_pool                                             fuse.mergerfs  8.8T  1.3T  7.4T  15% /mnt/nexus_pool
+nexus_pool                                             fuse.mergerfs  8.6T  1.3T  7.2T  15% /mnt/nexus_pool
 /dev/sdb                                               ext4           880G  312G  550G  37% /mnt/databox_02_894G_1
 audio_pool                                             fuse.mergerfs  1.8T  310G  1.5T  18% /mnt/audio_pool
 /dev/sdf                                               ext4           880G  310G  552G  36% /mnt/databox_05_894G_3
@@ -72,4 +72,3 @@ tvshows_pool                                           fuse.mergerfs  1.8T  615G
 /dev/sdh                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
 /dev/sdl                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
-/dev/sdn                                               ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
