@@ -58,8 +58,8 @@ spec:
               mountPath: /data/tvshows
             - name: audio-volume
               mountPath: /data/audio
-            - name: phantom-volume
-              mountPath: /data/phantom_nfs
+#            - name: phantom-volume
+#              mountPath: /data/phantom_nfs
             - name: render-dev
               mountPath: /dev/dri
       volumes:
@@ -77,9 +77,9 @@ spec:
         - name: audio-volume
           persistentVolumeClaim:
             claimName: jellyfin-audio-pvc
-        - name: phantom-volume
-          persistentVolumeClaim:
-            claimName: jellyfin-phantom-pvc
+#        - name: phantom-volume
+#          persistentVolumeClaim:
+#            claimName: jellyfin-phantom-pvc
         - name: render-dev
           hostPath:
             path: /dev/dri
