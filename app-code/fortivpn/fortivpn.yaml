@@ -33,20 +33,22 @@ spec:
         seccompProfile:
           type: Unconfined
       containers:
-        # 1. THE FORTICLIENT SSL-VPN ENGINE
+        # 1. THE FORTICLIENT SSL-VPN ENGINE (Ubuntu 24.04)
         - name: fortivpn
-          image: alpine:3.20
+          image: ubuntu:24.04
           securityContext:
             privileged: true
             capabilities:
               add:
                 - NET_ADMIN
           command:
-            - /bin/sh
+            - /bin/bash
             - -c
             - |
               set -e
-              apk add --no-cache openfortivpn ppp iptables iproute2 curl
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update && apt-get install -y --no-install-recommends \
+                openfortivpn ppp iptables iproute2 curl ca-certificates
               
               # Create /dev/ppp device node if not present
               if [ ! -c /dev/ppp ]; then
@@ -72,7 +74,7 @@ spec:
               cpu: 50m
               memory: 64Mi
             limits:
-              cpu: 300m
+              cpu: 500m
               memory: 256Mi
 
         # 2. SIDECAR PROXY (SOCKS5 :1080 & HTTP :8888)
