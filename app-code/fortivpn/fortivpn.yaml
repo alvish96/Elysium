@@ -16,18 +16,21 @@ spec:
     metadata:
       labels:
         app: fortivpn
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/fortivpn: unconfined
+        container.apparmor.security.beta.kubernetes.io/proxy: unconfined
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
-      dnsPolicy: None
+      dnsPolicy: ClusterFirst
       dnsConfig:
-        nameservers:
-          - 1.1.1.1
-          - 8.8.8.8
+        options:
+          - name: ndots
+            value: "1"
       securityContext:
+        runAsUser: 0
+        runAsGroup: 0
         seccompProfile:
-          type: Unconfined
-        appArmorProfile:
           type: Unconfined
       containers:
         # 1. THE FORTICLIENT SSL-VPN ENGINE
@@ -42,17 +45,27 @@ spec:
             - /bin/sh
             - -c
             - |
+              set -e
               apk add --no-cache openfortivpn ppp iptables iproute2 curl
-              # Ensure /dev/ppp device node exists inside the container
-              [ ! -c /dev/ppp ] && mknod /dev/ppp c 108 0
+              
+              # Create /dev/ppp device node if not present
+              if [ ! -c /dev/ppp ]; then
+                mknod /dev/ppp c 108 0
+              fi
+              
+              # Copy secret to a writable file with strict 0600 permissions
+              mkdir -p /etc/openfortivpn
+              cp /tmp/secret/config /etc/openfortivpn/config
               chmod 600 /etc/openfortivpn/config
-              # NAT any traffic routed directly into the pod out through ppp0
+              
+              # NAT traffic routed into the pod out through ppp0
               iptables -t nat -A POSTROUTING -o ppp0 -j MASQUERADE
+              
+              echo "Starting openfortivpn..."
               exec openfortivpn -c /etc/openfortivpn/config
           volumeMounts:
             - name: vpn-config
-              mountPath: /etc/openfortivpn/config
-              subPath: config
+              mountPath: /tmp/secret
               readOnly: true
           resources:
             requests:
@@ -69,6 +82,7 @@ spec:
             - /bin/sh
             - -c
             - |
+              set -e
               apk add --no-cache microsocks tinyproxy
               cat << 'EOT' > /etc/tinyproxy/tinyproxy.conf
               User nobody
