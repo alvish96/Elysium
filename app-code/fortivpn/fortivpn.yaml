@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortivpn
+  namespace: networking
+  labels:
+    app: fortivpn
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fortivpn
+  template:
+    metadata:
+      labels:
+        app: fortivpn
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      containers:
+        # 1. THE FORTICLIENT SSL-VPN ENGINE
+        - name: fortivpn
+          image: alpine:3.20
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
+          command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache openfortivpn ppp iptables iproute2 curl
+              # Ensure /dev/ppp device node exists inside the container
+              [ ! -c /dev/ppp ] && mknod /dev/ppp c 108 0
+              chmod 600 /etc/openfortivpn/config
+              # NAT any traffic routed directly into the pod out through ppp0
+              iptables -t nat -A POSTROUTING -o ppp0 -j MASQUERADE
+              exec openfortivpn -c /etc/openfortivpn/config
+          volumeMounts:
+            - name: vpn-config
+              mountPath: /etc/openfortivpn/config
+              subPath: config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+
+        # 2. SIDECAR PROXY (SOCKS5 :1080 & HTTP :8888)
+        - name: proxy
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache microsocks tinyproxy
+              cat << 'EOT' > /etc/tinyproxy/tinyproxy.conf
+              User nobody
+              Group nobody
+              Port 8888
+              Timeout 600
+              LogLevel Info
+              MaxClients 100
+              Allow 0.0.0.0/0
+              DisableViaHeader Yes
+              EOT
+              tinyproxy -c /etc/tinyproxy/tinyproxy.conf
+              exec microsocks -i 0.0.0.0 -p 1080
+          ports:
+            - containerPort: 1080
+              name: socks5
+            - containerPort: 8888
+              name: http-proxy
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: vpn-config
+          secret:
+            secretName: fortivpn-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortivpn-svc
+  namespace: networking
+  labels:
+    app: fortivpn
+spec:
+  type: NodePort
+  selector:
+    app: fortivpn
+  ports:
+    - name: socks5
+      port: 1080
+      targetPort: 1080
+      nodePort: 31080
+    - name: http-proxy
+      port: 8888
+      targetPort: 8888
+      nodePort: 31888
