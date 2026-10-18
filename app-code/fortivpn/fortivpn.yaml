@@ -16,9 +16,6 @@ spec:
     metadata:
       labels:
         app: fortivpn
-      annotations:
-        container.apparmor.security.beta.kubernetes.io/fortivpn: unconfined
-        container.apparmor.security.beta.kubernetes.io/proxy: unconfined
     spec:
       nodeSelector:
         kubernetes.io/hostname: atlantis
@@ -38,6 +35,8 @@ spec:
           image: ubuntu:24.04
           securityContext:
             privileged: true
+            appArmorProfile:
+              type: Unconfined
             capabilities:
               add:
                 - NET_ADMIN
@@ -48,7 +47,7 @@ spec:
               set -e
               export DEBIAN_FRONTEND=noninteractive
               apt-get update && apt-get install -y --no-install-recommends \
-                openfortivpn ppp iptables iproute2 curl ca-certificates
+                openfortivpn ppp iptables iproute2 curl ca-certificates openssh-client iputils-ping
               
               # Create /dev/ppp device node if not present
               if [ ! -c /dev/ppp ]; then
@@ -80,6 +79,9 @@ spec:
         # 2. SIDECAR PROXY (SOCKS5 :1080 & HTTP :8888)
         - name: proxy
           image: alpine:3.20
+          securityContext:
+            appArmorProfile:
+              type: Unconfined
           command:
             - /bin/sh
             - -c
