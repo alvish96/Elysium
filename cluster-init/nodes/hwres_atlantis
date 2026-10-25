@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Sat Oct 24 00:05:01 UTC 2026
+Last Updated: Sun Oct 25 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-146-generic #146-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep  3 16:12:30 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.4Gi       141Mi       596Mi       2.0Gi       1.3Gi
-Swap:          3.3Gi       657Mi       2.6Gi
+Mem:            10Gi       9.6Gi       128Mi       598Mi       1.9Gi       1.1Gi
+Swap:          3.3Gi       733Mi       2.6Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -26,19 +26,18 @@ sda                       447.1G             disk
   ├─ubuntu--vg-ubuntu--lv   100G ext4        lvm  /
   └─ubuntu--vg-internal   344.1G ext4        lvm  /mnt/internal
 sdb                        59.5G ext4        disk /mnt/databox_01_59G_1
-sde                       223.6G ext4        disk /mnt/databox_11_223G_2
-sdi                       894.3G ext4        disk 
-sdj                       894.3G ext4        disk /mnt/databox_05_894G_3
+sde                       894.3G ext4        disk 
+sdi                       894.3G ext4        disk /mnt/databox_05_894G_3
+sdj                       223.6G ext4        disk /mnt/databox_11_223G_2
 sdk                       223.6G ext4        disk /mnt/databox_09_223G_1
 sdl                       894.3G ext4        disk /mnt/databox_08_894G_6
 sdm                       894.3G ext4        disk /mnt/databox_13_894G_8
-sdn                       894.3G ext4        disk /mnt/databox_12_894G_7
-sdp                       894.3G ext4        disk /mnt/databox_06_894G_4
+sdn                       894.3G ext4        disk /mnt/databox_06_894G_4
+sdp                       894.3G ext4        disk /mnt/databox_07_894G_5
 sr0                        1024M             rom  
-sdq                       894.3G ext4        disk /mnt/databox_07_894G_5
+sdq                       894.3G ext4        disk /mnt/databox_12_894G_7
 sdr                       894.3G ext4        disk /mnt/databox_02_894G_1
 sds                           0B             disk 
-sdu                       931.5G ext4        disk /mnt/databox_10_931G_1
 
 ## Mounted Filesystems
 Filesystem                                             Type           Size  Used Avail Use% Mounted on
@@ -56,19 +55,18 @@ efivarfs                                               efivarfs        84K   15K
 192.168.1.160:/mnt/internal/appdata/uptimekuma         nfs4           338G  2.7G  318G   1% /var/lib/kubelet/pods/40d356a5-cade-4416-9b0d-68f46dd0a9dd/volumes/kubernetes.io~nfs/uptimekuma-pv
 192.168.1.160:/mnt/internal/appdata/tdarr/temp         nfs4           338G  2.7G  318G   1% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/temp-cache
 /dev/sdg                                               ext4           880G  708G  154G  83% /mnt/databox_03_894G_2
-/dev/sdb                                               ext4            59G   26G   32G  46% /mnt/databox_01_59G_1
+/dev/sdb                                               ext4            59G   27G   32G  46% /mnt/databox_01_59G_1
 movies_pool                                            fuse.mergerfs  1.8T  319G  1.4T  19% /mnt/movies_pool
 tvshows_pool                                           fuse.mergerfs  1.8T  708G 1015G  42% /mnt/tvshows_pool
-audio_pool                                             fuse.mergerfs  1.8T  366G  1.4T  21% /mnt/audio_pool
-nexus_pool                                             fuse.mergerfs  8.6T  1.4T  7.1T  17% /mnt/nexus_pool
+audio_pool                                             fuse.mergerfs  880G  366G  496G  43% /mnt/audio_pool
+nexus_pool                                             fuse.mergerfs  7.7T  1.4T  6.2T  19% /mnt/nexus_pool
 /dev/sdo                                               ext4           880G   52K  862G   1% /var/lib/kubelet/pods/d51df0bb-3033-4148-a115-bd1fc509d300/volumes/kubernetes.io~local-volume/qbit-base-pv
 /dev/sdl                                               ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
-/dev/sdq                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/sdi                                               ext4           880G  366G  496G  43% /mnt/databox_05_894G_3
 /dev/sdr                                               ext4           880G  319G  543G  37% /mnt/databox_02_894G_1
-/dev/sdj                                               ext4           880G  366G  496G  43% /mnt/databox_05_894G_3
-/dev/sdp                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
+/dev/sdp                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
+/dev/sdn                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
 /dev/sdk                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
-/dev/sdu                                               ext4           916G   36K  898G   1% /mnt/databox_10_931G_1
-/dev/sde                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
-/dev/sdn                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
+/dev/sdj                                               ext4           220G   28K  215G   1% /mnt/databox_11_223G_2
+/dev/sdq                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
