@@ -10,7 +10,6 @@ spec:
   failedJobsHistoryLimit: 2
   jobTemplate:
     spec:
-      # Automatically garbage collect the job 60 seconds after it finishes
       ttlSecondsAfterFinished: 60
       template:
         metadata:
@@ -41,7 +40,6 @@ spec:
                 - |
                   set -e
                   
-                  # Locate spotdl executable
                   if [ -x "/app/.venv/bin/spotdl" ]; then
                     SPOTDL="/app/.venv/bin/spotdl"
                   elif command -v spotdl >/dev/null 2>&1; then
@@ -54,17 +52,15 @@ spec:
                   # LIST YOUR PLAYLISTS HERE: "FolderName|Spotify_Playlist_URL"
                   # -------------------------------------------------------------
                   PLAYLISTS="
-                  bring_this_in|https://open.spotify.com/playlist/34NpLvuEMI0rv8C9w30wCA?si=594661df13fd4eaf
-#                  shazam|https://open.spotify.com/playlist/7x7oAND8NIiptPjyVvbLr1?si=13f560473dcc485c
+                  bring_this_in|https://open.spotify.com/playlist/34NpLvuEMI0rv8C9w30wCA
+                  # workout|https://open.spotify.com/playlist/YOUR_PLAYLIST_ID_2
                   # chill_vibes|https://open.spotify.com/playlist/YOUR_PLAYLIST_ID_3
                   "
 
                   echo "$PLAYLISTS" | while IFS='|' read -r FOLDER_NAME PLAYLIST_URL; do
-                    # Strip whitespace
                     FOLDER_NAME=$(echo "$FOLDER_NAME" | xargs)
                     PLAYLIST_URL=$(echo "$PLAYLIST_URL" | xargs)
 
-                    # Skip empty lines or commented lines
                     case "$FOLDER_NAME" in \#*|"") continue ;; esac
 
                     TARGET_DIR="/music/${FOLDER_NAME}"
@@ -86,7 +82,6 @@ spec:
                         --output "${TARGET_DIR}/{artist} - {title}.{ext}" \
                         --format mp3 \
                         --bitrate 320k \
-                        --lyrics-providers "" \
                         --simple-tui \
                         --log-level INFO
                     else
@@ -96,7 +91,6 @@ spec:
                         --output "${TARGET_DIR}/{artist} - {title}.{ext}" \
                         --format mp3 \
                         --bitrate 320k \
-                        --lyrics-providers "" \
                         --simple-tui \
                         --log-level INFO
                     fi
