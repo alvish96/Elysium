@@ -41,47 +41,32 @@ spec:
                   echo "Starting Spotify Playlist Ingestion..."
                   cd /music
                   
-                  # Detect spotdl binary
                   if [ -x "/app/.venv/bin/spotdl" ]; then
                     SPOTDL="/app/.venv/bin/spotdl"
                   elif command -v spotdl >/dev/null 2>&1; then
                     SPOTDL="spotdl"
                   else
-                    SPOTDL="uv run --project /app spotdl"
+                    SPOTDL="python3 -m spotdl"
                   fi
                   
                   PLAYLIST_URL="https://open.spotify.com/playlist/34NpLvuEMI0rv8C9w30wCA"
                   SYNC_FILE="/music/.playlist.sync.spotdl"
                   
-                  if [ ! -f "$SYNC_FILE" ]; then
-                    echo "Initializing sync state and downloading tracks..."
-                    $SPOTDL sync "$PLAYLIST_URL" \
-                      --save-file "$SYNC_FILE" \
-                      --sync-without-deleting \
-                      --output "/music/{artist} - {title}.{ext}" \
-                      --format mp3 \
-                      --bitrate 320k
-                  else
-                    echo "Checking playlist for newly added tracks..."
-                    $SPOTDL sync "$SYNC_FILE" \
-                      --sync-without-deleting \
-                      --output "/music/{artist} - {title}.{ext}" \
-                      --format mp3 \
-                      --bitrate 320k
-                  fi
+                  # Download audio directly without VPN proxy and skip problematic lyric lookups
+                  $SPOTDL sync "$PLAYLIST_URL" \
+                    --save-file "$SYNC_FILE" \
+                    --sync-without-deleting \
+                    --output "/music/{artist} - {title}.{ext}" \
+                    --format mp3 \
+                    --bitrate 320k \
+                    --lyrics-providers "" \
+                    --simple-tui \
+                    --log-level INFO
                   
                   echo "Sync complete."
               env:
                 - name: PATH
                   value: "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-                - name: HTTP_PROXY
-                  value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
-                - name: HTTPS_PROXY
-                  value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
-                - name: http_proxy
-                  value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
-                - name: https_proxy
-                  value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
               volumeMounts:
                 - name: audio-pool
                   mountPath: /music
