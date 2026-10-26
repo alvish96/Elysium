@@ -4,7 +4,6 @@ metadata:
   name: music-sync
   namespace: media
 spec:
-  # Runs every 2 hours to pull new additions
   schedule: "0 */2 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
@@ -38,26 +37,24 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
+                  set -e
                   echo "Starting Spotify Playlist Ingestion..."
-                  mkdir -p /music
                   cd /music
                   
-                  # Locate spotdl executable in container venv
+                  # Detect spotdl binary
                   if [ -x "/app/.venv/bin/spotdl" ]; then
                     SPOTDL="/app/.venv/bin/spotdl"
                   elif command -v spotdl >/dev/null 2>&1; then
                     SPOTDL="spotdl"
-                  elif command -v uv >/dev/null 2>&1; then
-                    SPOTDL="uv run --project /app spotdl"
                   else
-                    SPOTDL="python3 -m spotdl"
+                    SPOTDL="uv run --project /app spotdl"
                   fi
                   
                   PLAYLIST_URL="https://open.spotify.com/playlist/34NpLvuEMI0rv8C9w30wCA"
                   SYNC_FILE="/music/.playlist.sync.spotdl"
                   
                   if [ ! -f "$SYNC_FILE" ]; then
-                    echo "Initializing sync tracking file..."
+                    echo "Initializing sync state and downloading tracks..."
                     $SPOTDL sync "$PLAYLIST_URL" \
                       --save-file "$SYNC_FILE" \
                       --sync-without-deleting \
@@ -65,7 +62,7 @@ spec:
                       --format mp3 \
                       --bitrate 320k
                   else
-                    echo "Syncing new songs (preserving local copies of removed tracks)..."
+                    echo "Checking playlist for newly added tracks..."
                     $SPOTDL sync "$SYNC_FILE" \
                       --sync-without-deleting \
                       --output "/music/{artist} - {title}.{ext}" \
