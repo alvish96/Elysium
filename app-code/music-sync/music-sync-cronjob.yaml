@@ -38,8 +38,7 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  set -e
-                  
+                  # Locate spotdl executable
                   if [ -x "/app/.venv/bin/spotdl" ]; then
                     SPOTDL="/app/.venv/bin/spotdl"
                   elif command -v spotdl >/dev/null 2>&1; then
@@ -53,12 +52,19 @@ spec:
                   # -------------------------------------------------------------
                   PLAYLISTS="
                   bring_this_in|https://open.spotify.com/playlist/34NpLvuEMI0rv8C9w30wCA
-                  # workout|https://open.spotify.com/playlist/YOUR_PLAYLIST_ID_2
                   peace|https://open.spotify.com/playlist/1oSsW4AGbiX6U4tOWX8EeF?si=9c6e466aeb1c4a13
-                  # chill_vibes|https://open.spotify.com/playlist/YOUR_PLAYLIST_ID_3
-                  letmebe|https://open.spotify.com/album/4mqcYdXFQJGtduC8XWX8op?si=88n4J44mQe-nDX3jGcqaKw
+                  sufi|https://open.spotify.com/playlist/0XhFO81j8mG4QujxdywB3O?si=0224a50cf63e479a
+
                   "
 
+                  # 1. Pre-create all folders immediately on disk
+                  echo "$PLAYLISTS" | while IFS='|' read -r FOLDER_NAME PLAYLIST_URL; do
+                    FOLDER_NAME=$(echo "$FOLDER_NAME" | xargs)
+                    case "$FOLDER_NAME" in \#*|"") continue ;; esac
+                    mkdir -p "/music/${FOLDER_NAME}"
+                  done
+
+                  # 2. Process downloads for each playlist
                   echo "$PLAYLISTS" | while IFS='|' read -r FOLDER_NAME PLAYLIST_URL; do
                     FOLDER_NAME=$(echo "$FOLDER_NAME" | xargs)
                     PLAYLIST_URL=$(echo "$PLAYLIST_URL" | xargs)
@@ -73,7 +79,6 @@ spec:
                     echo " Target Folder:       ${TARGET_DIR}"
                     echo "========================================================"
 
-                    mkdir -p "$TARGET_DIR"
                     cd "$TARGET_DIR"
 
                     if [ ! -f "$SYNC_FILE" ]; then
@@ -85,7 +90,7 @@ spec:
                         --format mp3 \
                         --bitrate 320k \
                         --simple-tui \
-                        --log-level INFO
+                        --log-level INFO || echo "⚠️ SpotDL warning/notice for ${FOLDER_NAME}, continuing..."
                     else
                       echo "--> Checking for new songs..."
                       $SPOTDL sync "$SYNC_FILE" \
@@ -94,13 +99,13 @@ spec:
                         --format mp3 \
                         --bitrate 320k \
                         --simple-tui \
-                        --log-level INFO
+                        --log-level INFO || echo "⚠️ SpotDL warning/notice for ${FOLDER_NAME}, continuing..."
                     fi
 
                     echo "--> Finished playlist: ${FOLDER_NAME}"
                   done
 
-                  echo "All playlists synced successfully."
+                  echo "All playlists processed."
               env:
                 - name: PATH
                   value: "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"

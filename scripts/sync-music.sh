@@ -3,6 +3,7 @@ set -eo pipefail
 
 NAMESPACE="media"
 CRONJOB="music-sync"
+YAML_PATH="/root/Elysium/app-code/music-sync/music-sync-cronjob.yaml"
 TIMESTAMP=$(date +%s)
 JOB_NAME="manual-music-sync-${TIMESTAMP}"
 
@@ -13,8 +14,10 @@ cleanup() {
   echo " Done. Everything is clean."
 }
 
-# Trap EXIT and Ctrl+C (SIGINT) to always delete the job
 trap cleanup EXIT INT TERM
+
+echo "📋 Ensuring latest YAML configuration is applied to K3s..."
+kubectl apply -f "${YAML_PATH}" >/dev/null
 
 echo "🚀 Spawning manual sync job (${JOB_NAME})..."
 kubectl create job --from=cronjob/${CRONJOB} ${JOB_NAME} -n ${NAMESPACE} >/dev/null
