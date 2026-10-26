@@ -55,7 +55,7 @@ spec:
                   # -------------------------------------------------------------
                   PLAYLISTS="
                   bring_this_in|https://open.spotify.com/playlist/34NpLvuEMI0rv8C9w30wCA?si=594661df13fd4eaf
-                  shazam|https://open.spotify.com/playlist/7x7oAND8NIiptPjyVvbLr1?si=13f560473dcc485c
+#                  shazam|https://open.spotify.com/playlist/7x7oAND8NIiptPjyVvbLr1?si=13f560473dcc485c
                   # chill_vibes|https://open.spotify.com/playlist/YOUR_PLAYLIST_ID_3
                   "
 
