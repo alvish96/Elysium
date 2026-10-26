@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: music-sync
+  namespace: media
+spec:
+  # Runs every 2 hours
+  schedule: "0 */2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: music-sync
+        spec:
+          restartPolicy: OnFailure
+          dnsPolicy: ClusterFirst
+          dnsConfig:
+            options:
+              - name: ndots
+                value: "1"
+          nodeSelector:
+            kubernetes.io/hostname: atlantis
+          securityContext:
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+          containers:
+            - name: spotdl
+              image: spotdl/spotify-downloader:latest
+              imagePullPolicy: IfNotPresent
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  echo "Starting Spotify Playlist Sync..."
+                  cd /music/Spotify_Singles
+                  
+                  # Replace with your actual Spotify Playlist URL(s)
+                  PLAYLIST_URL="https://open.spotify.com/playlist/YOUR_PLAYLIST_ID_HERE"
+                  
+                  spotdl sync "$PLAYLIST_URL" \
+                    --save-file "/music/Spotify_Singles/.sync.spotdl" \
+                    --output "/music/Spotify_Singles/{artist} - {title}.{ext}" \
+                    --format mp3 \
+                    --bitrate 320k
+                    
+                  echo "Sync completed successfully."
+              env:
+                # Route via Gluetun VPN sidecar on atlantis
+                - name: HTTP_PROXY
+                  value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
+                - name: HTTPS_PROXY
+                  value: "http://qbittorrent-svc.media.svc.cluster.local:8888"
+              volumeMounts:
+                - name: audio-pool
+                  mountPath: /music
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+          volumes:
+            - name: audio-pool
+              hostPath:
+                path: /mnt/audio_pool
+                type: Directory
