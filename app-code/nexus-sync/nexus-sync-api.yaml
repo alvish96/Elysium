@@ -51,6 +51,17 @@ spec:
           ports:
             - containerPort: 8000
               name: http
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            periodSeconds: 10
           envFrom:
             - secretRef:
                 name: nexus-music-secrets

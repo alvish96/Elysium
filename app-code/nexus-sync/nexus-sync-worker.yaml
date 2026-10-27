@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-sync-worker
+  namespace: media
+  labels:
+    app: nexus-sync-worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nexus-sync-worker
+  template:
+    metadata:
+      labels:
+        app: nexus-sync-worker
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      securityContext:
+        runAsUser: 0
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: worker
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "==> Preparing system dependencies (ffmpeg & curl)..."
+              if [ ! -f /usr/bin/ffmpeg ]; then
+                apt-get update && apt-get install -y --no-install-recommends ffmpeg curl
+              fi
+
+              echo "==> Preparing persistent worker virtual environment..."
+              if [ ! -f /opt/worker-venv/bin/spotdl ]; then
+                python3 -m venv /opt/worker-venv
+                /opt/worker-venv/bin/pip install --no-cache-dir -r /app/worker-requirements.txt
+              fi
+
+              echo "==> Starting Nexus Sync Worker..."
+              exec /opt/worker-venv/bin/python /app/worker.py
+          envFrom:
+            - secretRef:
+                name: nexus-music-secrets
+          env:
+            - name: POSTGRES_HOST
+              value: "nexus-sync-postgres-svc.media.svc.cluster.local"
+            - name: REDIS_HOST
+              value: "nexus-sync-redis-svc.media.svc.cluster.local"
+            - name: NAVIDROME_URL
+              value: "http://navidrome-svc.media.svc.cluster.local:4533"
+            - name: MUSIC_ROOT
+              value: "/mnt/audio_pool/music"
+            - name: APPRISE_URL
+              value: "http://apprise-svc.monitoring.svc.cluster.local:8000/notify/"
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+            - name: worker-venv
+              mountPath: /opt/worker-venv
+            - name: audio-pool
+              mountPath: /mnt/audio_pool/music
+            - name: temp-scratch
+              mountPath: /tmp/spotdl
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+      volumes:
+        - name: app-code
+          hostPath:
+            path: /root/Elysium/nexus-music/src/backend
+            type: Directory
+        - name: worker-venv
+          hostPath:
+            path: /mnt/internal/appdata/nexus-sync/worker-venv
+            type: DirectoryOrCreate
+        - name: audio-pool
+          hostPath:
+            path: /mnt/audio_pool/music
+            type: DirectoryOrCreate
+        - name: temp-scratch
+          emptyDir: {}
