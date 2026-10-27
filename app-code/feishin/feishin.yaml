@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feishin
+  namespace: media
+  labels:
+    app: feishin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: feishin
+  template:
+    metadata:
+      labels:
+        app: feishin
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: feishin
+          image: ghcr.io/jeffvli/feishin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9180
+              name: http
+          env:
+            - name: SERVER_NAME
+              value: "Nexus Music"
+            - name: SERVER_LOCK
+              value: "true"
+            - name: SERVER_TYPE
+              value: "navidrome"
+            - name: SERVER_URL
+              value: "http://navidrome.nexus.link"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: feishin-svc
+  namespace: media
+  labels:
+    app: feishin
+spec:
+  type: ClusterIP
+  selector:
+    app: feishin
+  ports:
+    - name: http
+      port: 9180
+      targetPort: 9180
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: feishin-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`music.nexus.link`)
+      kind: Rule
+      services:
+        - name: feishin-svc
+          port: 9180
