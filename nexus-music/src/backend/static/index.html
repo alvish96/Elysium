@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus Music Sync</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#10b981',
+              hover: '#059669',
+              dark: '#064e3b'
+            },
+            slate: {
+              850: '#151f33',
+              900: '#0f172a',
+              950: '#020617'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .glass-card { background: #1e293b; border: 1px solid #334155; }
+    .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-emerald-950/40">
+          <i class="fa-solid fa-music"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Nexus Music <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">Sync Engine</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Continuous Ingestion & Visibility Controller</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3" id="headerRight">
+        <!-- WebSocket live pill -->
+        <div id="wsIndicator" class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs bg-slate-800 text-slate-400 border border-slate-700">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+          <span>Live Sync</span>
+        </div>
+
+        <!-- Open Web Player shortcut -->
+        <a href="http://music.nexus.link" target="_blank" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 flex items-center gap-2 transition">
+          <i class="fa-solid fa-play text-brand"></i>
+          <span>Web Player</span>
+        </a>
+
+        <!-- Auth Section -->
+        <div id="userHeaderSection" class="flex items-center gap-3"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- LOGIN MODAL (When Unauthenticated) -->
+    <div id="loginView" class="hidden max-w-md mx-auto my-12 glass-card p-8 rounded-2xl shadow-2xl">
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-brand/10 border border-brand/30 flex items-center justify-center text-brand text-2xl mb-4">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Sign in with Navidrome</h2>
+        <p class="text-sm text-slate-400 mt-1">Use your standard Subsonic username and password</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+          <input type="text" id="loginUsername" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+          <input type="password" id="loginPassword" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand">
+        </div>
+        <div id="loginError" class="text-rose-400 text-xs hidden"></div>
+        <button type="submit" class="w-full py-3 bg-brand hover:bg-brand-hover text-slate-950 font-semibold rounded-xl transition shadow-lg shadow-emerald-950/50">
+          Authenticate & Connect
+        </button>
+      </form>
+    </div>
+
+    <!-- AUTHENTICATED APP DASHBOARD -->
+    <div id="appView" class="hidden space-y-6">
+
+      <!-- SPOTIFY STATUS BANNER -->
+      <div id="spotifyBanner" class="glass-card p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-[#1DB954]/10 text-[#1DB954] flex items-center justify-center text-xl">
+            <i class="fa-brands fa-spotify"></i>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-white flex items-center gap-2">
+              Spotify Account: <span id="spotifyStatusText" class="text-slate-400">Checking...</span>
+            </div>
+            <p class="text-xs text-slate-400">Tokens are encrypted in PostgreSQL and auto-refreshed in the background</p>
+          </div>
+        </div>
+        <div id="spotifyActionContainer"></div>
+      </div>
+
+      <!-- TABS & ACTIONS BAR -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div class="flex gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 w-fit">
+          <button onclick="switchTab('playlists')" id="tabBtnPlaylists" class="px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow">
+            <i class="fa-brands fa-spotify mr-1.5"></i> My Spotify Playlists
+          </button>
+          <button onclick="switchTab('vault')" id="tabBtnVault" class="px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white">
+            <i class="fa-solid fa-server mr-1.5"></i> Server Vault Overview
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="relative w-full sm:w-64">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-sm"></i>
+            <input type="text" id="searchInput" oninput="filterPlaylists()" placeholder="Search playlists..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand">
+          </div>
+          <button onclick="reloadActiveTab()" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition" title="Refresh">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1: SPOTIFY PLAYLISTS -->
+      <div id="tabPlaylists" class="space-y-4">
+        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+          <span id="playlistCountText">Loading Spotify playlists...</span>
+          <span>Changes are saved immediately & processed by spotDL</span>
+        </div>
+
+        <div id="playlistsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- TAB 2: SERVER VAULT OVERVIEW -->
+      <div id="tabVault" class="hidden space-y-4">
+        <div class="text-xs text-slate-400 px-1">
+          Folder structure mapped to <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/</code> on Atlantis
+        </div>
+        <div id="vaultList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    let TOKEN = localStorage.getItem('nexus_token');
+    let USER = null;
+    let ALL_PLAYLISTS = [];
+    let WS = null;
+
+    async function apiFetch(endpoint, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+      const res = await fetch(endpoint, { ...options, headers });
+      if (res.status === 401) {
+        logout();
+        throw new Error('Unauthorized');
+      }
+      return res;
+    }
+
+    async function init() {
+      if (!TOKEN) {
+        showLogin();
+        return;
+      }
+      try {
+        const meRes = await apiFetch('/api/v1/auth/me');
+        if (!meRes.ok) throw new Error();
+        USER = await meRes.json();
+        showApp();
+        initWebSocket();
+        checkSpotifyStatus();
+        loadSpotifyPlaylists();
+      } catch (e) {
+        showLogin();
+      }
+    }
+
+    function showLogin() {
+      document.getElementById('loginView').classList.remove('hidden');
+      document.getElementById('appView').classList.add('hidden');
+      document.getElementById('userHeaderSection').innerHTML = '';
+    }
+
+    function showApp() {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('appView').classList.remove('hidden');
+      document.getElementById('userHeaderSection').innerHTML = `
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-sm">
+          <i class="fa-solid fa-user text-brand"></i>
+          <span class="font-medium text-slate-200">${USER.username}</span>
+          <button onclick="logout()" class="ml-2 text-slate-400 hover:text-rose-400" title="Logout">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value.trim();
+      const errBox = document.getElementById('loginError');
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+        TOKEN = data.access_token;
+        localStorage.setItem('nexus_token', TOKEN);
+        USER = { username: data.username, is_admin: data.is_admin };
+        showApp();
+        initWebSocket();
+        checkSpotifyStatus();
+        loadSpotifyPlaylists();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('nexus_token');
+      TOKEN = null;
+      if (WS) WS.close();
+      showLogin();
+    }
+
+    async function checkSpotifyStatus() {
+      try {
+        const res = await apiFetch('/api/v1/spotify/status');
+        const data = await res.json();
+        const statText = document.getElementById('spotifyStatusText');
+        const actionBox = document.getElementById('spotifyActionContainer');
+
+        if (data.connected) {
+          statText.innerHTML = `<span class="text-emerald-400 font-semibold">Connected (${data.spotify_id || 'Active'})</span>`;
+          actionBox.innerHTML = `
+            <button onclick="connectSpotify()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 transition">
+              Reconnect / Switch Account
+            </button>
+          `;
+        } else {
+          statText.innerHTML = `<span class="text-amber-400 font-semibold">Not Connected</span>`;
+          actionBox.innerHTML = `
+            <button onclick="connectSpotify()" class="px-4 py-2 bg-[#1DB954] hover:bg-[#1aa34a] text-slate-950 text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/40">
+              <i class="fa-brands fa-spotify"></i> Connect Spotify Account
+            </button>
+          `;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function connectSpotify() {
+      try {
+        const res = await apiFetch('/api/v1/spotify/login');
+        const data = await res.json();
+        if (data.authorization_url) {
+          window.location.href = data.authorization_url;
+        }
+      } catch (e) {
+        alert('Could not start Spotify authentication.');
+      }
+    }
+
+    async function loadSpotifyPlaylists() {
+      const container = document.getElementById('playlistsList');
+      const countText = document.getElementById('playlistCountText');
+      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500">Loading playlists from Spotify...</div>';
+
+      try {
+        const res = await apiFetch('/api/v1/spotify/playlists');
+        ALL_PLAYLISTS = await res.json();
+        countText.textContent = `Showing ${ALL_PLAYLISTS.length} Spotify playlists`;
+        renderPlaylists(ALL_PLAYLISTS);
+      } catch (e) {
+        container.innerHTML = `
+          <div class="col-span-3 text-center py-12 text-slate-400">
+            <p>Could not fetch Spotify playlists. Please connect your Spotify account above.</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderPlaylists(list) {
+      const container = document.getElementById('playlistsList');
+      if (list.length === 0) {
+        container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500">No playlists found.</div>';
+        return;
+      }
+
+      container.innerHTML = list.map(p => {
+        const isSynced = p.is_synced;
+        const isPublic = p.visibility === 'public';
+        const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60';
+        const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
+
+        return `
+          <div id="card-${p.id}" class="glass-card rounded-2xl p-4 flex flex-col justify-between transition hover:border-slate-600">
+            <div>
+              <div class="flex gap-3 mb-3">
+                <img src="${cover}" class="w-16 h-16 rounded-xl object-cover bg-slate-800 shrink-0 border border-slate-700">
+                <div class="overflow-hidden">
+                  <h3 class="font-bold text-white text-sm truncate" title="${p.name}">${p.name}</h3>
+                  <p class="text-xs text-slate-400 mt-0.5">${p.total_tracks} tracks</p>
+                  <p class="text-[11px] font-mono text-emerald-400/90 truncate mt-1">/${isPublic ? 'public' : 'users/' + USER.username + '/private'}/${p.folder_slug}</p>
+                </div>
+              </div>
+
+              <!-- PROGRESS BAR -->
+              <div class="mt-2 mb-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+                <div class="flex justify-between items-center text-xs mb-1.5">
+                  <span id="status-${p.id}" class="text-slate-400 font-medium capitalize flex items-center gap-1.5">
+                    ${getStatusBadge(p.sync_status)}
+                  </span>
+                  <span id="prog-text-${p.id}" class="text-slate-400 font-mono text-[11px]">${p.downloaded_tracks}/${p.total_tracks} (${percent}%)</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div id="bar-${p.id}" class="h-full bg-brand transition-all duration-300" style="width: ${percent}%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONTROLS -->
+            <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+              <!-- SYNC TOGGLE -->
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" onchange="toggleSync('${p.id}', this.checked)" ${isSynced ? 'checked' : ''} class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand relative"></div>
+                <span class="text-xs font-semibold ${isSynced ? 'text-white' : 'text-slate-500'}">Sync</span>
+              </label>
+
+              <!-- VISIBILITY PILL -->
+              <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
+                <button onclick="changeVisibility('${p.id}', 'private')" class="px-2.5 py-1 rounded-md font-medium transition ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-lock text-[10px] mr-1"></i> Private
+                </button>
+                <button onclick="changeVisibility('${p.id}', 'public')" class="px-2.5 py-1 rounded-md font-medium transition ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}">
+                  <i class="fa-solid fa-globe text-[10px] mr-1"></i> Public
+                </button>
+              </div>
+
+              <!-- SYNC NOW BUTTON -->
+              <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Force Resync Now">
+                <i class="fa-solid fa-bolt text-xs"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getStatusBadge(st) {
+      if (st === 'syncing') return `<span class="w-2 h-2 rounded-full bg-amber-400 pulse-dot"></span> <span class="text-amber-400">Syncing</span>`;
+      if (st === 'completed') return `<i class="fa-solid fa-check text-emerald-400"></i> <span class="text-emerald-400">Synced</span>`;
+      if (st === 'queued') return `<i class="fa-solid fa-clock text-blue-400"></i> <span class="text-blue-400">Queued</span>`;
+      if (st === 'failed') return `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> <span class="text-rose-400">Failed</span>`;
+      return `<span class="text-slate-500">Idle</span>`;
+    }
+
+    async function toggleSync(playlistId, isSynced) {
+      const p = ALL_PLAYLISTS.find(x => x.id === playlistId);
+      if (!p) return;
+      p.is_synced = isSynced;
+
+      try {
+        await apiFetch(`/api/v1/playlists/${playlistId}/configure`, {
+          method: 'POST',
+          body: JSON.stringify({ is_synced: isSynced, visibility: p.visibility, folder_slug: p.folder_slug })
+        });
+        renderPlaylists(ALL_PLAYLISTS);
+      } catch (e) {
+        alert('Could not update sync state.');
+      }
+    }
+
+    async function changeVisibility(playlistId, newVis) {
+      const p = ALL_PLAYLISTS.find(x => x.id === playlistId);
+      if (!p || p.visibility === newVis) return;
+      p.visibility = newVis;
+
+      try {
+        await apiFetch(`/api/v1/playlists/${playlistId}/configure`, {
+          method: 'POST',
+          body: JSON.stringify({ is_synced: p.is_synced, visibility: newVis, folder_slug: p.folder_slug })
+        });
+        renderPlaylists(ALL_PLAYLISTS);
+      } catch (e) {
+        alert('Could not update visibility.');
+      }
+    }
+
+    async function syncNow(playlistId) {
+      try {
+        await apiFetch(`/api/v1/playlists/${playlistId}/sync-now`, { method: 'POST' });
+        const st = document.getElementById(`status-${playlistId}`);
+        if (st) st.innerHTML = getStatusBadge('queued');
+      } catch (e) {
+        alert('Could not trigger sync.');
+      }
+    }
+
+    async function loadVaultOverview() {
+      const container = document.getElementById('vaultList');
+      container.innerHTML = '<div class="col-span-2 text-center py-12 text-slate-500">Loading server storage...</div>';
+
+      try {
+        const res = await apiFetch('/api/v1/playlists/vault');
+        const vault = await res.json();
+        if (vault.length === 0) {
+          container.innerHTML = '<div class="col-span-2 text-center py-12 text-slate-500">No playlists stored in the vault yet.</div>';
+          return;
+        }
+
+        container.innerHTML = vault.map(v => `
+          <div class="glass-card rounded-2xl p-5 border border-slate-800">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-md text-xs font-semibold ${v.visibility === 'public' ? 'bg-brand/20 text-brand border border-brand/30' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+                  ${v.visibility === 'public' ? '<i class="fa-solid fa-globe mr-1"></i> Public' : '<i class="fa-solid fa-lock mr-1"></i> Private'}
+                </span>
+                <span class="text-xs text-slate-400 font-mono">${v.folder_slug}</span>
+              </div>
+              <span class="text-xs text-slate-400">${v.on_disk_count} files on disk</span>
+            </div>
+
+            <h3 class="text-base font-bold text-white mb-1">${v.name}</h3>
+            <p class="text-xs text-slate-500 font-mono truncate mb-4">${v.folder_path}</p>
+
+            <div class="flex items-center justify-between pt-3 border-t border-slate-800 text-xs">
+              <span class="text-slate-400">Last Synced: ${v.last_synced_at ? new Date(v.last_synced_at).toLocaleString() : 'Never'}</span>
+              <button onclick="syncNow('${v.spotify_playlist_id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg transition">
+                <i class="fa-solid fa-rotate-right mr-1 text-brand"></i> Sync Now
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = '<div class="col-span-2 text-center py-12 text-rose-400">Failed to load vault overview.</div>';
+      }
+    }
+
+    function filterPlaylists() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = ALL_PLAYLISTS.filter(p => p.name.toLowerCase().includes(q) || p.folder_slug.toLowerCase().includes(q));
+      renderPlaylists(filtered);
+    }
+
+    function switchTab(tab) {
+      const btnP = document.getElementById('tabBtnPlaylists');
+      const btnV = document.getElementById('tabBtnVault');
+      const tabP = document.getElementById('tabPlaylists');
+      const tabV = document.getElementById('tabVault');
+
+      if (tab === 'playlists') {
+        btnP.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow';
+        btnV.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white';
+        tabP.classList.remove('hidden');
+        tabV.classList.add('hidden');
+      } else {
+        btnV.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow';
+        btnP.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white';
+        tabV.classList.remove('hidden');
+        tabP.classList.add('hidden');
+        loadVaultOverview();
+      }
+    }
+
+    function reloadActiveTab() {
+      if (document.getElementById('tabPlaylists').classList.contains('hidden')) {
+        loadVaultOverview();
+      } else {
+        loadSpotifyPlaylists();
+      }
+    }
+
+    function initWebSocket() {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${proto}//${window.location.host}/api/v1/ws?token=${TOKEN}`;
+
+      WS = new WebSocket(wsUrl);
+      WS.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleLiveEvent(data);
+        } catch (e) {}
+      };
+      WS.onclose = () => {
+        setTimeout(initWebSocket, 4000);
+      };
+    }
+
+    function handleLiveEvent(data) {
+      if (data.event === 'TRACK_PROGRESS') {
+        const id = data.playlist_id;
+        const percent = Math.min(100, Math.round((data.downloaded_count / data.total) * 100));
+        const bar = document.getElementById(`bar-${id}`);
+        const txt = document.getElementById(`prog-text-${id}`);
+        const st = document.getElementById(`status-${id}`);
+        if (bar) bar.style.width = `${percent}%`;
+        if (txt) txt.textContent = `${data.downloaded_count}/${data.total} (${percent}%)`;
+        if (st) st.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 pulse-dot"></span> <span class="text-amber-400 truncate max-w-[130px]" title="${data.track_title}">${data.track_title}</span>`;
+      } else if (data.event === 'SYNC_COMPLETED') {
+        const id = data.playlist_id;
+        const st = document.getElementById(`status-${id}`);
+        const bar = document.getElementById(`bar-${id}`);
+        const txt = document.getElementById(`prog-text-${id}`);
+        if (st) st.innerHTML = getStatusBadge('completed');
+        if (bar) bar.style.width = `100%`;
+        if (txt) txt.textContent = `${data.total_tracks}/${data.total_tracks} (100%)`;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

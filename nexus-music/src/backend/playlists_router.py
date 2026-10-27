@@ -108,14 +108,12 @@ async def configure_playlist(
                 except Exception:
                     pass
 
-            # Move or recreate m3u8 playlist file
             m3u8_file = target_dir / f"{slug}.m3u8"
             m3u8_content = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
             for mp3 in sorted(target_dir.glob("*.mp3")):
                 m3u8_content.append(mp3.name)
             m3u8_file.write_text("\n".join(m3u8_content) + "\n")
 
-            # Remove old m3u8 and cleanup empty directory
             old_m3u8 = old_dir / f"{old_slug}.m3u8"
             if old_m3u8.exists():
                 old_m3u8.unlink()
@@ -124,10 +122,9 @@ async def configure_playlist(
             except Exception:
                 pass
 
-            # Trigger Navidrome scan
             await trigger_navidrome_scan(current_user)
 
-    # 3. If Synced is Enabled, Push Job to Redis Queue & Broadcast Event
+    # 3. If Synced is Enabled, Push Job to Redis Queue
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
     if req.is_synced:
         job_payload = {
@@ -140,7 +137,6 @@ async def configure_playlist(
         }
         await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
 
-    # Broadcast real-time event to all Web & iOS clients
     await r.publish("nexus:events", json.dumps({
         "event": "PLAYLIST_CONFIGURED",
         "playlist_id": playlist.spotify_playlist_id,
@@ -160,3 +156,83 @@ async def configure_playlist(
         visibility=playlist.visibility,
         is_synced=playlist.is_synced
     )
+
+@router.post("/{spotify_playlist_id}/sync-now")
+async def trigger_sync_now(
+    spotify_playlist_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Playlist).where(
+        Playlist.owner_id == current_user.id,
+        Playlist.spotify_playlist_id == spotify_playlist_id
+    )
+    res = await db.execute(stmt)
+    playlist = res.scalar_one_or_none()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not registered. Please enable sync first.")
+
+    playlist.sync_status = "queued"
+    playlist.is_synced = True
+    await db.commit()
+
+    r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
+    job_payload = {
+        "action": "sync_playlist",
+        "playlist_id": playlist.id,
+        "spotify_playlist_id": playlist.spotify_playlist_id,
+        "owner_id": current_user.id,
+        "visibility": playlist.visibility,
+        "folder_slug": playlist.folder_slug
+    }
+    await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
+
+    await r.publish("nexus:events", json.dumps({
+        "event": "PLAYLIST_QUEUED",
+        "playlist_id": playlist.spotify_playlist_id,
+        "name": playlist.name
+    }))
+
+    return {"status": "ok", "message": f"Sync queued for {playlist.name}"}
+
+@router.get("/vault")
+async def get_vault_overview(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Playlist).where(
+        (Playlist.owner_id == current_user.id) | (Playlist.visibility == "public")
+    )
+    res = await db.execute(stmt)
+    playlists = res.scalars().all()
+
+    music_root = Path(settings.MUSIC_ROOT)
+    vault_items = []
+
+    for pl in playlists:
+        if pl.visibility == "public":
+            folder_path = music_root / "public" / pl.folder_slug
+        else:
+            folder_path = music_root / "users" / current_user.username / "private" / pl.folder_slug
+
+        on_disk_count = 0
+        if folder_path.exists():
+            on_disk_count = len(list(folder_path.glob("*.mp3")))
+
+        vault_items.append({
+            "id": pl.id,
+            "spotify_playlist_id": pl.spotify_playlist_id,
+            "name": pl.name,
+            "folder_slug": pl.folder_slug,
+            "visibility": pl.visibility,
+            "cover_url": pl.cover_url,
+            "is_owner": pl.owner_id == current_user.id,
+            "sync_status": pl.sync_status,
+            "downloaded_tracks": pl.downloaded_tracks,
+            "total_tracks": pl.total_tracks,
+            "on_disk_count": on_disk_count,
+            "folder_path": str(folder_path),
+            "last_synced_at": pl.last_synced_at.isoformat() if pl.last_synced_at else None
+        })
+
+    return vault_items

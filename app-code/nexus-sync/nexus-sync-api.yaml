@@ -128,7 +128,7 @@ spec:
     - web
     - websecure
   routes:
-    - match: Host(`sync.nexus.link`) && PathPrefix(`/api`)
+    - match: Host(`sync.nexus.link`) && PathPrefix(`/`)
       kind: Rule
       services:
         - name: nexus-sync-api-svc
