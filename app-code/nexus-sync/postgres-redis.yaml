@@ -1,0 +1,158 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-sync-postgres
+  namespace: media
+  labels:
+    app: nexus-sync-postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nexus-sync-postgres
+  template:
+    metadata:
+      labels:
+        app: nexus-sync-postgres
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-music-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-music-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-music-secrets
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: postgres-data
+          hostPath:
+            path: /mnt/internal/appdata/nexus-sync/postgres
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-sync-postgres-svc
+  namespace: media
+  labels:
+    app: nexus-sync-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: nexus-sync-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-sync-redis
+  namespace: media
+  labels:
+    app: nexus-sync-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nexus-sync-redis
+  template:
+    metadata:
+      labels:
+        app: nexus-sync-redis
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: redis-data
+          hostPath:
+            path: /mnt/internal/appdata/nexus-sync/redis
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-sync-redis-svc
+  namespace: media
+  labels:
+    app: nexus-sync-redis
+spec:
+  type: ClusterIP
+  selector:
+    app: nexus-sync-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

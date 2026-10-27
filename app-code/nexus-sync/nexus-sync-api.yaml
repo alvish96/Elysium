@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-sync-api
+  namespace: media
+  labels:
+    app: nexus-sync-api
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nexus-sync-api
+  template:
+    metadata:
+      labels:
+        app: nexus-sync-api
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: atlantis
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: api
+          image: nexus-sync-api:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - secretRef:
+                name: nexus-music-secrets
+          env:
+            - name: POSTGRES_HOST
+              value: "nexus-sync-postgres-svc.media.svc.cluster.local"
+            - name: REDIS_HOST
+              value: "nexus-sync-redis-svc.media.svc.cluster.local"
+            - name: NAVIDROME_URL
+              value: "http://navidrome-svc.media.svc.cluster.local:4533"
+            - name: MUSIC_ROOT
+              value: "/mnt/audio_pool/music"
+          volumeMounts:
+            - name: audio-pool
+              mountPath: /mnt/audio_pool/music
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: audio-pool
+          hostPath:
+            path: /mnt/audio_pool/music
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-sync-api-svc
+  namespace: media
+  labels:
+    app: nexus-sync-api
+spec:
+  type: ClusterIP
+  selector:
+    app: nexus-sync-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nexus-sync-ingress
+  namespace: media
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`sync.nexus.link`) && PathPrefix(`/api`)
+      kind: Rule
+      services:
+        - name: nexus-sync-api-svc
+          port: 8000

@@ -98,3 +98,4 @@ Deletion Protection: Removing a track on Spotify never deletes an already-downlo
 ## 5. Progress Changelog
 2026-10-27: Initialized ~/Elysium/nexus-music/ workspace, physical storage directories on atlantis, and master PLAN_AND_STATE.md tracker.
 * **2026-10-27:** Completed Phase 1 (Tasks 1.1-1.4) — Deployed Navidrome with Subsonic .m3u8 auto-import, Traefik IngressRoute, and Feishin Spotify Web UI.
+* **2026-10-27:** Completed Phase 2 (Tasks 2.1-2.4) — Deployed PostgreSQL 16, Redis 7, and FastAPI backend with Navidrome auth bridge, Spotify OAuth2, and atomic hardlink visibility router.
