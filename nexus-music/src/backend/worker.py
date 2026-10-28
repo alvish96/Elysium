@@ -64,7 +64,6 @@ async def trigger_navidrome_scan_and_visibility(user: User, playlist_name: str, 
             logger.warning(f"Navidrome scan trigger failed: {e}")
             return
 
-        # Wait briefly for Navidrome to detect the .m3u8 file
         await asyncio.sleep(3)
 
         try:
@@ -89,7 +88,6 @@ async def trigger_navidrome_scan_and_visibility(user: User, playlist_name: str, 
             logger.warning(f"Could not update playlist visibility in Navidrome: {e}")
 
 async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> bool:
-    """Downloads single track to master pool using spotDL CLI and a scratch temp dir."""
     scratch_dir = Path("/tmp/spotdl") / spotify_track_id
     scratch_dir.mkdir(parents=True, exist_ok=True)
 
@@ -122,7 +120,7 @@ async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> boo
             logger.info(f"Track {spotify_track_id} saved to master pool: {master_file.name}")
             return True
         else:
-            logger.warning(f"SpotDL finished but no MP3 produced for {spotify_track_id}: {stderr.decode()[:200]}")
+            logger.warning(f"SpotDL download finished but no MP3 produced for {spotify_track_id}: {stderr.decode()[:200]}")
             return False
     except Exception as e:
         logger.error(f"Execution error downloading track {spotify_track_id}: {e}")
@@ -130,38 +128,104 @@ async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> boo
     finally:
         shutil.rmtree(scratch_dir, ignore_errors=True)
 
-async def fetch_playlist_tracks_from_spotify(token: str, spotify_playlist_id: str) -> List[Dict]:
-    """Fetches all tracks for a playlist via Spotify Web API with full pagination."""
-    tracks = []
-    url = f"{SPOTIFY_API_BASE}/playlists/{spotify_playlist_id}/tracks?limit=100"
+async def fetch_tracks_via_spotdl_save(spotify_playlist_id: str) -> List[Dict]:
+    cache_dir = Path("/tmp/spotdl_cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    save_file = cache_dir / f"{spotify_playlist_id}.spotdl"
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        while url:
-            resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
-            if resp.status_code != 200:
-                logger.error(f"Spotify API error ({resp.status_code}): {resp.text}")
-                break
-            data = resp.json()
-            for item in data.get("items", []):
-                t = item.get("track")
-                if not t or not t.get("id"):
+    spotdl_bin = "/opt/worker-venv/bin/spotdl"
+    if not Path(spotdl_bin).exists():
+        spotdl_bin = "spotdl"
+
+    cmd = [
+        spotdl_bin,
+        "save",
+        f"https://open.spotify.com/playlist/{spotify_playlist_id}",
+        "--save-file", str(save_file),
+        "--simple-tui",
+        "--log-level", "INFO"
+    ]
+
+    logger.info(f"Executing spotdl save for playlist {spotify_playlist_id}...")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+
+        if save_file.exists():
+            data = json.loads(save_file.read_text(encoding="utf-8"))
+            tracks = []
+            for item in data:
+                sp_id = item.get("song_id")
+                if not sp_id and item.get("url"):
+                    sp_id = item["url"].split("/track/")[-1].split("?")[0]
+                if not sp_id:
                     continue
-                artists = ", ".join([a.get("name", "") for a in t.get("artists", [])])
-                album = (t.get("album") or {}).get("name", "")
-                images = (t.get("album") or {}).get("images") or []
-                cover_url = images[0]["url"] if images else None
 
+                artists = ", ".join(item.get("artists", [])) or item.get("artist", "Unknown Artist")
                 tracks.append({
-                    "spotify_track_id": t["id"],
-                    "title": t.get("name", "Unknown Title"),
-                    "artist": artists or "Unknown Artist",
-                    "album": album,
-                    "duration_ms": t.get("duration_ms", 0),
-                    "cover_url": cover_url
+                    "spotify_track_id": sp_id,
+                    "title": item.get("name", "Unknown Title"),
+                    "artist": artists,
+                    "album": item.get("album_name", ""),
+                    "duration_ms": int(item.get("duration", 0) * 1000) if item.get("duration") else 0,
+                    "cover_url": item.get("cover_url")
                 })
-            url = data.get("next")
+            logger.info(f"Resolved {len(tracks)} tracks via spotdl save.")
+            return tracks
+        else:
+            logger.warning(f"spotdl save failed: {stderr.decode()[:300]}")
+            return []
+    except Exception as e:
+        logger.error(f"Error executing spotdl save: {e}")
+        return []
+    finally:
+        if save_file.exists():
+            try:
+                save_file.unlink()
+            except Exception:
+                pass
 
-    return tracks
+async def fetch_playlist_tracks(token: str, spotify_playlist_id: str) -> List[Dict]:
+    """Uses /items endpoint first, falling back to spotdl save if needed."""
+    tracks = []
+    url = f"{SPOTIFY_API_BASE}/playlists/{spotify_playlist_id}/items?limit=100"
+
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    async with httpx.AsyncClient(timeout=12.0) as client:
+        while url:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                for item in data.get("items", []):
+                    t = item.get("item") or item.get("track")
+                    if not t or not t.get("id"):
+                        continue
+                    artists = ", ".join([a.get("name", "") for a in t.get("artists", [])])
+                    album = (t.get("album") or {}).get("name", "")
+                    images = (t.get("album") or {}).get("images") or []
+                    cover_url = images[0]["url"] if images else None
+
+                    tracks.append({
+                        "spotify_track_id": t["id"],
+                        "title": t.get("name", "Unknown Title"),
+                        "artist": artists or "Unknown Artist",
+                        "album": album,
+                        "duration_ms": t.get("duration_ms", 0),
+                        "cover_url": cover_url
+                    })
+                url = data.get("next")
+            else:
+                logger.warning(f"Spotify /items returned {resp.status_code}. Using spotdl resolver...")
+                break
+
+    if tracks:
+        return tracks
+
+    return await fetch_tracks_via_spotdl_save(spotify_playlist_id)
 
 async def sync_playlist_task(job_data: dict, r: redis.Redis):
     playlist_id = job_data["playlist_id"]
@@ -175,7 +239,7 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         res = await db.execute(stmt)
         playlist = res.scalar_one_or_none()
         if not playlist or not playlist.is_synced:
-            logger.info(f"Playlist {playlist_id} is no longer marked for sync. Skipping.")
+            logger.info(f"Playlist {playlist_id} is not marked for sync. Skipping.")
             return
 
         stmt_u = select(User).where(User.id == owner_id)
@@ -190,17 +254,19 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
 
         try:
             spotify_token = await get_valid_spotify_token(db, user.id)
-        except Exception as e:
-            logger.error(f"Failed to obtain Spotify token: {e}")
+        except Exception:
+            spotify_token = ""
+
+        tracks_meta = await fetch_playlist_tracks(spotify_token, spotify_playlist_id)
+        if not tracks_meta:
+            logger.warning(f"No tracks found for playlist {spotify_playlist_id}.")
             playlist.sync_status = "failed"
             await db.commit()
             return
 
-        tracks_meta = await fetch_playlist_tracks_from_spotify(spotify_token, spotify_playlist_id)
         playlist.total_tracks = len(tracks_meta)
         await db.commit()
 
-    # Determine destination directory
     music_root = Path(settings.MUSIC_ROOT)
     master_pool = music_root / ".master_pool"
     master_pool.mkdir(parents=True, exist_ok=True)
@@ -211,14 +277,12 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         target_dir = music_root / "users" / user.username / "private" / playlist.folder_slug
 
     target_dir.mkdir(parents=True, exist_ok=True)
-
     downloaded_count = 0
 
     for idx, t_meta in enumerate(tracks_meta, start=1):
         sp_tid = t_meta["spotify_track_id"]
         master_file = master_pool / f"{sp_tid}.mp3"
 
-        # Check or acquire download lock
         if not (master_file.exists() and master_file.stat().st_size > 50000):
             lock_key = f"lock:track:{sp_tid}"
             acquired = await r.set(lock_key, "worker", nx=True, ex=300)
@@ -228,13 +292,11 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
                 finally:
                     await r.delete(lock_key)
             else:
-                # Another worker is downloading; wait briefly
                 for _ in range(12):
                     await asyncio.sleep(2)
                     if master_file.exists() and master_file.stat().st_size > 50000:
                         break
 
-        # Create atomic hardlink in playlist target directory
         if master_file.exists() and master_file.stat().st_size > 50000:
             safe_artist = sanitize_filename(t_meta["artist"])
             safe_title = sanitize_filename(t_meta["title"])
@@ -247,11 +309,10 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
                 except FileExistsError:
                     pass
                 except Exception as e:
-                    logger.warning(f"Could not hardlink {master_file} to {link_dest}: {e}")
+                    logger.warning(f"Could not link {master_file} to {link_dest}: {e}")
 
             downloaded_count += 1
 
-        # Emit real-time progress via Redis Pub/Sub
         await publish_event(r, {
             "event": "TRACK_PROGRESS",
             "playlist_id": spotify_playlist_id,
@@ -262,19 +323,14 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             "downloaded_count": downloaded_count
         })
 
-    # Generate or update .m3u8 playlist file
     m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
-    m3u8_lines = [
-        "#EXTM3U",
-        f"#PLAYLIST:{playlist.name}"
-    ]
+    m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
     for mp3 in sorted(target_dir.glob("*.mp3")):
         m3u8_lines.append(mp3.name)
 
     m3u8_file.write_text("\n".join(m3u8_lines) + "\n")
-    logger.info(f"Generated playlist file: {m3u8_file}")
+    logger.info(f"Generated playlist file: {m3u8_file} ({downloaded_count} tracks)")
 
-    # Update database record
     async with AsyncSessionLocal() as db:
         stmt = select(Playlist).where(Playlist.id == playlist_id)
         res = await db.execute(stmt)
@@ -286,7 +342,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             p.last_synced_at = datetime.utcnow()
             await db.commit()
 
-    # Trigger Navidrome scanner and update playlist visibility
     await trigger_navidrome_scan_and_visibility(
         user,
         playlist.name,
@@ -294,7 +349,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         playlist.visibility == "public"
     )
 
-    # Broadcast completion event
     await publish_event(r, {
         "event": "SYNC_COMPLETED",
         "playlist_id": spotify_playlist_id,
@@ -303,7 +357,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         "total_tracks": len(tracks_meta)
     })
 
-    # Apprise notification
     await send_notification(
         title="🎵 Nexus Music Sync",
         body=f"Synced playlist '{playlist.name}' ({downloaded_count}/{len(tracks_meta)} tracks ready)."
@@ -323,27 +376,25 @@ async def queue_worker_loop():
                     job_data = json.loads(payload_raw)
                     await sync_playlist_task(job_data, r)
                 except Exception as ex:
-                    logger.error(f"Error executing playlist sync task: {ex}", exc_info=True)
+                    logger.error(f"Error executing sync task: {ex}", exc_info=True)
         except asyncio.CancelledError:
             break
         except Exception as e:
-            logger.error(f"Redis queue pop error: {e}. Retrying in 5s...")
+            logger.error(f"Queue pop error: {e}. Retrying in 5s...")
             await asyncio.sleep(5)
 
 async def periodic_2hr_scheduler():
-    """Checks all playlists with is_synced=True every 2 hours and enqueues sync tasks."""
-    logger.info("Periodic 2-hour playlist scheduler started.")
+    logger.info("Periodic 2-hour scheduler started.")
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
 
     while True:
         await asyncio.sleep(7200)
-        logger.info("Running 2-hour scheduled sync check across active playlists...")
+        logger.info("Checking active playlists for scheduled sync...")
         try:
             async with AsyncSessionLocal() as db:
                 stmt = select(Playlist).where(Playlist.is_synced == True)
                 res = await db.execute(stmt)
-                synced_list = res.scalars().all()
-                for pl in synced_list:
+                for pl in res.scalars().all():
                     job = {
                         "action": "sync_playlist",
                         "playlist_id": pl.id,
@@ -353,7 +404,6 @@ async def periodic_2hr_scheduler():
                         "folder_slug": pl.folder_slug
                     }
                     await r.rpush("nexus:queue:playlists", json.dumps(job))
-                    logger.info(f"Enqueued scheduled sync for {pl.name}")
         except asyncio.CancelledError:
             break
         except Exception as e:
