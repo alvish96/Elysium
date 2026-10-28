@@ -190,7 +190,6 @@ async def fetch_tracks_via_spotdl_save(spotify_playlist_id: str) -> List[Dict]:
                 pass
 
 async def fetch_playlist_tracks(token: str, spotify_playlist_id: str) -> List[Dict]:
-    """Uses /items endpoint first, falling back to spotdl save if needed."""
     tracks = []
     url = f"{SPOTIFY_API_BASE}/playlists/{spotify_playlist_id}/items?limit=100"
 
@@ -267,9 +266,13 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         playlist.total_tracks = len(tracks_meta)
         await db.commit()
 
+    # Paths: Single central tracks folder + Pointer playlist folder
     music_root = Path(settings.MUSIC_ROOT)
     master_pool = music_root / ".master_pool"
     master_pool.mkdir(parents=True, exist_ok=True)
+    
+    tracks_dir = music_root / "tracks"
+    tracks_dir.mkdir(parents=True, exist_ok=True)
 
     if playlist.visibility == "public":
         target_dir = music_root / "public" / playlist.folder_slug
@@ -277,7 +280,16 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         target_dir = music_root / "users" / user.username / "private" / playlist.folder_slug
 
     target_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clean up any legacy mp3 files that might exist inside this playlist directory
+    for stale_mp3 in target_dir.glob("*.mp3"):
+        try:
+            stale_mp3.unlink()
+        except Exception:
+            pass
+
     downloaded_count = 0
+    playlist_track_paths: List[Path] = []
 
     for idx, t_meta in enumerate(tracks_meta, start=1):
         sp_tid = t_meta["spotify_track_id"]
@@ -301,16 +313,18 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             safe_artist = sanitize_filename(t_meta["artist"])
             safe_title = sanitize_filename(t_meta["title"])
             link_name = f"{safe_artist} - {safe_title}.mp3"
-            link_dest = target_dir / link_name
+            central_track_dest = tracks_dir / link_name
 
-            if not link_dest.exists():
+            # Hardlink into the single central /music/tracks/ directory if not present
+            if not central_track_dest.exists():
                 try:
-                    os.link(master_file, link_dest)
+                    os.link(master_file, central_track_dest)
                 except FileExistsError:
                     pass
                 except Exception as e:
-                    logger.warning(f"Could not link {master_file} to {link_dest}: {e}")
+                    logger.warning(f"Could not link {master_file} to {central_track_dest}: {e}")
 
+            playlist_track_paths.append(central_track_dest)
             downloaded_count += 1
 
         await publish_event(r, {
@@ -323,13 +337,15 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             "downloaded_count": downloaded_count
         })
 
+    # Generate pointer-only .m3u8 playlist file referencing the tracks folder
     m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
     m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
-    for mp3 in sorted(target_dir.glob("*.mp3")):
-        m3u8_lines.append(mp3.name)
+    for trk_path in playlist_track_paths:
+        rel_path = os.path.relpath(trk_path, target_dir)
+        m3u8_lines.append(rel_path)
 
     m3u8_file.write_text("\n".join(m3u8_lines) + "\n")
-    logger.info(f"Generated playlist file: {m3u8_file} ({downloaded_count} tracks)")
+    logger.info(f"Generated pointer playlist file: {m3u8_file} ({len(playlist_track_paths)} tracks linked)")
 
     async with AsyncSessionLocal() as db:
         stmt = select(Playlist).where(Playlist.id == playlist_id)
@@ -410,7 +426,7 @@ async def periodic_2hr_scheduler():
             logger.error(f"Scheduler error: {e}")
 
 async def main():
-    logger.info("Starting Nexus Music Background Worker...")
+    logger.info("Starting Nexus Music Background Worker (Option B: Central Track Library)...")
     await asyncio.gather(
         queue_worker_loop(),
         periodic_2hr_scheduler()

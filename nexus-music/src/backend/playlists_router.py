@@ -22,7 +22,6 @@ def sanitize_slug(text: str) -> str:
     return re.sub(r"[-\s]+", "_", text).lower()
 
 async def trigger_navidrome_scan(user: User):
-    """Triggers Navidrome Subsonic library scan."""
     token = decrypt_value(user.subsonic_token_enc)
     salt = decrypt_value(user.subsonic_salt_enc)
     if not token or not salt:
@@ -50,13 +49,13 @@ async def configure_playlist(
 
     slug = sanitize_slug(req.folder_slug) if req.folder_slug else (playlist.folder_slug if playlist else spotify_playlist_id)
     music_root = Path(settings.MUSIC_ROOT)
-    master_pool = music_root / ".master_pool"
-    master_pool.mkdir(parents=True, exist_ok=True)
+    tracks_dir = music_root / "tracks"
+    tracks_dir.mkdir(parents=True, exist_ok=True)
 
     old_visibility = playlist.visibility if playlist else None
     old_slug = playlist.folder_slug if playlist else None
 
-    # Compute target path
+    # Determine target directory
     if req.visibility == "public":
         target_dir = music_root / "public" / slug
     else:
@@ -64,7 +63,6 @@ async def configure_playlist(
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Update or Create Database Record
     if not playlist:
         playlist = Playlist(
             spotify_playlist_id=spotify_playlist_id,
@@ -86,37 +84,31 @@ async def configure_playlist(
     await db.commit()
     await db.refresh(playlist)
 
-    # 2. Atomic Hardlink Migration if Visibility or Slug changed
+    # Option B: Re-location only moves the .m3u8 file
     if old_visibility and (old_visibility != req.visibility or old_slug != slug):
         if old_visibility == "public":
             old_dir = music_root / "public" / old_slug
         else:
             old_dir = music_root / "users" / current_user.username / "private" / old_slug
 
-        if old_dir.exists() and old_dir != target_dir:
-            print(f"Migrating tracks from {old_dir} to {target_dir}")
-            mp3_files = list(old_dir.glob("*.mp3"))
-            for mp3 in mp3_files:
-                dest = target_dir / mp3.name
-                if not dest.exists():
-                    try:
-                        os.link(mp3, dest)
-                    except Exception as e:
-                        print(f"Error linking {mp3} to {dest}: {e}")
-                try:
-                    mp3.unlink()
-                except Exception:
-                    pass
+        old_m3u8 = old_dir / f"{old_slug}.m3u8"
+        if old_m3u8.exists() and old_dir != target_dir:
+            lines = old_m3u8.read_text(encoding="utf-8").splitlines()
+            new_lines = []
+            for line in lines:
+                line_clean = line.strip()
+                if not line_clean:
+                    continue
+                if line_clean.startswith("#"):
+                    new_lines.append(line_clean)
+                else:
+                    filename = Path(line_clean).name
+                    track_file = tracks_dir / filename
+                    new_lines.append(os.path.relpath(track_file, target_dir))
 
-            m3u8_file = target_dir / f"{slug}.m3u8"
-            m3u8_content = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
-            for mp3 in sorted(target_dir.glob("*.mp3")):
-                m3u8_content.append(mp3.name)
-            m3u8_file.write_text("\n".join(m3u8_content) + "\n")
-
-            old_m3u8 = old_dir / f"{old_slug}.m3u8"
-            if old_m3u8.exists():
-                old_m3u8.unlink()
+            new_m3u8 = target_dir / f"{slug}.m3u8"
+            new_m3u8.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            old_m3u8.unlink()
             try:
                 old_dir.rmdir()
             except Exception:
@@ -124,7 +116,6 @@ async def configure_playlist(
 
             await trigger_navidrome_scan(current_user)
 
-    # 3. If Synced is Enabled, Push Job to Redis Queue
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
     if req.is_synced:
         job_payload = {
@@ -215,9 +206,10 @@ async def get_vault_overview(
         else:
             folder_path = music_root / "users" / current_user.username / "private" / pl.folder_slug
 
+        m3u8_file = folder_path / f"{pl.folder_slug}.m3u8"
         on_disk_count = 0
-        if folder_path.exists():
-            on_disk_count = len(list(folder_path.glob("*.mp3")))
+        if m3u8_file.exists():
+            on_disk_count = sum(1 for line in m3u8_file.read_text(encoding="utf-8").splitlines() if line.strip() and not line.strip().startswith("#"))
 
         vault_items.append({
             "id": pl.id,
