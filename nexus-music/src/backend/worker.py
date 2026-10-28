@@ -75,15 +75,25 @@ async def trigger_navidrome_scan_and_visibility(user: User, playlist_name: str, 
                 if isinstance(all_pl, dict):
                     all_pl = [all_pl]
 
-                for pl in all_pl:
-                    p_name = pl.get("name", "")
-                    if p_name in (playlist_name, folder_slug, f"[{folder_slug}]"):
-                        pl_id = pl.get("id")
-                        pub_flag = "true" if is_public else "false"
-                        update_url = f"{settings.NAVIDROME_URL}/rest/updatePlaylist.view?playlistId={pl_id}&public={pub_flag}&{subsonic_params}"
-                        await client.get(update_url)
-                        logger.info(f"Updated Navidrome playlist '{p_name}' (ID: {pl_id}) visibility to public={pub_flag}.")
-                        break
+                # Find all playlists matching this name
+                matching = [pl for pl in all_pl if pl.get("name", "") in (playlist_name, folder_slug, f"[{folder_slug}]")]
+                
+                # If there are duplicates, prune the extra ones via Subsonic API
+                if len(matching) > 1:
+                    logger.info(f"Found {len(matching)} playlists with name '{playlist_name}'. Pruning duplicates...")
+                    for extra in matching[1:]:
+                        extra_id = extra.get("id")
+                        del_url = f"{settings.NAVIDROME_URL}/rest/deletePlaylist.view?playlistId={extra_id}&{subsonic_params}"
+                        await client.get(del_url)
+                        logger.info(f"Purged duplicate playlist ID {extra_id} from Navidrome.")
+
+                # Update visibility on the primary playlist
+                if matching:
+                    primary_id = matching[0].get("id")
+                    pub_flag = "true" if is_public else "false"
+                    update_url = f"{settings.NAVIDROME_URL}/rest/updatePlaylist.view?playlistId={primary_id}&public={pub_flag}&{subsonic_params}"
+                    await client.get(update_url)
+                    logger.info(f"Updated Navidrome playlist '{playlist_name}' (ID: {primary_id}) visibility to public={pub_flag}.")
         except Exception as e:
             logger.warning(f"Could not update playlist visibility in Navidrome: {e}")
 
@@ -266,7 +276,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
         playlist.total_tracks = len(tracks_meta)
         await db.commit()
 
-    # Paths: Single central tracks folder + Pointer playlist folder
     music_root = Path(settings.MUSIC_ROOT)
     master_pool = music_root / ".master_pool"
     master_pool.mkdir(parents=True, exist_ok=True)
@@ -281,7 +290,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    # Clean up any legacy mp3 files that might exist inside this playlist directory
     for stale_mp3 in target_dir.glob("*.mp3"):
         try:
             stale_mp3.unlink()
@@ -315,7 +323,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             link_name = f"{safe_artist} - {safe_title}.mp3"
             central_track_dest = tracks_dir / link_name
 
-            # Hardlink into the single central /music/tracks/ directory if not present
             if not central_track_dest.exists():
                 try:
                     os.link(master_file, central_track_dest)
@@ -337,7 +344,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             "downloaded_count": downloaded_count
         })
 
-    # Generate pointer-only .m3u8 playlist file referencing the tracks folder
     m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
     m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
     for trk_path in playlist_track_paths:
@@ -426,7 +432,7 @@ async def periodic_2hr_scheduler():
             logger.error(f"Scheduler error: {e}")
 
 async def main():
-    logger.info("Starting Nexus Music Background Worker (Option B: Central Track Library)...")
+    logger.info("Starting Nexus Music Background Worker...")
     await asyncio.gather(
         queue_worker_loop(),
         periodic_2hr_scheduler()
