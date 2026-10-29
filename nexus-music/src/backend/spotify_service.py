@@ -1,5 +1,6 @@
 import re
 import urllib.parse
+import logging
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
@@ -13,6 +14,7 @@ from models import User, SpotifyAccount, Playlist
 from navidrome_bridge import get_current_user, create_access_token
 from schemas import SpotifyPlaylistOut
 
+logger = logging.getLogger("nexus-spotify")
 router = APIRouter(prefix="/api/v1/spotify", tags=["Spotify"])
 
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
@@ -38,7 +40,6 @@ async def get_valid_spotify_token(db: AsyncSession, user_id: str) -> str:
     access_token = decrypt_value(account.access_token_enc)
     refresh_token = decrypt_value(account.refresh_token_enc)
 
-    # Refresh if expired or expiring within 2 minutes
     if datetime.utcnow() >= (account.expires_at - timedelta(seconds=120)):
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
@@ -71,7 +72,6 @@ async def get_valid_spotify_token(db: AsyncSession, user_id: str) -> str:
 
 @router.get("/login")
 async def spotify_login(current_user: User = Depends(get_current_user)):
-    # Sign state with user token to prevent CSRF and identify user on callback
     state = create_access_token({"sub": current_user.id, "username": current_user.username})
     params = {
         "client_id": settings.SPOTIFY_CLIENT_ID,
@@ -83,6 +83,19 @@ async def spotify_login(current_user: User = Depends(get_current_user)):
     }
     url = f"{SPOTIFY_AUTH_URL}?{urllib.parse.urlencode(params)}"
     return {"authorization_url": url}
+
+@router.post("/disconnect")
+async def spotify_disconnect(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(SpotifyAccount).where(SpotifyAccount.user_id == current_user.id)
+    res = await db.execute(stmt)
+    account = res.scalar_one_or_none()
+    if account:
+        await db.delete(account)
+        await db.commit()
+    return {"status": "ok", "message": "Spotify account disconnected successfully."}
 
 @router.get("/callback")
 async def spotify_callback(
@@ -103,7 +116,6 @@ async def spotify_callback(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    # Exchange code for Spotify tokens
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
             SPOTIFY_TOKEN_URL,
@@ -126,7 +138,6 @@ async def spotify_callback(
     expires_in = token_data.get("expires_in", 3600)
     expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
-    # Get Spotify Profile ID
     async with httpx.AsyncClient(timeout=10.0) as client:
         profile_resp = await client.get(
             f"{SPOTIFY_API_BASE}/me",
@@ -155,7 +166,6 @@ async def spotify_callback(
         account.expires_at = expires_at
 
     await db.commit()
-    # Redirect cleanly to frontend UI
     return RedirectResponse(url="http://sync.nexus.link/?spotify_connected=true")
 
 @router.get("/status")
@@ -175,7 +185,6 @@ async def list_spotify_playlists(
 ):
     token = await get_valid_spotify_token(db, current_user.id)
 
-    # Fetch playlists from Spotify API
     playlists_raw = []
     url = f"{SPOTIFY_API_BASE}/me/playlists?limit=50"
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -187,7 +196,6 @@ async def list_spotify_playlists(
             playlists_raw.extend(data.get("items", []))
             url = data.get("next")
 
-    # Fetch locally tracked playlist configs for this user
     stmt = select(Playlist).where(Playlist.owner_id == current_user.id)
     res = await db.execute(stmt)
     db_playlists = {p.spotify_playlist_id: p for p in res.scalars().all()}
@@ -209,7 +217,7 @@ async def list_spotify_playlists(
                 name=db_item.name,
                 description=p.get("description"),
                 cover_url=db_item.cover_url or cover_url,
-                total_tracks=total_tracks,
+                total_tracks=db_item.total_tracks or total_tracks,
                 is_synced=db_item.is_synced,
                 visibility=db_item.visibility,
                 folder_slug=db_item.folder_slug,

@@ -27,27 +27,27 @@
       --bg-base: #0b0f19;
       --card-bg: rgba(20, 27, 45, 0.75);
       --card-border: rgba(255, 255, 255, 0.08);
-      --sidebar-bg: rgba(13, 19, 33, 0.88);
+      --sidebar-bg: rgba(13, 19, 33, 0.92);
       --text-primary: #f8fafc;
       --text-secondary: #94a3b8;
       --text-muted: #64748b;
       --input-bg: rgba(11, 15, 25, 0.85);
       --pill-bg: rgba(15, 23, 42, 0.95);
-      --accent: #10b981;
-      --accent-glow: rgba(16, 185, 129, 0.25);
+      --table-header-bg: rgba(15, 23, 42, 0.85);
+      --table-row-hover: rgba(30, 41, 59, 0.5);
     }
     html.light {
       --bg-base: #f8fafc;
-      --card-bg: rgba(255, 255, 255, 0.92);
-      --card-border: rgba(203, 213, 225, 0.8);
-      --sidebar-bg: rgba(255, 255, 255, 0.96);
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --card-border: rgba(203, 213, 225, 0.85);
+      --sidebar-bg: rgba(255, 255, 255, 0.98);
       --text-primary: #0f172a;
-      --text-secondary: #475569;
+      --text-secondary: #334155;
       --text-muted: #64748b;
       --input-bg: rgba(241, 245, 249, 0.95);
       --pill-bg: rgba(241, 245, 249, 0.95);
-      --accent: #059669;
-      --accent-glow: rgba(5, 150, 105, 0.2);
+      --table-header-bg: rgba(241, 245, 249, 0.95);
+      --table-row-hover: rgba(226, 232, 240, 0.6);
     }
     body {
       background-color: var(--bg-base);
@@ -56,14 +56,13 @@
       background-attachment: fixed;
       background-size: cover;
       background-position: center;
-      transition: background-color 0.3s ease, color 0.3s ease;
+      transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
     }
     .glass-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15);
     }
     .glass-sidebar {
       background: var(--sidebar-bg);
@@ -75,42 +74,44 @@
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
     .custom-scroll::-webkit-scrollbar { width: 5px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.3); border-radius: 4px; }
-    .sidebar-collapsed .sidebar-text { display: none !important; }
+
+    /* COLLAPSIBLE SIDEBAR RULES */
+    .sidebar-collapsed { width: 4.75rem !important; }
+    .sidebar-collapsed .sidebar-text,
     .sidebar-collapsed .sidebar-expanded-only { display: none !important; }
     .sidebar-collapsed .sidebar-item-center { justify-content: center !important; }
+
+    /* SMOOTH TOGGLE SWITCH */
+    .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+    .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row overflow-x-hidden">
 
-  <!-- LEFT VERTICAL SIDEBAR -->
-  <aside id="sidebar" class="fixed top-0 left-0 h-screen z-40 glass-sidebar flex flex-col justify-between shrink-0 transition-all duration-300 w-64">
+  <!-- LEFT VERTICAL SIDEBAR (AUTO-EXPANDS ON HOVER & RETRACTS) -->
+  <aside id="sidebar" 
+         onmouseenter="handleSidebarHoverEnter()" 
+         onmouseleave="handleSidebarHoverLeave()" 
+         class="fixed top-0 left-0 h-screen z-40 glass-sidebar flex flex-col justify-between shrink-0 transition-all duration-300 w-64 shadow-2xl">
     
-    <!-- TOP CONTROLS & NAV -->
+    <!-- UPPER NAVIGATION AREA -->
     <div class="p-3.5 space-y-4 overflow-y-auto custom-scroll flex-1">
       
-      <!-- TOP BAR: COLLAPSE & THEME TOGGLE -->
+      <!-- TOP CONTROL: PIN / UNPIN SIDEBAR -->
       <div class="flex items-center justify-between px-1">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-base shadow-lg shadow-emerald-950/40 shrink-0">
-            <i class="fa-solid fa-music"></i>
+            <i class="fa-solid fa-compact-disc"></i>
           </div>
           <span class="sidebar-text font-bold text-sm tracking-tight" style="color: var(--text-primary)">Nexus Sync</span>
         </div>
 
-        <div class="flex items-center gap-1">
-          <!-- QUICK THEME TOGGLE BUTTON -->
-          <button onclick="toggleTheme()" id="btnQuickTheme" class="p-1.5 rounded-lg text-xs hover:bg-slate-800/40 transition" title="Toggle Light/Dark Theme" style="color: var(--text-secondary)">
-            <i id="themeToggleIcon" class="fa-solid fa-moon"></i>
-          </button>
-          
-          <!-- SIDEBAR FOLD/COLLAPSE BUTTON -->
-          <button onclick="toggleSidebarFold()" id="btnSidebarFold" class="p-1.5 rounded-lg text-xs hover:bg-slate-800/40 transition" title="Fold/Expand Sidebar" style="color: var(--text-secondary)">
-            <i id="foldIcon" class="fa-solid fa-chevron-left"></i>
-          </button>
-        </div>
+        <button onclick="toggleSidebarPin()" id="btnSidebarPin" class="p-1.5 rounded-lg text-xs hover:bg-slate-800/40 transition" style="color: var(--text-secondary)" title="Pin or Auto-Fold Sidebar">
+          <i id="pinIcon" class="fa-solid fa-thumbtack text-emerald-400"></i>
+        </button>
       </div>
 
-      <!-- PROMINENT IMPORT PLAYLIST BUTTON IN SIDEBAR -->
+      <!-- PROMINENT IMPORT PLAYLIST BUTTON -->
       <button onclick="openImportModal()" class="w-full flex items-center sidebar-item-center gap-2 px-3 py-2.5 bg-brand hover:bg-brand-hover text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/30 transition">
         <i class="fa-solid fa-plus text-xs"></i>
         <span class="sidebar-text">Import Playlist by URL</span>
@@ -144,19 +145,6 @@
           <span class="sidebar-text text-[10px] font-mono" style="color: var(--text-muted)">Disk</span>
         </button>
       </nav>
-
-      <!-- SPOTIFY OAUTH SESSION DIRECTLY ON SIDEBAR -->
-      <div class="sidebar-expanded-only p-2.5 rounded-xl border border-slate-800/80 bg-slate-950/40 space-y-1.5">
-        <div class="flex items-center justify-between text-[11px]">
-          <span class="flex items-center gap-1.5" style="color: var(--text-secondary)">
-            <i class="fa-brands fa-spotify text-emerald-400"></i> Spotify OAuth
-          </span>
-          <span id="sidebarSpotifyStatusBadge" class="text-[10px] text-amber-400 font-semibold">Checking...</span>
-        </div>
-        <button onclick="connectSpotify()" id="sidebarSpotifyBtn" class="w-full py-1 px-2 bg-slate-800 hover:bg-slate-700 text-[11px] font-medium rounded-lg text-slate-200 border border-slate-700 transition">
-          Connect Account
-        </button>
-      </div>
 
       <!-- ECOSYSTEM & LINKS SECTION -->
       <div class="space-y-1 pt-2 border-t border-slate-800/70">
@@ -198,9 +186,9 @@
         </a>
       </div>
 
-      <!-- SETTINGS & THEME TRIGGER -->
+      <!-- SETTINGS TRIGGER -->
       <div class="pt-2 border-t border-slate-800/70">
-        <button onclick="openSettingsModal()" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800/40 transition" style="color: var(--text-primary)" title="Settings & Theme">
+        <button onclick="openSettingsModal()" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800/40 transition" style="color: var(--text-primary)" title="Settings & Canvas">
           <i class="fa-solid fa-gear text-sm"></i>
           <span class="sidebar-text">Settings & Canvas</span>
         </button>
@@ -208,108 +196,192 @@
 
     </div>
 
-    <!-- SIDEBAR FOOTER (USER PILL & LOGOUT AT BOTTOM) -->
-    <div class="p-3 border-t border-slate-800/80 bg-slate-950/40 shrink-0">
-      <div id="wsIndicator" class="flex items-center sidebar-item-center gap-2 px-2.5 py-1 rounded-lg text-[10px] mb-2 bg-slate-900/60 border border-slate-800" style="color: var(--text-secondary)">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot shrink-0"></span>
-        <span class="sidebar-text truncate">Live WS Connected</span>
+    <!-- SIDEBAR BOTTOM: SPOTIFY OAUTH CARD + USER SESSION WITH LOGOUT -->
+    <div class="p-3 border-t border-slate-800/80 bg-slate-950/40 shrink-0 space-y-2">
+      
+      <!-- SPOTIFY OAUTH CARD AT BOTTOM OF SIDEBAR -->
+      <div class="sidebar-expanded-only p-2.5 rounded-xl border border-slate-800/80 bg-slate-900/60 space-y-2">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="flex items-center gap-1.5 font-medium" style="color: var(--text-secondary)">
+            <i class="fa-brands fa-spotify text-emerald-400 text-sm"></i> Spotify Session
+          </span>
+          <span id="sidebarSpotifyStatusBadge" class="text-[10px] text-amber-400 font-semibold">Checking...</span>
+        </div>
+
+        <div class="flex gap-1.5">
+          <button onclick="connectSpotify()" id="sidebarSpotifyBtn" class="flex-1 py-1 px-1.5 bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold rounded-lg text-slate-200 border border-slate-700 transition truncate">
+            Connect
+          </button>
+          <button onclick="disconnectSpotify()" id="sidebarSpotifyDisconnectBtn" class="hidden py-1 px-2 bg-rose-500/10 hover:bg-rose-500/20 text-[10px] font-semibold rounded-lg text-rose-400 border border-rose-500/30 transition" title="Disconnect / Logout Spotify">
+            <i class="fa-solid fa-unlink"></i>
+          </button>
+        </div>
       </div>
 
-      <div class="flex items-center justify-between px-1 text-xs">
+      <!-- USER AVATAR, LIVE WEBSOCKET PULSE & LOGOUT BUTTON -->
+      <div class="flex items-center justify-between px-1 text-xs pt-1">
         <div class="flex items-center gap-2 truncate">
           <i class="fa-solid fa-user-circle text-base text-brand shrink-0"></i>
-          <span id="footerUsername" class="sidebar-text font-bold truncate text-slate-200">guest</span>
+          <div class="sidebar-text truncate">
+            <span id="footerUsername" class="font-bold truncate text-slate-200 block text-xs">guest</span>
+            <span class="text-[9px] flex items-center gap-1 text-slate-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot inline-block"></span> WS Online
+            </span>
+          </div>
         </div>
-        <button onclick="logout()" class="p-1.5 text-slate-400 hover:text-rose-400 transition" title="Log Out">
+
+        <button onclick="logout()" class="p-1.5 text-slate-400 hover:text-rose-400 transition" title="Log Out of Nexus Music">
           <i class="fa-solid fa-arrow-right-from-bracket"></i>
         </button>
       </div>
+
     </div>
   </aside>
 
   <!-- MAIN PAGE CONTENT VIEWPORT -->
   <div id="mainContent" class="flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-64">
 
-    <!-- TOP HEADER: CENTERED UNIVERSAL SEARCH BAR WITH SUGGESTIONS -->
-    <header class="glass-card sticky top-0 z-30 px-6 py-3 border-b border-slate-800 flex items-center justify-center">
-      <div class="w-full max-w-2xl relative">
+    <!-- TOP HEADER: NEXUS MUSIC (LEFT) | CENTERED SEARCH | THEME SLIDER (RIGHT) -->
+    <header class="glass-card sticky top-0 z-30 px-6 py-2.5 border-b border-slate-800 flex items-center justify-between gap-4">
+      
+      <!-- LEFT: NEXUS MUSIC TITLE (CLICK TO REFRESH WITH SPIN EFFECT) -->
+      <div onclick="triggerHeaderRefresh()" class="flex items-center gap-2.5 cursor-pointer select-none group" title="Click to refresh library">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-sm shadow-md group-hover:rotate-12 transition">
+          <i id="headerRefreshIcon" class="fa-solid fa-music"></i>
+        </div>
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent group-hover:opacity-90">
+            Nexus Music
+          </span>
+          <span class="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Vault
+          </span>
+        </div>
+      </div>
+
+      <!-- CENTER: UNIVERSAL SEARCH BAR WITH SUGGESTIONS -->
+      <div class="flex-1 max-w-xl relative">
         <div class="relative flex items-center">
           <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-500 text-xs pointer-events-none"></i>
-          <input type="text" id="globalSearchInput" oninput="handleSearchInput()" onfocus="showSearchSuggestions()" placeholder="Search library playlists or query Spotify global catalog..." class="w-full pl-9 pr-28 py-2 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-brand transition" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
+          <input type="text" id="globalSearchInput" oninput="handleSearchInput()" onfocus="showSearchSuggestions()" placeholder="Search library playlists or query Spotify global catalog..." class="w-full pl-9 pr-28 py-1.5 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-brand transition shadow-inner" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
           
-          <button onclick="searchSpotifyCatalog()" id="btnSpotifyCatalogSearch" class="absolute right-1.5 top-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-emerald-400 rounded-lg border border-slate-700 transition" title="Search Spotify global catalog via Client Credentials">
+          <button onclick="searchSpotifyCatalog()" id="btnSpotifyCatalogSearch" class="absolute right-1.5 top-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-emerald-400 rounded-lg border border-slate-700 transition" title="Search Spotify global catalog">
             <i class="fa-brands fa-spotify mr-1"></i> Search API
           </button>
         </div>
 
-        <!-- DYNAMIC SEARCH AUTOCOMPLETE SUGGESTIONS DROPDOWN -->
-        <div id="searchSuggestionsBox" class="hidden absolute left-0 right-0 top-11 glass-card rounded-2xl p-2 shadow-2xl z-50 border border-slate-700 space-y-1"></div>
+        <!-- AUTOCOMPLETE DROPDOWN -->
+        <div id="searchSuggestionsBox" class="hidden absolute left-0 right-0 top-10 glass-card rounded-2xl p-2 shadow-2xl z-50 border border-slate-700 space-y-1"></div>
       </div>
+
+      <!-- RIGHT: SMOOTH LEFT-TO-RIGHT THEME SLIDER SWITCH -->
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-xs" style="color: var(--text-muted)">
+          <i class="fa-solid fa-sun text-amber-500"></i>
+        </span>
+        <button onclick="toggleTheme()" id="themeSliderBtn" class="w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 shadow-inner" style="background: var(--input-bg); border: 1px solid var(--card-border)" title="Toggle Theme (Dark / Light)">
+          <div id="themeSliderKnob" class="w-4 h-4 rounded-full bg-brand shadow-md transform transition-transform duration-300 translate-x-6"></div>
+        </button>
+        <span class="text-xs" style="color: var(--text-muted)">
+          <i class="fa-solid fa-moon text-indigo-400"></i>
+        </span>
+      </div>
+
     </header>
+
+    <!-- SUB-TOOLBAR: RIGHT-ALIGNED FILTER, SORT, COLUMNS & GRID/LIST SWITCHER -->
+    <div class="px-6 py-3 border-b border-slate-800/60 flex flex-wrap items-center justify-between gap-3 bg-slate-950/20">
+      
+      <!-- LEFT META COUNT -->
+      <div class="text-xs font-medium" style="color: var(--text-secondary)">
+        <span id="subToolbarCountText">Loading library...</span>
+      </div>
+
+      <!-- RIGHT CONTROLS GROUP -->
+      <div class="flex items-center gap-2.5 flex-wrap ml-auto">
+        
+        <!-- COLUMNS SELECTOR DROPDOWN (LIKE NAVIDROME / FEISHIN) -->
+        <div class="relative">
+          <button onclick="toggleColumnsMenu()" id="btnColumnsMenu" class="flex items-center gap-1.5 text-xs rounded-xl px-3 py-1.5 focus:outline-none transition border hover:border-brand" style="background: var(--input-bg); color: var(--text-primary); border-color: var(--card-border)">
+            <i class="fa-solid fa-table-columns text-[11px] text-emerald-400"></i>
+            <span>Columns</span>
+            <i class="fa-solid fa-chevron-down text-[9px] opacity-60 ml-0.5"></i>
+          </button>
+
+          <!-- COLUMNS TOGGLE PANEL -->
+          <div id="columnsDropdownPanel" class="hidden absolute right-0 top-9 w-44 glass-card rounded-2xl p-3 shadow-2xl z-50 border border-slate-700 space-y-2 text-xs">
+            <p class="text-[10px] font-bold uppercase tracking-wider pb-1 border-b border-slate-800" style="color: var(--text-muted)">Table Columns</p>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('cover', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Cover Art</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('name', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Title / Name</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('tracks', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Track Count</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('status', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Sync Progress</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('visibility', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Visibility</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('slug', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Folder Slug</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked onchange="toggleColumnVisibility('actions', this.checked)" class="rounded text-brand focus:ring-0">
+              <span>Actions</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- FILTER DROPDOWN -->
+        <div class="relative">
+          <select id="filterSelect" onchange="applySortAndFilter()" class="appearance-none text-xs rounded-xl px-3 py-1.5 pr-7 focus:outline-none focus:border-brand cursor-pointer" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
+            <option value="all">All Playlists</option>
+            <option value="synced">Synced Only</option>
+            <option value="unsynced">Unsynced Only</option>
+            <option value="private">Private Only</option>
+            <option value="public">Public Only</option>
+          </select>
+          <i class="fa-solid fa-filter absolute right-2.5 top-2.5 text-[9px] pointer-events-none" style="color: var(--text-muted)"></i>
+        </div>
+
+        <!-- SORT DROPDOWN -->
+        <div class="relative">
+          <select id="sortSelect" onchange="applySortAndFilter()" class="appearance-none text-xs rounded-xl px-3 py-1.5 pr-7 focus:outline-none focus:border-brand cursor-pointer" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
+            <option value="name_asc">Name (A–Z)</option>
+            <option value="name_desc">Name (Z–A)</option>
+            <option value="tracks_desc">Most Tracks</option>
+            <option value="tracks_asc">Least Tracks</option>
+          </select>
+          <i class="fa-solid fa-arrow-down-short-wide absolute right-2.5 top-2.5 text-[9px] pointer-events-none" style="color: var(--text-muted)"></i>
+        </div>
+
+        <!-- GRID VS LIST/TABLE VIEW SWITCHER -->
+        <div class="flex p-0.5 rounded-xl border border-slate-800" style="background: var(--pill-bg)">
+          <button onclick="setViewMode('grid')" id="viewBtnGrid" class="px-2.5 py-1 rounded-lg text-xs bg-brand text-slate-950 font-bold transition" title="Grid Cards View">
+            <i class="fa-solid fa-grip"></i>
+          </button>
+          <button onclick="setViewMode('list')" id="viewBtnList" class="px-2.5 py-1 rounded-lg text-xs transition" style="color: var(--text-secondary)" title="List/Table View">
+            <i class="fa-solid fa-list"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
 
     <!-- MAIN BODY CONTAINER -->
     <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
 
-      <!-- HERO HEADER: NEXUS MUSIC TITLE WITH INTEGRATED REFRESH BUTTON & SUB-TOOLBAR -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
-        
-        <!-- TITLE WITH INTEGRATED REFRESH BUTTON -->
-        <div class="flex items-center gap-3">
-          <div class="flex items-baseline gap-2">
-            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-              Nexus Music
-            </h1>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Vault Engine
-            </span>
-          </div>
-
-          <!-- INTEGRATED TITLE REFRESH BUTTON -->
-          <button onclick="triggerHeaderRefresh()" id="headerRefreshBtn" class="p-2 rounded-xl hover:bg-slate-800/40 text-slate-400 hover:text-emerald-400 transition" title="Refresh library data">
-            <i id="refreshIcon" class="fa-solid fa-rotate-right text-sm"></i>
-          </button>
-        </div>
-
-        <!-- SUB-TOOLBAR: SORT, FILTER, AND GRID/LIST SWITCHER ALIGNED RIGHT -->
-        <div class="flex items-center gap-2.5 flex-wrap">
-          
-          <!-- SORT DROPDOWN -->
-          <div class="relative">
-            <select id="sortSelect" onchange="applySortAndFilter()" class="appearance-none text-xs rounded-xl px-3 py-2 pr-7 focus:outline-none focus:border-brand cursor-pointer" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
-              <option value="name_asc">Name (A–Z)</option>
-              <option value="name_desc">Name (Z–A)</option>
-              <option value="tracks_desc">Most Tracks</option>
-              <option value="tracks_asc">Least Tracks</option>
-            </select>
-            <i class="fa-solid fa-arrow-down-short-wide absolute right-2.5 top-3 text-[10px] pointer-events-none" style="color: var(--text-muted)"></i>
-          </div>
-
-          <!-- FILTER DROPDOWN -->
-          <div class="relative">
-            <select id="filterSelect" onchange="applySortAndFilter()" class="appearance-none text-xs rounded-xl px-3 py-2 pr-7 focus:outline-none focus:border-brand cursor-pointer" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
-              <option value="all">All Playlists</option>
-              <option value="synced">Synced Only</option>
-              <option value="unsynced">Unsynced Only</option>
-              <option value="private">Private Only</option>
-              <option value="public">Public Only</option>
-            </select>
-            <i class="fa-solid fa-filter absolute right-2.5 top-3 text-[10px] pointer-events-none" style="color: var(--text-muted)"></i>
-          </div>
-
-          <!-- GRID VS LIST/TABLE VIEW SWITCHER -->
-          <div class="flex p-0.5 rounded-xl border border-slate-800" style="background: var(--pill-bg)">
-            <button onclick="setViewMode('grid')" id="viewBtnGrid" class="px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 font-bold transition" title="Grid Cards View">
-              <i class="fa-solid fa-grip"></i>
-            </button>
-            <button onclick="setViewMode('list')" id="viewBtnList" class="px-2.5 py-1.5 rounded-lg text-xs transition" style="color: var(--text-secondary)" title="List/Table View">
-              <i class="fa-solid fa-list"></i>
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- SPOTIFY GLOBAL CATALOG SEARCH RESULTS PANEL -->
+      <!-- SPOTIFY GLOBAL CATALOG RESULTS -->
       <section id="catalogSearchSection" class="hidden glass-card p-5 rounded-2xl border-emerald-500/40 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2">
@@ -325,59 +397,48 @@
 
       <!-- TAB 1: SPOTIFY ACCOUNT PLAYLISTS -->
       <section id="tabSpotify" class="space-y-4">
-        <div class="flex items-center justify-between text-xs px-1" style="color: var(--text-secondary)">
-          <span id="spotifyCountText">Loading Spotify account playlists...</span>
-          <span>From connected Spotify account • Deduplicated in /tracks</span>
-        </div>
-        <div id="spotifyList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="spotifyListContainer"></div>
       </section>
 
       <!-- TAB 2: IMPORTED LINK PLAYLISTS -->
       <section id="tabImported" class="hidden space-y-4">
-        <div class="flex items-center justify-between text-xs px-1" style="color: var(--text-secondary)">
-          <span id="importedCountText">Loading link-imported playlists...</span>
-          <span>Added via URL • Full Sync and Private/Public toggles</span>
-        </div>
-        <div id="importedList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="importedListContainer"></div>
       </section>
 
       <!-- TAB 3: SERVER VAULT OVERVIEW -->
       <section id="tabVault" class="hidden space-y-4">
-        <div class="text-xs px-1" style="color: var(--text-secondary)">
-          Static playlist storage in <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/playlists/</code> on Atlantis
-        </div>
         <div id="vaultList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </section>
 
     </main>
   </div>
 
-  <!-- SETTINGS & CANVASES MODAL -->
+  <!-- SETTINGS & CANVAS PALETTE MODAL -->
   <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-5">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
         <h3 class="font-bold text-base flex items-center gap-2" style="color: var(--text-primary)">
-          <i class="fa-solid fa-palette text-brand"></i> Settings & Appearance Canvas
+          <i class="fa-solid fa-palette text-brand"></i> Settings & Canvas Palette
         </h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">
           <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
-      <!-- SECTION 1: THEME & CONTRAST -->
+      <!-- SECTION 1: THEME SELECTOR -->
       <div class="space-y-2">
-        <label class="text-xs font-semibold uppercase" style="color: var(--text-muted)">Theme Mode</label>
+        <label class="text-xs font-semibold uppercase" style="color: var(--text-muted)">Color Theme</label>
         <div class="grid grid-cols-2 gap-3">
           <button onclick="setTheme('dark')" id="modalThemeDark" class="p-3 rounded-xl border border-emerald-500 bg-slate-900 flex items-center justify-center gap-2 text-xs font-bold text-white shadow">
-            <i class="fa-solid fa-moon text-emerald-400"></i> Dark Mode
+            <i class="fa-solid fa-moon text-emerald-400"></i> Dark Theme
           </button>
           <button onclick="setTheme('light')" id="modalThemeLight" class="p-3 rounded-xl border border-slate-700 bg-slate-100 flex items-center justify-center gap-2 text-xs font-bold text-slate-900">
-            <i class="fa-solid fa-sun text-amber-500"></i> Bright Mode
+            <i class="fa-solid fa-sun text-amber-500"></i> Bright Theme
           </button>
         </div>
       </div>
 
-      <!-- SECTION 2: BACKGROUND CANVAS PALETTE -->
+      <!-- SECTION 2: EXPANDED BACKGROUND CANVAS PALETTE -->
       <div class="space-y-3 pt-2 border-t border-slate-800">
         <label class="text-xs font-semibold uppercase" style="color: var(--text-muted)">Background Canvas Colors</label>
         
@@ -392,7 +453,7 @@
             Midnight
           </button>
           <button onclick="setBgPreset('#041f18')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#041f18] border border-slate-800 hover:border-brand text-slate-200">
-            Emerald Dark
+            Emerald
           </button>
           <button onclick="setBgPreset('#1e1028')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#1e1028] border border-slate-800 hover:border-brand text-slate-200">
             Amethyst
@@ -400,21 +461,33 @@
           <button onclick="setBgPreset('#240c12')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#240c12] border border-slate-800 hover:border-brand text-slate-200">
             Crimson
           </button>
+          <button onclick="setBgPreset('#051b2c')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#051b2c] border border-slate-800 hover:border-brand text-slate-200">
+            Cyan Deep
+          </button>
+          <button onclick="setBgPreset('#23121d')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#23121d] border border-slate-800 hover:border-brand text-slate-200">
+            Rose Quartz
+          </button>
           <button onclick="setBgPreset('#f8fafc')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#f8fafc] border border-slate-300 hover:border-brand text-slate-900">
             Cloud White
           </button>
           <button onclick="setBgPreset('#fdfbf7')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#fdfbf7] border border-slate-300 hover:border-brand text-slate-900">
-            Warm Cream
+            Alabaster
+          </button>
+          <button onclick="setBgPreset('#f1f5f3')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#f1f5f3] border border-slate-300 hover:border-brand text-slate-900">
+            Soft Sage
+          </button>
+          <button onclick="setBgPreset('#f7f3f9')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#f7f3f9] border border-slate-300 hover:border-brand text-slate-900">
+            Lavender
           </button>
         </div>
 
-        <!-- DEVICE FILE PICKER FOR BACKGROUND IMAGE -->
+        <!-- LOCAL DEVICE FILE PICKER FOR WALLPAPER -->
         <div class="space-y-1.5 pt-2">
           <label class="text-[11px] font-semibold block" style="color: var(--text-secondary)">Upload Wallpaper Image from Device</label>
           <input type="file" id="localBgFileInput" accept="image/*" onchange="handleLocalBgUpload(event)" class="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-slate-950 hover:file:bg-brand-hover cursor-pointer" style="color: var(--text-secondary)">
         </div>
 
-        <!-- URL IMAGE INPUT -->
+        <!-- URL INPUT FOR WALLPAPER -->
         <div class="space-y-1">
           <label class="text-[11px] font-semibold block" style="color: var(--text-secondary)">Or Paste Image URL</label>
           <div class="flex gap-2">
@@ -438,7 +511,7 @@
     </div>
   </div>
 
-  <!-- IMPORT PLAYLIST MODAL WITH DUAL ACTION BUTTONS -->
+  <!-- IMPORT PLAYLIST MODAL WITH DUAL BUTTONS -->
   <div id="importModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -528,13 +601,27 @@
     </div>
   </div>
 
-  <!-- JAVASCRIPT CONTROLLER -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
     let TOKEN = localStorage.getItem('nexus_token');
     let USER = null;
     let ACTIVE_TAB = 'spotify';
     let VIEW_MODE = localStorage.getItem('nexus_view_mode') || 'grid';
-    let IS_SIDEBAR_COLLAPSED = localStorage.getItem('nexus_sidebar_collapsed') === 'true';
+    let IS_SIDEBAR_PINNED = localStorage.getItem('nexus_sidebar_pinned') !== 'false';
+    let TABLE_SORT_COL = 'name';
+    let TABLE_SORT_DIR = 'asc';
+
+    // COLUMN VISIBILITY PREFERENCES
+    let VISIBLE_COLUMNS = JSON.parse(localStorage.getItem('nexus_visible_columns')) || {
+      cover: true,
+      name: true,
+      tracks: true,
+      status: true,
+      visibility: true,
+      slug: true,
+      actions: true
+    };
+
     let SPOTIFY_PLAYLISTS = [];
     let IMPORTED_PLAYLISTS = [];
     let WS = null;
@@ -552,7 +639,7 @@
 
     async function init() {
       loadSavedAppearance();
-      applySidebarFoldState(IS_SIDEBAR_COLLAPSED);
+      applySidebarPinState(IS_SIDEBAR_PINNED);
 
       if (!TOKEN) {
         showLogin();
@@ -619,33 +706,50 @@
       showLogin();
     }
 
-    // SIDEBAR FOLD / EXPAND
-    function toggleSidebarFold() {
-      IS_SIDEBAR_COLLAPSED = !IS_SIDEBAR_COLLAPSED;
-      localStorage.setItem('nexus_sidebar_collapsed', IS_SIDEBAR_COLLAPSED);
-      applySidebarFoldState(IS_SIDEBAR_COLLAPSED);
+    // SIDEBAR HOVER & PIN LOGIC
+    function toggleSidebarPin() {
+      IS_SIDEBAR_PINNED = !IS_SIDEBAR_PINNED;
+      localStorage.setItem('nexus_sidebar_pinned', IS_SIDEBAR_PINNED);
+      applySidebarPinState(IS_SIDEBAR_PINNED);
     }
 
-    function applySidebarFoldState(isCollapsed) {
+    function applySidebarPinState(isPinned) {
+      const pinIcon = document.getElementById('pinIcon');
+      if (isPinned) {
+        pinIcon.className = 'fa-solid fa-thumbtack text-emerald-400';
+        expandSidebar();
+      } else {
+        pinIcon.className = 'fa-solid fa-thumbtack text-slate-500 rotate-45';
+        collapseSidebar();
+      }
+    }
+
+    function handleSidebarHoverEnter() {
+      if (!IS_SIDEBAR_PINNED) {
+        expandSidebar();
+      }
+    }
+
+    function handleSidebarHoverLeave() {
+      if (!IS_SIDEBAR_PINNED) {
+        collapseSidebar();
+      }
+    }
+
+    function expandSidebar() {
       const sidebar = document.getElementById('sidebar');
       const mainContent = document.getElementById('mainContent');
-      const foldIcon = document.getElementById('foldIcon');
+      sidebar.classList.remove('sidebar-collapsed');
+      mainContent.classList.remove('md:ml-20');
+      mainContent.classList.add('md:ml-64');
+    }
 
-      if (isCollapsed) {
-        sidebar.classList.add('sidebar-collapsed');
-        sidebar.classList.remove('w-64');
-        sidebar.classList.add('w-20');
-        mainContent.classList.remove('md:ml-64');
-        mainContent.classList.add('md:ml-20');
-        foldIcon.className = 'fa-solid fa-chevron-right';
-      } else {
-        sidebar.classList.remove('sidebar-collapsed');
-        sidebar.classList.remove('w-20');
-        sidebar.classList.add('w-64');
-        mainContent.classList.remove('md:ml-20');
-        mainContent.classList.add('md:ml-64');
-        foldIcon.className = 'fa-solid fa-chevron-left';
-      }
+    function collapseSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      sidebar.classList.add('sidebar-collapsed');
+      mainContent.classList.remove('md:ml-64');
+      mainContent.classList.add('md:ml-20');
     }
 
     // TAB NAVIGATION
@@ -684,21 +788,23 @@
       applySortAndFilter();
     }
 
-    // INTEGRATED TITLE REFRESH
+    // TOP-LEFT BRAND REFRESH
     async function triggerHeaderRefresh() {
-      const icon = document.getElementById('refreshIcon');
-      icon.classList.add('fa-spin');
+      const icon = document.getElementById('headerRefreshIcon');
+      icon.classList.remove('fa-music');
+      icon.classList.add('fa-rotate-right', 'fa-spin');
+
       if (ACTIVE_TAB === 'spotify') await loadSpotifyPlaylists();
       else if (ACTIVE_TAB === 'imported') await loadImportedPlaylists();
       else await loadVaultOverview();
-      setTimeout(() => icon.classList.remove('fa-spin'), 600);
+
+      setTimeout(() => {
+        icon.classList.remove('fa-rotate-right', 'fa-spin');
+        icon.classList.add('fa-music');
+      }, 600);
     }
 
-    function reloadActiveTab() {
-      triggerHeaderRefresh();
-    }
-
-    // VIEW MODE (GRID VS LIST)
+    // VIEW MODE (GRID VS TABLE)
     function setViewMode(mode) {
       VIEW_MODE = mode;
       localStorage.setItem('nexus_view_mode', mode);
@@ -706,30 +812,54 @@
       const btnList = document.getElementById('viewBtnList');
 
       if (mode === 'grid') {
-        btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 font-bold transition';
-        btnList.className = 'px-2.5 py-1.5 rounded-lg text-xs transition';
+        btnGrid.className = 'px-2.5 py-1 rounded-lg text-xs bg-brand text-slate-950 font-bold transition';
+        btnList.className = 'px-2.5 py-1 rounded-lg text-xs transition';
         btnList.style.color = 'var(--text-secondary)';
       } else {
-        btnList.className = 'px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 font-bold transition';
-        btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-xs transition';
+        btnList.className = 'px-2.5 py-1 rounded-lg text-xs bg-brand text-slate-950 font-bold transition';
+        btnGrid.className = 'px-2.5 py-1 rounded-lg text-xs transition';
         btnGrid.style.color = 'var(--text-secondary)';
       }
       applySortAndFilter();
     }
 
-    // SPOTIFY OAUTH STATUS IN SIDEBAR
+    // COLUMNS MENU (NAVIDROME / FEISHIN STYLE)
+    function toggleColumnsMenu() {
+      const p = document.getElementById('columnsDropdownPanel');
+      p.classList.toggle('hidden');
+    }
+
+    function toggleColumnVisibility(colName, isVisible) {
+      VISIBLE_COLUMNS[colName] = isVisible;
+      localStorage.setItem('nexus_visible_columns', JSON.stringify(VISIBLE_COLUMNS));
+      applySortAndFilter();
+    }
+
+    document.addEventListener('click', (e) => {
+      const p = document.getElementById('columnsDropdownPanel');
+      const b = document.getElementById('btnColumnsMenu');
+      if (p && !p.contains(e.target) && !b.contains(e.target)) {
+        p.classList.add('hidden');
+      }
+    });
+
+    // SPOTIFY OAUTH ACTIONS IN SIDEBAR
     async function checkSidebarSpotifyStatus() {
       try {
         const res = await apiFetch('/api/v1/spotify/status');
         const data = await res.json();
         const badge = document.getElementById('sidebarSpotifyStatusBadge');
-        const btn = document.getElementById('sidebarSpotifyBtn');
+        const btnConnect = document.getElementById('sidebarSpotifyBtn');
+        const btnDisconnect = document.getElementById('sidebarSpotifyDisconnectBtn');
+
         if (data.connected) {
           badge.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check"></i> Connected</span>`;
-          btn.textContent = 'Switch Account';
+          btnConnect.textContent = 'Switch Account';
+          btnDisconnect.classList.remove('hidden');
         } else {
           badge.innerHTML = `<span class="text-amber-400">Not Linked</span>`;
-          btn.textContent = 'Connect Account';
+          btnConnect.textContent = 'Connect Account';
+          btnDisconnect.classList.add('hidden');
         }
       } catch (e) {}
     }
@@ -744,12 +874,23 @@
       }
     }
 
-    // DATA FETCHERS
+    async function disconnectSpotify() {
+      if (!confirm('Are you sure you want to disconnect your Spotify account?')) return;
+      try {
+        const res = await apiFetch('/api/v1/spotify/disconnect', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        await checkSidebarSpotifyStatus();
+        await loadSpotifyPlaylists();
+      } catch (e) {
+        alert('Could not disconnect Spotify account.');
+      }
+    }
+
+    // DATA LOADERS
     async function loadSpotifyPlaylists() {
-      const container = document.getElementById('spotifyList');
-      const countText = document.getElementById('spotifyCountText');
+      const countText = document.getElementById('subToolbarCountText');
       const badge = document.getElementById('badgeSpotifyCount');
-      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading Spotify playlists...</div>';
 
       try {
         const res = await apiFetch('/api/v1/spotify/playlists');
@@ -759,21 +900,15 @@
         badge.textContent = SPOTIFY_PLAYLISTS.length;
         applySortAndFilter();
       } catch (e) {
-        container.innerHTML = `
-          <div class="col-span-3 text-center py-12 glass-card rounded-2xl p-6">
-            <p class="font-medium text-white mb-1">Spotify Account Not Linked or Limited by Whitelist</p>
-            <p class="text-xs text-slate-400">Use the <strong>Import Playlist by URL</strong> button in the sidebar to add any playlist.</p>
-          </div>
-        `;
         countText.textContent = '0 playlists available via OAuth';
+        SPOTIFY_PLAYLISTS = [];
+        applySortAndFilter();
       }
     }
 
     async function loadImportedPlaylists() {
-      const container = document.getElementById('importedList');
-      const countText = document.getElementById('importedCountText');
+      const countText = document.getElementById('subToolbarCountText');
       const badge = document.getElementById('badgeImportedCount');
-      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading imported playlists...</div>';
 
       try {
         const res = await apiFetch('/api/v1/playlists/imported');
@@ -783,11 +918,12 @@
         badge.textContent = IMPORTED_PLAYLISTS.length;
         applySortAndFilter();
       } catch (e) {
-        container.innerHTML = '<div class="col-span-3 text-center py-12 text-rose-400">Failed to load imported playlists.</div>';
+        IMPORTED_PLAYLISTS = [];
+        applySortAndFilter();
       }
     }
 
-    // SEARCH & AUTOCOMPLETE SUGGESTIONS
+    // SEARCH & AUTOCOMPLETE
     function handleSearchInput() {
       applySortAndFilter();
       updateSearchSuggestions();
@@ -848,25 +984,25 @@
       }
     });
 
-    // SPOTIFY CATALOG SEARCH
+    // SPOTIFY GLOBAL CATALOG SEARCH
     async function searchSpotifyCatalog() {
       const q = document.getElementById('globalSearchInput').value.trim();
       document.getElementById('searchSuggestionsBox').classList.add('hidden');
       if (!q) {
-        alert('Please enter a search query.');
+        alert('Please enter a query to search Spotify.');
         return;
       }
 
       const sec = document.getElementById('catalogSearchSection');
       const container = document.getElementById('catalogSearchResults');
       sec.classList.remove('hidden');
-      container.innerHTML = '<div class="col-span-4 text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Searching global Spotify catalog...</div>';
+      container.innerHTML = '<div class="col-span-4 text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Searching Spotify catalog...</div>';
 
       try {
         const res = await apiFetch(`/api/v1/playlists/search-public?q=${encodeURIComponent(q)}`);
         const items = await res.json();
         if (items.length === 0) {
-          container.innerHTML = '<div class="col-span-4 text-center py-8 text-slate-500">No public playlists found on Spotify.</div>';
+          container.innerHTML = '<div class="col-span-4 text-center py-8 text-slate-500">No public playlists found.</div>';
           return;
         }
 
@@ -912,11 +1048,21 @@
       }
     }
 
-    // SORT, FILTER & RENDER DISPATCHER
+    // SORT, FILTER & TABLE COLUMN HEADER SORTING
+    function handleTableHeaderSort(colName) {
+      if (TABLE_SORT_COL === colName) {
+        TABLE_SORT_DIR = TABLE_SORT_DIR === 'asc' ? 'desc' : 'asc';
+      } else {
+        TABLE_SORT_COL = colName;
+        TABLE_SORT_DIR = 'asc';
+      }
+      applySortAndFilter();
+    }
+
     function applySortAndFilter() {
       const isImported = (ACTIVE_TAB === 'imported');
       const sourceList = isImported ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
-      const targetElementId = isImported ? 'importedList' : 'spotifyList';
+      const targetElementId = isImported ? 'importedListContainer' : 'spotifyListContainer';
 
       const sortVal = document.getElementById('sortSelect').value;
       const filterVal = document.getElementById('filterSelect').value;
@@ -933,10 +1079,24 @@
       else if (filterVal === 'private') list = list.filter(p => p.visibility !== 'public');
       else if (filterVal === 'public') list = list.filter(p => p.visibility === 'public');
 
-      if (sortVal === 'name_asc') list.sort((a, b) => a.name.localeCompare(b.name));
-      else if (sortVal === 'name_desc') list.sort((a, b) => b.name.localeCompare(a.name));
-      else if (sortVal === 'tracks_desc') list.sort((a, b) => b.total_tracks - a.total_tracks);
-      else if (sortVal === 'tracks_asc') list.sort((a, b) => a.total_tracks - b.total_tracks);
+      if (VIEW_MODE === 'list') {
+        // Table view header sort takes precedence
+        list.sort((a, b) => {
+          let res = 0;
+          if (TABLE_SORT_COL === 'name') res = a.name.localeCompare(b.name);
+          else if (TABLE_SORT_COL === 'tracks') res = (a.total_tracks || 0) - (b.total_tracks || 0);
+          else if (TABLE_SORT_COL === 'status') res = (a.sync_status || '').localeCompare(b.sync_status || '');
+          else if (TABLE_SORT_COL === 'visibility') res = (a.visibility || '').localeCompare(b.visibility || '');
+          else if (TABLE_SORT_COL === 'slug') res = (a.folder_slug || '').localeCompare(b.folder_slug || '');
+          return TABLE_SORT_DIR === 'asc' ? res : -res;
+        });
+      } else {
+        // Dropdown sort
+        if (sortVal === 'name_asc') list.sort((a, b) => a.name.localeCompare(b.name));
+        else if (sortVal === 'name_desc') list.sort((a, b) => b.name.localeCompare(a.name));
+        else if (sortVal === 'tracks_desc') list.sort((a, b) => b.total_tracks - a.total_tracks);
+        else if (sortVal === 'tracks_asc') list.sort((a, b) => a.total_tracks - b.total_tracks);
+      }
 
       renderItems(list, targetElementId, isImported);
     }
@@ -954,11 +1114,9 @@
       }
 
       if (VIEW_MODE === 'grid') {
-        container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
-        container.innerHTML = list.map(p => renderCardHTML(p, isImportedTab)).join('');
+        container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${list.map(p => renderCardHTML(p, isImportedTab)).join('')}</div>`;
       } else {
-        container.className = 'flex flex-col gap-2.5';
-        container.innerHTML = list.map(p => renderListRowHTML(p, isImportedTab)).join('');
+        container.innerHTML = renderTableHTML(list, isImportedTab);
       }
     }
 
@@ -1026,53 +1184,108 @@
       `;
     }
 
-    function renderListRowHTML(p, isImportedTab) {
-      const isSynced = p.is_synced;
-      const isPublic = p.visibility === 'public';
-      const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=60';
-      const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
+    function renderTableHTML(list, isImportedTab) {
+      const getArrow = (col) => {
+        if (TABLE_SORT_COL !== col) return '';
+        return TABLE_SORT_DIR === 'asc' ? ' <span class="text-brand">▲</span>' : ' <span class="text-brand">▼</span>';
+      };
 
       return `
-        <div id="row-${p.id}" class="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 transition hover:border-slate-500/60 shadow">
-          <div class="flex items-center gap-3 min-w-[240px] flex-1">
-            <img src="${cover}" class="w-12 h-12 rounded-lg object-cover bg-slate-800 border border-slate-700 shrink-0">
-            <div class="truncate">
-              <h3 class="font-bold text-xs truncate" style="color: var(--text-primary)" title="${p.name}">${p.name}</h3>
-              <p class="text-[11px] mt-0.5" style="color: var(--text-secondary)">${p.total_tracks} tracks • <span class="font-mono text-emerald-400/90">${p.folder_slug}</span></p>
-            </div>
-          </div>
+        <div class="glass-card rounded-2xl overflow-hidden border border-slate-800 shadow-xl">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead style="background: var(--table-header-bg); color: var(--text-secondary); border-bottom: 1px solid var(--card-border)">
+              <tr>
+                <th class="p-3 w-10 text-center">#</th>
+                ${VISIBLE_COLUMNS.cover ? '<th class="p-3 w-14">Cover</th>' : ''}
+                ${VISIBLE_COLUMNS.name ? `<th onclick="handleTableHeaderSort('name')" class="p-3 cursor-pointer select-none hover:text-emerald-400 transition">Title / Name${getArrow('name')}</th>` : ''}
+                ${VISIBLE_COLUMNS.tracks ? `<th onclick="handleTableHeaderSort('tracks')" class="p-3 cursor-pointer select-none hover:text-emerald-400 transition">Tracks${getArrow('tracks')}</th>` : ''}
+                ${VISIBLE_COLUMNS.status ? `<th onclick="handleTableHeaderSort('status')" class="p-3 cursor-pointer select-none hover:text-emerald-400 transition">Progress / Status${getArrow('status')}</th>` : ''}
+                ${VISIBLE_COLUMNS.visibility ? `<th onclick="handleTableHeaderSort('visibility')" class="p-3 cursor-pointer select-none hover:text-emerald-400 transition">Visibility${getArrow('visibility')}</th>` : ''}
+                ${VISIBLE_COLUMNS.slug ? `<th onclick="handleTableHeaderSort('slug')" class="p-3 cursor-pointer select-none hover:text-emerald-400 transition">Folder Slug${getArrow('slug')}</th>` : ''}
+                ${VISIBLE_COLUMNS.actions ? '<th class="p-3 text-right">Controls</th>' : ''}
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              ${list.map((p, idx) => {
+                const isSynced = p.is_synced;
+                const isPublic = p.visibility === 'public';
+                const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=60';
+                const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
 
-          <div class="w-48 shrink-0">
-            <div class="flex justify-between text-[10px] mb-1" style="color: var(--text-secondary)">
-              <span>${getStatusBadge(p.sync_status)}</span>
-              <span class="font-mono">${p.downloaded_tracks}/${p.total_tracks}</span>
-            </div>
-            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full bg-brand" style="width: ${percent}%;"></div>
-            </div>
-          </div>
+                return `
+                  <tr class="transition hover:bg-slate-800/20" style="color: var(--text-primary)">
+                    <td class="p-3 text-center text-slate-500 font-mono text-[11px]">${idx + 1}</td>
+                    
+                    ${VISIBLE_COLUMNS.cover ? `
+                      <td class="p-3">
+                        <img src="${cover}" class="w-10 h-10 rounded-lg object-cover bg-slate-800 border border-slate-700">
+                      </td>
+                    ` : ''}
 
-          <div class="flex items-center gap-3 shrink-0">
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
-              <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-brand relative"></div>
-            </label>
+                    ${VISIBLE_COLUMNS.name ? `
+                      <td class="p-3 font-bold truncate max-w-xs">
+                        <span title="${p.name}">${p.name}</span>
+                      </td>
+                    ` : ''}
 
-            <div class="inline-flex rounded-lg p-0.5 border border-slate-800 text-[11px]" style="background: var(--pill-bg)">
-              <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400'}">Private</button>
-              <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400'}">Public</button>
-            </div>
+                    ${VISIBLE_COLUMNS.tracks ? `
+                      <td class="p-3 font-mono" style="color: var(--text-secondary)">${p.total_tracks}</td>
+                    ` : ''}
 
-            <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30" title="Resync">
-              <i class="fa-solid fa-bolt text-xs"></i>
-            </button>
+                    ${VISIBLE_COLUMNS.status ? `
+                      <td class="p-3 w-48">
+                        <div class="flex justify-between text-[10px] mb-1" style="color: var(--text-secondary)">
+                          <span>${getStatusBadge(p.sync_status)}</span>
+                          <span class="font-mono">${p.downloaded_tracks}/${p.total_tracks}</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div class="h-full bg-brand" style="width: ${percent}%;"></div>
+                        </div>
+                      </td>
+                    ` : ''}
 
-            ${isImportedTab ? `
-              <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs" title="Delete">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
-            ` : ''}
-          </div>
+                    ${VISIBLE_COLUMNS.visibility ? `
+                      <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${isPublic ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+                          ${isPublic ? '🌍 Public' : '🔒 Private'}
+                        </span>
+                      </td>
+                    ` : ''}
+
+                    ${VISIBLE_COLUMNS.slug ? `
+                      <td class="p-3 font-mono text-[11px] text-emerald-400/90 truncate max-w-[140px]">${p.folder_slug}</td>
+                    ` : ''}
+
+                    ${VISIBLE_COLUMNS.actions ? `
+                      <td class="p-3 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                          <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
+                            <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-brand relative"></div>
+                          </label>
+
+                          <div class="inline-flex rounded-lg p-0.5 border border-slate-800 text-[10px]" style="background: var(--pill-bg)">
+                            <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400'}">Private</button>
+                            <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400'}">Public</button>
+                          </div>
+
+                          <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30" title="Resync Now">
+                            <i class="fa-solid fa-bolt text-xs"></i>
+                          </button>
+
+                          ${isImportedTab ? `
+                            <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs" title="Delete">
+                              <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                          ` : ''}
+                        </div>
+                      </td>
+                    ` : ''}
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
       `;
     }
@@ -1085,7 +1298,7 @@
       return `<span style="color: var(--text-muted)">Idle</span>`;
     }
 
-    // ACTIONS
+    // SYNC & VISIBILITY DISPATCHERS
     async function toggleSync(playlistId, isSynced, isImportedTab) {
       const list = isImportedTab ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
       const p = list.find(x => x.id === playlistId);
@@ -1141,7 +1354,7 @@
       }
     }
 
-    // VAULT
+    // VAULT AUDIT
     async function loadVaultOverview() {
       const container = document.getElementById('vaultList');
       container.innerHTML = '<div class="col-span-2 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading server storage...</div>';
@@ -1243,7 +1456,7 @@
       document.getElementById('settingsModal').classList.add('hidden');
     }
 
-    // THEME & CANVAS CUSTOMIZER
+    // THEME ENGINE WITH DYNAMIC CONTRAST & TOGGLE SLIDER
     function toggleTheme() {
       const current = localStorage.getItem('nexus_theme') || 'dark';
       setTheme(current === 'dark' ? 'light' : 'dark');
@@ -1252,26 +1465,27 @@
     function setTheme(mode) {
       localStorage.setItem('nexus_theme', mode);
       const html = document.documentElement;
-      const icon = document.getElementById('themeToggleIcon');
-      const btnDark = document.getElementById('modalThemeDark');
-      const btnLight = document.getElementById('modalThemeLight');
+      const knob = document.getElementById('themeSliderKnob');
+      const modalDark = document.getElementById('modalThemeDark');
+      const modalLight = document.getElementById('modalThemeLight');
 
       if (mode === 'light') {
         html.classList.remove('dark');
         html.classList.add('light');
-        if (icon) icon.className = 'fa-solid fa-sun text-amber-500';
-        if (btnLight) btnLight.classList.add('border-emerald-500');
-        if (btnDark) btnDark.classList.remove('border-emerald-500');
+        if (knob) knob.className = 'w-4 h-4 rounded-full bg-brand shadow-md transform transition-transform duration-300 translate-x-0';
+        if (modalLight) modalLight.classList.add('border-emerald-500');
+        if (modalDark) modalDark.classList.remove('border-emerald-500');
       } else {
         html.classList.remove('light');
         html.classList.add('dark');
-        if (icon) icon.className = 'fa-solid fa-moon text-emerald-400';
-        if (btnDark) btnDark.classList.add('border-emerald-500');
-        if (btnLight) btnLight.classList.remove('border-emerald-500');
+        if (knob) knob.className = 'w-4 h-4 rounded-full bg-brand shadow-md transform transition-transform duration-300 translate-x-6';
+        if (modalDark) modalDark.classList.add('border-emerald-500');
+        if (modalLight) modalLight.classList.remove('border-emerald-500');
       }
       applySortAndFilter();
     }
 
+    // BACKGROUND CANVAS CUSTOMIZATION
     function setBgPreset(color) {
       document.body.style.backgroundImage = 'none';
       document.body.style.backgroundColor = color;
@@ -1297,7 +1511,7 @@
         try {
           localStorage.setItem('nexus_bg_image', base64Data);
         } catch (err) {
-          console.warn('Image too large for localStorage, applied for current session.');
+          console.warn('Image too large for localStorage, applied to current session.');
         }
       };
       reader.readAsDataURL(file);
@@ -1319,12 +1533,14 @@
 
       if (savedBgImg) {
         document.body.style.backgroundImage = `url('${savedBgImg}')`;
+        const inp = document.getElementById('bgImageUrlInput');
+        if (inp) inp.value = savedBgImg;
       } else if (savedBgColor) {
         document.body.style.backgroundColor = savedBgColor;
       }
     }
 
-    // WEBSOCKET LOGIC
+    // WEBSOCKET REAL-TIME SYNC
     function initWebSocket() {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${proto}//${window.location.host}/api/v1/ws?token=${TOKEN}`;
