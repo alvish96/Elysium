@@ -101,45 +101,58 @@
 
       <!-- TABS & ACTIONS BAR -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div class="flex gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 w-fit">
-          <button onclick="switchTab('playlists')" id="tabBtnPlaylists" class="px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow">
-            <i class="fa-brands fa-spotify mr-1.5"></i> My Synced Playlists
+        <!-- 3 TABS -->
+        <div class="flex gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 w-fit">
+          <button onclick="switchTab('spotify')" id="tabBtnSpotify" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-brand text-slate-950 shadow">
+            <i class="fa-brands fa-spotify mr-1"></i> Spotify Account
           </button>
-          <button onclick="switchTab('vault')" id="tabBtnVault" class="px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white">
-            <i class="fa-solid fa-server mr-1.5"></i> Server Vault Overview
+          <button onclick="switchTab('imported')" id="tabBtnImported" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5">
+            <i class="fa-solid fa-link mr-1"></i> Imported Links
+            <span id="importedBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">0</span>
+          </button>
+          <button onclick="switchTab('vault')" id="tabBtnVault" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-400 hover:text-white">
+            <i class="fa-solid fa-server mr-1"></i> Server Vault
           </button>
         </div>
 
         <div class="flex items-center gap-3">
           <!-- IMPORT PLAYLIST BUTTON -->
-          <button onclick="openImportModal()" class="px-3.5 py-2 bg-brand hover:bg-brand-hover text-slate-950 font-bold text-sm rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/40">
+          <button onclick="openImportModal()" class="px-3.5 py-2 bg-brand hover:bg-brand-hover text-slate-950 font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/40">
             <i class="fa-solid fa-plus"></i> Import Playlist by URL
           </button>
 
-          <div class="relative w-full sm:w-60">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-sm"></i>
-            <input type="text" id="searchInput" oninput="filterPlaylists()" placeholder="Filter..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand">
+          <div class="relative w-full sm:w-48">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+            <input type="text" id="searchInput" oninput="filterCurrentTab()" placeholder="Filter..." class="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand">
           </div>
-          <button onclick="reloadActiveTab()" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition" title="Refresh">
-            <i class="fa-solid fa-rotate-right"></i>
+          <button onclick="reloadActiveTab()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition" title="Refresh">
+            <i class="fa-solid fa-rotate-right text-xs"></i>
           </button>
         </div>
       </div>
 
-      <!-- TAB 1: SPOTIFY PLAYLISTS -->
-      <div id="tabPlaylists" class="space-y-4">
+      <!-- TAB 1: SPOTIFY ACCOUNT PLAYLISTS -->
+      <div id="tabSpotify" class="space-y-4">
         <div class="flex items-center justify-between text-xs text-slate-400 px-1">
-          <span id="playlistCountText">Loading playlists...</span>
-          <span>Deduplicated in /tracks • Unlimited users supported</span>
+          <span id="spotifyCountText">Loading Spotify account playlists...</span>
+          <span>From connected Spotify account • Deduplicated in /tracks</span>
         </div>
-
-        <div id="playlistsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="spotifyList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </div>
 
-      <!-- TAB 2: SERVER VAULT OVERVIEW -->
+      <!-- TAB 2: IMPORTED LINK PLAYLISTS (WITH FULL CONTROLS) -->
+      <div id="tabImported" class="hidden space-y-4">
+        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+          <span id="importedCountText">Loading link-imported playlists...</span>
+          <span>Added via URL • Full Sync and Private/Public toggles</span>
+        </div>
+        <div id="importedList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- TAB 3: SERVER VAULT OVERVIEW -->
       <div id="tabVault" class="hidden space-y-4">
         <div class="text-xs text-slate-400 px-1">
-          Static playlist files stored in <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/playlists/</code> on Atlantis
+          Static playlist storage in <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/playlists/</code> on Atlantis
         </div>
         <div id="vaultList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </div>
@@ -147,7 +160,7 @@
     </div>
   </main>
 
-  <!-- IMPORT PLAYLIST MODAL -->
+  <!-- IMPORT PLAYLIST MODAL WITH TWO DISTINCT BUTTONS -->
   <div id="importModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="glass-card max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-slate-700">
@@ -160,11 +173,11 @@
       </div>
 
       <p class="text-xs text-slate-300 leading-relaxed">
-        Paste any Spotify Playlist link (your own, a friend's, or any public playlist). 
-        <strong>No Spotify account login or developer whitelist required.</strong>
+        Paste any Spotify Playlist link (your own, a friend's, or any public/unlisted playlist).
+        <strong>Works for all users without Spotify whitelist limits.</strong>
       </p>
 
-      <form onsubmit="handleImportSubmit(event)" class="space-y-4">
+      <form onsubmit="event.preventDefault()" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Spotify Playlist URL or ID</label>
           <input type="text" id="importUrlInput" required placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-brand">
@@ -177,14 +190,14 @@
               <input type="radio" name="importVisibility" value="private" checked class="text-brand focus:ring-0">
               <div>
                 <div class="text-xs font-bold text-white">🔒 Private</div>
-                <div class="text-[10px] text-slate-400">Visible only to you</div>
+                <div class="text-[10px] text-slate-400">Only visible to your account</div>
               </div>
             </label>
             <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-500">
               <input type="radio" name="importVisibility" value="public" class="text-brand focus:ring-0">
               <div>
                 <div class="text-xs font-bold text-white">🌍 Public</div>
-                <div class="text-[10px] text-slate-400">Visible to all users</div>
+                <div class="text-[10px] text-slate-400">Shared with all users</div>
               </div>
             </label>
           </div>
@@ -192,9 +205,19 @@
 
         <div id="importError" class="text-rose-400 text-xs hidden"></div>
 
-        <div class="flex justify-end gap-3 pt-2">
-          <button type="button" onclick="closeImportModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Cancel</button>
-          <button type="submit" id="importSubmitBtn" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-hover text-slate-950 transition flex items-center gap-2 shadow">
+        <!-- DUAL BUTTON CONTROLS -->
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeImportModal()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+            Cancel
+          </button>
+          <!-- BUTTON 1: IMPORT ONLY (NO SYNC) -->
+          <button type="button" onclick="submitImport(false)" id="btnImportOnly" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/40 transition flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-bookmark text-[11px]"></i>
+            <span>Import Only</span>
+          </button>
+          <!-- BUTTON 2: IMPORT & SYNC -->
+          <button type="button" onclick="submitImport(true)" id="btnImportSync" class="px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-hover text-slate-950 transition flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-cloud-arrow-down text-[11px]"></i>
             <span>Import & Sync</span>
           </button>
         </div>
@@ -206,7 +229,9 @@
   <script>
     let TOKEN = localStorage.getItem('nexus_token');
     let USER = null;
-    let ALL_PLAYLISTS = [];
+    let ACTIVE_TAB = 'spotify';
+    let SPOTIFY_PLAYLISTS = [];
+    let IMPORTED_PLAYLISTS = [];
     let WS = null;
 
     async function apiFetch(endpoint, options = {}) {
@@ -232,6 +257,7 @@
         showApp();
         initWebSocket();
         loadSpotifyPlaylists();
+        loadImportedPlaylists();
       } catch (e) {
         showLogin();
       }
@@ -279,6 +305,7 @@
         showApp();
         initWebSocket();
         loadSpotifyPlaylists();
+        loadImportedPlaylists();
       } catch (err) {
         errBox.textContent = err.message;
         errBox.classList.remove('hidden');
@@ -302,83 +329,96 @@
       document.getElementById('importModal').classList.add('hidden');
     }
 
-    async function handleImportSubmit(e) {
-      e.preventDefault();
+    async function submitImport(autoSync) {
       const input = document.getElementById('importUrlInput').value.trim();
       const vis = document.querySelector('input[name="importVisibility"]:checked').value;
       const errBox = document.getElementById('importError');
-      const submitBtn = document.getElementById('importSubmitBtn');
+      const btnOnly = document.getElementById('btnImportOnly');
+      const btnSync = document.getElementById('btnImportSync');
+
+      if (!input) {
+        errBox.textContent = 'Please enter a Spotify playlist URL or ID.';
+        errBox.classList.remove('hidden');
+        return;
+      }
 
       errBox.classList.add('hidden');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resolving...';
+      btnOnly.disabled = true;
+      btnSync.disabled = true;
+
+      const activeBtn = autoSync ? btnSync : btnOnly;
+      const originalText = activeBtn.innerHTML;
+      activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
       try {
         const res = await apiFetch('/api/v1/playlists/import', {
           method: 'POST',
-          body: JSON.stringify({ url_or_id: input, visibility: vis })
+          body: JSON.stringify({ url_or_id: input, visibility: vis, auto_sync: autoSync })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Import failed');
 
         closeImportModal();
-        await loadSpotifyPlaylists();
+        switchTab('imported');
+        await loadImportedPlaylists();
       } catch (err) {
         errBox.textContent = err.message;
         errBox.classList.remove('hidden');
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Import & Sync</span>';
+        btnOnly.disabled = false;
+        btnSync.disabled = false;
+        activeBtn.innerHTML = originalText;
       }
     }
 
     async function loadSpotifyPlaylists() {
-      const container = document.getElementById('playlistsList');
-      const countText = document.getElementById('playlistCountText');
-      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500">Loading playlists...</div>';
+      const container = document.getElementById('spotifyList');
+      const countText = document.getElementById('spotifyCountText');
+      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading Spotify playlists...</div>';
 
       try {
         const res = await apiFetch('/api/v1/spotify/playlists');
-        ALL_PLAYLISTS = await res.json();
-        countText.textContent = `Showing ${ALL_PLAYLISTS.length} playlists`;
-        renderPlaylists(ALL_PLAYLISTS);
+        if (!res.ok) throw new Error();
+        SPOTIFY_PLAYLISTS = await res.json();
+        countText.textContent = `Showing ${SPOTIFY_PLAYLISTS.length} account playlists`;
+        renderPlaylists(SPOTIFY_PLAYLISTS, 'spotifyList', false);
       } catch (e) {
-        // Fallback: If Spotify OAuth returns 403, load the user's DB playlists directly from vault!
-        try {
-          const vRes = await apiFetch('/api/v1/playlists/vault');
-          const vault = await vRes.json();
-          ALL_PLAYLISTS = vault.map(v => ({
-            id: v.spotify_playlist_id,
-            name: v.name,
-            cover_url: v.cover_url,
-            total_tracks: v.total_tracks,
-            is_synced: true,
-            visibility: v.visibility,
-            folder_slug: v.folder_slug,
-            sync_status: v.sync_status,
-            downloaded_tracks: v.downloaded_tracks
-          }));
-          countText.textContent = `Showing ${ALL_PLAYLISTS.length} playlists`;
-          renderPlaylists(ALL_PLAYLISTS);
-        } catch (err2) {
-          container.innerHTML = `
-            <div class="col-span-3 text-center py-12 text-slate-400">
-              <p>No playlists found. Click <strong>Import Playlist by URL</strong> above to add one!</p>
-            </div>
-          `;
-        }
+        container.innerHTML = `
+          <div class="col-span-3 text-center py-12 text-slate-400 glass-card rounded-2xl p-6">
+            <p class="font-medium text-white mb-1">Spotify Account Not Linked or Limited by Whitelist</p>
+            <p class="text-xs text-slate-400">Use the <strong>Import Playlist by URL</strong> button above to import any playlist directly.</p>
+          </div>
+        `;
+        countText.textContent = '0 playlists available via OAuth';
       }
     }
 
-    function renderPlaylists(list) {
-      const container = document.getElementById('playlistsList');
-      if (list.length === 0) {
+    async function loadImportedPlaylists() {
+      const container = document.getElementById('importedList');
+      const countText = document.getElementById('importedCountText');
+      const badge = document.getElementById('importedBadge');
+      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading imported playlists...</div>';
+
+      try {
+        const res = await apiFetch('/api/v1/playlists/imported');
+        if (!res.ok) throw new Error();
+        IMPORTED_PLAYLISTS = await res.json();
+        countText.textContent = `Showing ${IMPORTED_PLAYLISTS.length} link-imported playlists`;
+        badge.textContent = IMPORTED_PLAYLISTS.length;
+        badge.classList.remove('hidden');
+        renderPlaylists(IMPORTED_PLAYLISTS, 'importedList', true);
+      } catch (e) {
+        container.innerHTML = '<div class="col-span-3 text-center py-12 text-rose-400">Failed to load imported playlists.</div>';
+      }
+    }
+
+    function renderPlaylists(list, targetElementId, isImportedTab) {
+      const container = document.getElementById(targetElementId);
+      if (!list || list.length === 0) {
         container.innerHTML = `
-          <div class="col-span-3 text-center py-12 text-slate-400">
-            <p>No playlists added yet.</p>
-            <button onclick="openImportModal()" class="mt-3 px-4 py-2 bg-brand text-slate-950 font-bold rounded-xl text-xs">
-              + Import Your First Playlist
-            </button>
+          <div class="col-span-3 text-center py-12 text-slate-400 glass-card rounded-2xl p-6">
+            <p class="font-medium text-white mb-2">No playlists in this section yet.</p>
+            ${isImportedTab ? '<button onclick="openImportModal()" class="px-4 py-2 bg-brand text-slate-950 font-bold rounded-xl text-xs shadow">+ Import Your First Playlist</button>' : ''}
           </div>
         `;
         return;
@@ -395,8 +435,15 @@
             <div>
               <div class="flex gap-3 mb-3">
                 <img src="${cover}" class="w-16 h-16 rounded-xl object-cover bg-slate-800 shrink-0 border border-slate-700">
-                <div class="overflow-hidden">
-                  <h3 class="font-bold text-white text-sm truncate" title="${p.name}">${p.name}</h3>
+                <div class="overflow-hidden flex-1">
+                  <div class="flex items-center justify-between gap-1">
+                    <h3 class="font-bold text-white text-sm truncate" title="${p.name}">${p.name}</h3>
+                    ${isImportedTab ? `
+                      <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Remove playlist">
+                        <i class="fa-solid fa-trash-can"></i>
+                      </button>
+                    ` : ''}
+                  </div>
                   <p class="text-xs text-slate-400 mt-0.5">${p.total_tracks} tracks</p>
                   <p class="text-[11px] font-mono text-emerald-400/90 truncate mt-1">/playlists/${p.folder_slug}</p>
                 </div>
@@ -416,23 +463,26 @@
               </div>
             </div>
 
-            <!-- CONTROLS -->
+            <!-- CONTROLS: SYNC SWITCH, VISIBILITY PILL, SYNC NOW -->
             <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+              <!-- SYNC TOGGLE -->
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" onchange="toggleSync('${p.id}', this.checked)" ${isSynced ? 'checked' : ''} class="sr-only peer">
+                <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
                 <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand relative"></div>
                 <span class="text-xs font-semibold ${isSynced ? 'text-white' : 'text-slate-500'}">Sync</span>
               </label>
 
+              <!-- VISIBILITY PILL -->
               <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
-                <button onclick="changeVisibility('${p.id}', 'private')" class="px-2.5 py-1 rounded-md font-medium transition ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-white'}">
+                <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2.5 py-1 rounded-md font-medium transition ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-white'}">
                   <i class="fa-solid fa-lock text-[10px] mr-1"></i> Private
                 </button>
-                <button onclick="changeVisibility('${p.id}', 'public')" class="px-2.5 py-1 rounded-md font-medium transition ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}">
+                <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2.5 py-1 rounded-md font-medium transition ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}">
                   <i class="fa-solid fa-globe text-[10px] mr-1"></i> Public
                 </button>
               </div>
 
+              <!-- SYNC NOW BOLT -->
               <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Force Resync Now">
                 <i class="fa-solid fa-bolt text-xs"></i>
               </button>
@@ -450,8 +500,9 @@
       return `<span class="text-slate-500">Idle</span>`;
     }
 
-    async function toggleSync(playlistId, isSynced) {
-      const p = ALL_PLAYLISTS.find(x => x.id === playlistId);
+    async function toggleSync(playlistId, isSynced, isImportedTab) {
+      const list = isImportedTab ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
+      const p = list.find(x => x.id === playlistId);
       if (!p) return;
       p.is_synced = isSynced;
 
@@ -460,14 +511,15 @@
           method: 'POST',
           body: JSON.stringify({ is_synced: isSynced, visibility: p.visibility, folder_slug: p.folder_slug })
         });
-        renderPlaylists(ALL_PLAYLISTS);
+        renderPlaylists(list, isImportedTab ? 'importedList' : 'spotifyList', isImportedTab);
       } catch (e) {
         alert('Could not update sync state.');
       }
     }
 
-    async function changeVisibility(playlistId, newVis) {
-      const p = ALL_PLAYLISTS.find(x => x.id === playlistId);
+    async function changeVisibility(playlistId, newVis, isImportedTab) {
+      const list = isImportedTab ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
+      const p = list.find(x => x.id === playlistId);
       if (!p || p.visibility === newVis) return;
       p.visibility = newVis;
 
@@ -476,7 +528,7 @@
           method: 'POST',
           body: JSON.stringify({ is_synced: p.is_synced, visibility: newVis, folder_slug: p.folder_slug })
         });
-        renderPlaylists(ALL_PLAYLISTS);
+        renderPlaylists(list, isImportedTab ? 'importedList' : 'spotifyList', isImportedTab);
       } catch (e) {
         alert('Could not update visibility.');
       }
@@ -492,9 +544,20 @@
       }
     }
 
+    async function deletePlaylist(playlistId, name) {
+      if (!confirm(`Are you sure you want to remove '${name}' from your imported library?`)) return;
+      try {
+        const res = await apiFetch(`/api/v1/playlists/${playlistId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        await loadImportedPlaylists();
+      } catch (e) {
+        alert('Could not delete playlist.');
+      }
+    }
+
     async function loadVaultOverview() {
       const container = document.getElementById('vaultList');
-      container.innerHTML = '<div class="col-span-2 text-center py-12 text-slate-500">Loading server storage...</div>';
+      container.innerHTML = '<div class="col-span-2 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading server storage...</div>';
 
       try {
         const res = await apiFetch('/api/v1/playlists/vault');
@@ -532,38 +595,54 @@
       }
     }
 
-    function filterPlaylists() {
-      const q = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = ALL_PLAYLISTS.filter(p => p.name.toLowerCase().includes(q) || p.folder_slug.toLowerCase().includes(q));
-      renderPlaylists(filtered);
-    }
-
     function switchTab(tab) {
-      const btnP = document.getElementById('tabBtnPlaylists');
+      ACTIVE_TAB = tab;
+      const btnS = document.getElementById('tabBtnSpotify');
+      const btnI = document.getElementById('tabBtnImported');
       const btnV = document.getElementById('tabBtnVault');
-      const tabP = document.getElementById('tabPlaylists');
+      const tabS = document.getElementById('tabSpotify');
+      const tabI = document.getElementById('tabImported');
       const tabV = document.getElementById('tabVault');
 
-      if (tab === 'playlists') {
-        btnP.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow';
-        btnV.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white';
-        tabP.classList.remove('hidden');
-        tabV.classList.add('hidden');
+      const inactiveClass = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-400 hover:text-white';
+      const activeClass = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-brand text-slate-950 shadow';
+
+      btnS.className = inactiveClass;
+      btnI.className = inactiveClass + ' flex items-center gap-1.5';
+      btnV.className = inactiveClass;
+      tabS.classList.add('hidden');
+      tabI.classList.add('hidden');
+      tabV.classList.add('hidden');
+
+      if (tab === 'spotify') {
+        btnS.className = activeClass;
+        tabS.classList.remove('hidden');
+      } else if (tab === 'imported') {
+        btnI.className = activeClass + ' flex items-center gap-1.5';
+        tabI.classList.remove('hidden');
+        loadImportedPlaylists();
       } else {
-        btnV.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow';
-        btnP.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white';
+        btnV.className = activeClass;
         tabV.classList.remove('hidden');
-        tabP.classList.add('hidden');
         loadVaultOverview();
+      }
+    }
+
+    function filterCurrentTab() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      if (ACTIVE_TAB === 'spotify') {
+        const filtered = SPOTIFY_PLAYLISTS.filter(p => p.name.toLowerCase().includes(q) || p.folder_slug.toLowerCase().includes(q));
+        renderPlaylists(filtered, 'spotifyList', false);
+      } else if (ACTIVE_TAB === 'imported') {
+        const filtered = IMPORTED_PLAYLISTS.filter(p => p.name.toLowerCase().includes(q) || p.folder_slug.toLowerCase().includes(q));
+        renderPlaylists(filtered, 'importedList', true);
       }
     }
 
     function reloadActiveTab() {
-      if (document.getElementById('tabPlaylists').classList.contains('hidden')) {
-        loadVaultOverview();
-      } else {
-        loadSpotifyPlaylists();
-      }
+      if (ACTIVE_TAB === 'spotify') loadSpotifyPlaylists();
+      else if (ACTIVE_TAB === 'imported') loadImportedPlaylists();
+      else loadVaultOverview();
     }
 
     function initWebSocket() {

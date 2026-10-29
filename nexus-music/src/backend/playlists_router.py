@@ -2,6 +2,7 @@ import os
 import re
 import json
 import base64
+import shutil
 from pathlib import Path
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/api/v1/playlists", tags=["Playlists"])
 class PlaylistImportRequest(BaseModel):
     url_or_id: str
     visibility: str = "private"  # "private" or "public"
+    auto_sync: bool = True       # True = Import & Sync, False = Import Only
 
 def sanitize_slug(text: str) -> str:
     text = re.sub(r"[^\w\s-]", "", text.strip())
@@ -37,7 +39,6 @@ def extract_spotify_playlist_id(input_str: str) -> str:
     raise HTTPException(status_code=400, detail="Invalid Spotify playlist URL or ID.")
 
 async def get_client_credentials_token() -> str:
-    """Gets an app-level Spotify token. Has no 5-user limit."""
     auth_str = f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}"
     b64_auth = base64.b64encode(auth_str.encode()).decode()
     
@@ -91,6 +92,35 @@ async def update_navidrome_playlist_visibility(user: User, playlist_name: str, f
         except Exception as e:
             print(f"Warning: Could not update Navidrome visibility: {e}")
 
+@router.get("/imported")
+async def list_imported_playlists(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns all playlists imported via link/URL for the current user."""
+    stmt = select(Playlist).where(
+        Playlist.owner_id == current_user.id,
+        Playlist.is_imported == True
+    )
+    res = await db.execute(stmt)
+    playlists = res.scalars().all()
+
+    return [
+        {
+            "id": p.spotify_playlist_id,
+            "name": p.name,
+            "cover_url": p.cover_url,
+            "total_tracks": p.total_tracks,
+            "downloaded_tracks": p.downloaded_tracks,
+            "is_synced": p.is_synced,
+            "visibility": p.visibility,
+            "folder_slug": p.folder_slug,
+            "sync_status": p.sync_status,
+            "last_synced_at": p.last_synced_at.isoformat() if p.last_synced_at else None
+        }
+        for p in playlists
+    ]
+
 @router.post("/import")
 async def import_playlist_by_url(
     req: PlaylistImportRequest,
@@ -100,14 +130,13 @@ async def import_playlist_by_url(
     spotify_playlist_id = extract_spotify_playlist_id(req.url_or_id)
     token = await get_client_credentials_token()
 
-    # Query Spotify API with client credentials (works for any public/unlisted playlist)
     url = f"https://api.spotify.com/v1/playlists/{spotify_playlist_id}?fields=id,name,description,images,tracks.total"
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
         if resp.status_code != 200:
             raise HTTPException(
                 status_code=400,
-                detail=f"Could not resolve Spotify playlist. Ensure the playlist is Public or Unlisted. Spotify error: {resp.text}"
+                detail=f"Could not resolve Spotify playlist. Ensure the playlist is Public or Unlisted. Error: {resp.text}"
             )
         data = resp.json()
 
@@ -117,7 +146,6 @@ async def import_playlist_by_url(
     cover_url = images[0]["url"] if images else None
     total_tracks = (data.get("tracks") or {}).get("total", 0)
 
-    # Check if already added by this user
     stmt = select(Playlist).where(
         Playlist.owner_id == current_user.id,
         Playlist.spotify_playlist_id == spotify_playlist_id
@@ -133,31 +161,35 @@ async def import_playlist_by_url(
             folder_slug=slug,
             cover_url=cover_url,
             total_tracks=total_tracks,
-            is_synced=True,
+            is_synced=req.auto_sync,
+            is_imported=True,
             visibility=req.visibility,
-            sync_status="queued"
+            sync_status="queued" if req.auto_sync else "idle"
         )
         db.add(playlist)
     else:
-        playlist.is_synced = True
+        playlist.is_imported = True
         playlist.visibility = req.visibility
-        playlist.sync_status = "queued"
         playlist.cover_url = cover_url or playlist.cover_url
+        playlist.total_tracks = total_tracks or playlist.total_tracks
+        if req.auto_sync:
+            playlist.is_synced = True
+            playlist.sync_status = "queued"
 
     await db.commit()
     await db.refresh(playlist)
 
-    # Queue sync job in Redis
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
-    job_payload = {
-        "action": "sync_playlist",
-        "playlist_id": playlist.id,
-        "spotify_playlist_id": playlist.spotify_playlist_id,
-        "owner_id": current_user.id,
-        "visibility": playlist.visibility,
-        "folder_slug": playlist.folder_slug
-    }
-    await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
+    if req.auto_sync:
+        job_payload = {
+            "action": "sync_playlist",
+            "playlist_id": playlist.id,
+            "spotify_playlist_id": playlist.spotify_playlist_id,
+            "owner_id": current_user.id,
+            "visibility": playlist.visibility,
+            "folder_slug": playlist.folder_slug
+        }
+        await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
 
     await r.publish("nexus:events", json.dumps({
         "event": "PLAYLIST_CONFIGURED",
@@ -170,11 +202,40 @@ async def import_playlist_by_url(
         "total_tracks": playlist.total_tracks
     }))
 
+    msg = f"Imported '{name}' and queued download." if req.auto_sync else f"Imported '{name}' successfully (Sync is OFF)."
     return {
         "status": "ok",
-        "message": f"Successfully imported '{name}' ({total_tracks} tracks). Download queued.",
+        "message": msg,
         "playlist_id": spotify_playlist_id
     }
+
+@router.delete("/{spotify_playlist_id}")
+async def delete_imported_playlist(
+    spotify_playlist_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Playlist).where(
+        Playlist.owner_id == current_user.id,
+        Playlist.spotify_playlist_id == spotify_playlist_id
+    )
+    res = await db.execute(stmt)
+    playlist = res.scalar_one_or_none()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found.")
+
+    # Remove the .m3u8 folder on disk
+    pl_dir = Path(settings.MUSIC_ROOT) / "playlists" / playlist.folder_slug
+    if pl_dir.exists():
+        shutil.rmtree(pl_dir, ignore_errors=True)
+
+    await db.delete(playlist)
+    await db.commit()
+
+    # Prune from Navidrome
+    await update_navidrome_playlist_visibility(current_user, playlist.name, playlist.folder_slug, False)
+
+    return {"status": "ok", "message": f"Deleted playlist {playlist.name}"}
 
 @router.post("/{spotify_playlist_id}/configure", response_model=PlaylistConfigureResponse)
 async def configure_playlist(
