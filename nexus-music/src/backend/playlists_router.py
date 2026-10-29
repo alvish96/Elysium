@@ -5,7 +5,7 @@ import base64
 import shutil
 from pathlib import Path
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -92,12 +92,41 @@ async def update_navidrome_playlist_visibility(user: User, playlist_name: str, f
         except Exception as e:
             print(f"Warning: Could not update Navidrome visibility: {e}")
 
+@router.get("/search-public")
+async def search_spotify_public_playlists(
+    q: str = Query(..., min_length=1),
+    current_user: User = Depends(get_current_user)
+):
+    """Searches Spotify's global public catalog via App Credentials (no user OAuth restriction)."""
+    token = await get_client_credentials_token()
+    url = f"https://api.spotify.com/v1/search?q={httpx.URL(q)}&type=playlist&limit=12"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        items = data.get("playlists", {}).get("items", [])
+        results = []
+        for it in items:
+            if not it or not it.get("id"):
+                continue
+            images = it.get("images") or []
+            cover = images[0]["url"] if images else None
+            results.append({
+                "id": it["id"],
+                "name": it.get("name", "Untitled"),
+                "description": it.get("description", ""),
+                "cover_url": cover,
+                "total_tracks": (it.get("tracks") or {}).get("total", 0),
+                "owner_name": (it.get("owner") or {}).get("display_name", "Spotify")
+            })
+        return results
+
 @router.get("/imported")
 async def list_imported_playlists(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Returns all playlists imported via link/URL for the current user."""
     stmt = select(Playlist).where(
         Playlist.owner_id == current_user.id,
         Playlist.is_imported == True
@@ -224,7 +253,6 @@ async def delete_imported_playlist(
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist not found.")
 
-    # Remove the .m3u8 folder on disk
     pl_dir = Path(settings.MUSIC_ROOT) / "playlists" / playlist.folder_slug
     if pl_dir.exists():
         shutil.rmtree(pl_dir, ignore_errors=True)
@@ -232,7 +260,6 @@ async def delete_imported_playlist(
     await db.delete(playlist)
     await db.commit()
 
-    # Prune from Navidrome
     await update_navidrome_playlist_visibility(current_user, playlist.name, playlist.folder_slug, False)
 
     return {"status": "ok", "message": f"Deleted playlist {playlist.name}"}
