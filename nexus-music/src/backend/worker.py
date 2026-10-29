@@ -75,25 +75,20 @@ async def trigger_navidrome_scan_and_visibility(user: User, playlist_name: str, 
                 if isinstance(all_pl, dict):
                     all_pl = [all_pl]
 
-                # Find all playlists matching this name
                 matching = [pl for pl in all_pl if pl.get("name", "") in (playlist_name, folder_slug, f"[{folder_slug}]")]
-                
-                # If there are duplicates, prune the extra ones via Subsonic API
-                if len(matching) > 1:
-                    logger.info(f"Found {len(matching)} playlists with name '{playlist_name}'. Pruning duplicates...")
-                    for extra in matching[1:]:
-                        extra_id = extra.get("id")
-                        del_url = f"{settings.NAVIDROME_URL}/rest/deletePlaylist.view?playlistId={extra_id}&{subsonic_params}"
-                        await client.get(del_url)
-                        logger.info(f"Purged duplicate playlist ID {extra_id} from Navidrome.")
-
-                # Update visibility on the primary playlist
                 if matching:
+                    # Prune duplicate IDs if Navidrome has any extra
                     primary_id = matching[0].get("id")
+                    if len(matching) > 1:
+                        for extra in matching[1:]:
+                            extra_id = extra.get("id")
+                            del_url = f"{settings.NAVIDROME_URL}/rest/deletePlaylist.view?playlistId={extra_id}&{subsonic_params}"
+                            await client.get(del_url)
+
                     pub_flag = "true" if is_public else "false"
                     update_url = f"{settings.NAVIDROME_URL}/rest/updatePlaylist.view?playlistId={primary_id}&public={pub_flag}&{subsonic_params}"
                     await client.get(update_url)
-                    logger.info(f"Updated Navidrome playlist '{playlist_name}' (ID: {primary_id}) visibility to public={pub_flag}.")
+                    logger.info(f"Updated Navidrome playlist '{playlist_name}' visibility to public={pub_flag}.")
         except Exception as e:
             logger.warning(f"Could not update playlist visibility in Navidrome: {e}")
 
@@ -283,21 +278,12 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
     tracks_dir = music_root / "tracks"
     tracks_dir.mkdir(parents=True, exist_ok=True)
 
-    if playlist.visibility == "public":
-        target_dir = music_root / "public" / playlist.folder_slug
-    else:
-        target_dir = music_root / "users" / user.username / "private" / playlist.folder_slug
-
+    # Static permanent playlist folder
+    target_dir = music_root / "playlists" / playlist.folder_slug
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    for stale_mp3 in target_dir.glob("*.mp3"):
-        try:
-            stale_mp3.unlink()
-        except Exception:
-            pass
-
     downloaded_count = 0
-    playlist_track_paths: List[Path] = []
+    playlist_track_filenames: List[str] = []
 
     for idx, t_meta in enumerate(tracks_meta, start=1):
         sp_tid = t_meta["spotify_track_id"]
@@ -331,7 +317,7 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
                 except Exception as e:
                     logger.warning(f"Could not link {master_file} to {central_track_dest}: {e}")
 
-            playlist_track_paths.append(central_track_dest)
+            playlist_track_filenames.append(link_name)
             downloaded_count += 1
 
         await publish_event(r, {
@@ -344,14 +330,14 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             "downloaded_count": downloaded_count
         })
 
+    # Write permanent .m3u8 playlist file with relative paths to tracks/
     m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
     m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
-    for trk_path in playlist_track_paths:
-        rel_path = os.path.relpath(trk_path, target_dir)
-        m3u8_lines.append(rel_path)
+    for fn in playlist_track_filenames:
+        m3u8_lines.append(f"../../tracks/{fn}")
 
     m3u8_file.write_text("\n".join(m3u8_lines) + "\n")
-    logger.info(f"Generated pointer playlist file: {m3u8_file} ({len(playlist_track_paths)} tracks linked)")
+    logger.info(f"Generated static playlist file: {m3u8_file} ({len(playlist_track_filenames)} tracks)")
 
     async with AsyncSessionLocal() as db:
         stmt = select(Playlist).where(Playlist.id == playlist_id)
