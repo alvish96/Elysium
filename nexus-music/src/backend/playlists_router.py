@@ -1,9 +1,11 @@
 import os
 import re
 import json
+import base64
 from pathlib import Path
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import redis.asyncio as redis
@@ -17,21 +19,162 @@ from schemas import PlaylistConfigureRequest, PlaylistConfigureResponse
 
 router = APIRouter(prefix="/api/v1/playlists", tags=["Playlists"])
 
+class PlaylistImportRequest(BaseModel):
+    url_or_id: str
+    visibility: str = "private"  # "private" or "public"
+
 def sanitize_slug(text: str) -> str:
     text = re.sub(r"[^\w\s-]", "", text.strip())
     return re.sub(r"[-\s]+", "_", text).lower()
 
-async def trigger_navidrome_scan(user: User):
+def extract_spotify_playlist_id(input_str: str) -> str:
+    input_str = input_str.strip()
+    match = re.search(r"playlist/([a-zA-Z0-9]+)", input_str)
+    if match:
+        return match.group(1)
+    if re.match(r"^[a-zA-Z0-9]{22}$", input_str):
+        return input_str
+    raise HTTPException(status_code=400, detail="Invalid Spotify playlist URL or ID.")
+
+async def get_client_credentials_token() -> str:
+    """Gets an app-level Spotify token. Has no 5-user limit."""
+    auth_str = f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}"
+    b64_auth = base64.b64encode(auth_str.encode()).decode()
+    
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.post(
+            "https://accounts.spotify.com/api/token",
+            data={"grant_type": "client_credentials"},
+            headers={
+                "Authorization": f"Basic {b64_auth}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Failed to obtain Spotify App token: {resp.text}")
+        return resp.json()["access_token"]
+
+async def update_navidrome_playlist_visibility(user: User, playlist_name: str, folder_slug: str, is_public: bool):
     token = decrypt_value(user.subsonic_token_enc)
     salt = decrypt_value(user.subsonic_salt_enc)
     if not token or not salt:
         return
-    url = f"{settings.NAVIDROME_URL}/rest/startScan.view?u={user.username}&t={token}&s={salt}&v=1.16.1&c=nexus-sync&f=json"
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.get(url)
-    except Exception as e:
-        print(f"Warning: Could not trigger Navidrome scan: {e}")
+
+    subsonic_params = f"u={user.username}&t={token}&s={salt}&v=1.16.1&c=nexus-sync&f=json"
+    playlists_url = f"{settings.NAVIDROME_URL}/rest/getPlaylists.view?{subsonic_params}"
+
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            resp = await client.get(playlists_url)
+            if resp.status_code != 200:
+                return
+
+            data = resp.json().get("subsonic-response", {})
+            all_pl = data.get("playlists", {}).get("playlist", [])
+            if isinstance(all_pl, dict):
+                all_pl = [all_pl]
+
+            matching = [pl for pl in all_pl if pl.get("name", "") in (playlist_name, folder_slug, f"[{folder_slug}]")]
+            if not matching:
+                return
+
+            primary_id = matching[0].get("id")
+            if len(matching) > 1:
+                for extra in matching[1:]:
+                    extra_id = extra.get("id")
+                    del_url = f"{settings.NAVIDROME_URL}/rest/deletePlaylist.view?playlistId={extra_id}&{subsonic_params}"
+                    await client.get(del_url)
+
+            pub_val = "true" if is_public else "false"
+            update_url = f"{settings.NAVIDROME_URL}/rest/updatePlaylist.view?playlistId={primary_id}&public={pub_val}&{subsonic_params}"
+            await client.get(update_url)
+        except Exception as e:
+            print(f"Warning: Could not update Navidrome visibility: {e}")
+
+@router.post("/import")
+async def import_playlist_by_url(
+    req: PlaylistImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    spotify_playlist_id = extract_spotify_playlist_id(req.url_or_id)
+    token = await get_client_credentials_token()
+
+    # Query Spotify API with client credentials (works for any public/unlisted playlist)
+    url = f"https://api.spotify.com/v1/playlists/{spotify_playlist_id}?fields=id,name,description,images,tracks.total"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not resolve Spotify playlist. Ensure the playlist is Public or Unlisted. Spotify error: {resp.text}"
+            )
+        data = resp.json()
+
+    name = data.get("name", "Imported Playlist")
+    slug = sanitize_slug(name) or spotify_playlist_id
+    images = data.get("images") or []
+    cover_url = images[0]["url"] if images else None
+    total_tracks = (data.get("tracks") or {}).get("total", 0)
+
+    # Check if already added by this user
+    stmt = select(Playlist).where(
+        Playlist.owner_id == current_user.id,
+        Playlist.spotify_playlist_id == spotify_playlist_id
+    )
+    res = await db.execute(stmt)
+    playlist = res.scalar_one_or_none()
+
+    if not playlist:
+        playlist = Playlist(
+            spotify_playlist_id=spotify_playlist_id,
+            owner_id=current_user.id,
+            name=name,
+            folder_slug=slug,
+            cover_url=cover_url,
+            total_tracks=total_tracks,
+            is_synced=True,
+            visibility=req.visibility,
+            sync_status="queued"
+        )
+        db.add(playlist)
+    else:
+        playlist.is_synced = True
+        playlist.visibility = req.visibility
+        playlist.sync_status = "queued"
+        playlist.cover_url = cover_url or playlist.cover_url
+
+    await db.commit()
+    await db.refresh(playlist)
+
+    # Queue sync job in Redis
+    r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
+    job_payload = {
+        "action": "sync_playlist",
+        "playlist_id": playlist.id,
+        "spotify_playlist_id": playlist.spotify_playlist_id,
+        "owner_id": current_user.id,
+        "visibility": playlist.visibility,
+        "folder_slug": playlist.folder_slug
+    }
+    await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
+
+    await r.publish("nexus:events", json.dumps({
+        "event": "PLAYLIST_CONFIGURED",
+        "playlist_id": playlist.spotify_playlist_id,
+        "name": playlist.name,
+        "is_synced": playlist.is_synced,
+        "visibility": playlist.visibility,
+        "sync_status": playlist.sync_status,
+        "downloaded_tracks": playlist.downloaded_tracks,
+        "total_tracks": playlist.total_tracks
+    }))
+
+    return {
+        "status": "ok",
+        "message": f"Successfully imported '{name}' ({total_tracks} tracks). Download queued.",
+        "playlist_id": spotify_playlist_id
+    }
 
 @router.post("/{spotify_playlist_id}/configure", response_model=PlaylistConfigureResponse)
 async def configure_playlist(
@@ -49,19 +192,8 @@ async def configure_playlist(
 
     slug = sanitize_slug(req.folder_slug) if req.folder_slug else (playlist.folder_slug if playlist else spotify_playlist_id)
     music_root = Path(settings.MUSIC_ROOT)
-    tracks_dir = music_root / "tracks"
-    tracks_dir.mkdir(parents=True, exist_ok=True)
-
-    old_visibility = playlist.visibility if playlist else None
-    old_slug = playlist.folder_slug if playlist else None
-
-    # Determine target directory
-    if req.visibility == "public":
-        target_dir = music_root / "public" / slug
-    else:
-        target_dir = music_root / "users" / current_user.username / "private" / slug
-
-    target_dir.mkdir(parents=True, exist_ok=True)
+    playlists_dir = music_root / "playlists" / slug
+    playlists_dir.mkdir(parents=True, exist_ok=True)
 
     if not playlist:
         playlist = Playlist(
@@ -84,37 +216,12 @@ async def configure_playlist(
     await db.commit()
     await db.refresh(playlist)
 
-    # Option B: Re-location only moves the .m3u8 file
-    if old_visibility and (old_visibility != req.visibility or old_slug != slug):
-        if old_visibility == "public":
-            old_dir = music_root / "public" / old_slug
-        else:
-            old_dir = music_root / "users" / current_user.username / "private" / old_slug
-
-        old_m3u8 = old_dir / f"{old_slug}.m3u8"
-        if old_m3u8.exists() and old_dir != target_dir:
-            lines = old_m3u8.read_text(encoding="utf-8").splitlines()
-            new_lines = []
-            for line in lines:
-                line_clean = line.strip()
-                if not line_clean:
-                    continue
-                if line_clean.startswith("#"):
-                    new_lines.append(line_clean)
-                else:
-                    filename = Path(line_clean).name
-                    track_file = tracks_dir / filename
-                    new_lines.append(os.path.relpath(track_file, target_dir))
-
-            new_m3u8 = target_dir / f"{slug}.m3u8"
-            new_m3u8.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-            old_m3u8.unlink()
-            try:
-                old_dir.rmdir()
-            except Exception:
-                pass
-
-            await trigger_navidrome_scan(current_user)
+    await update_navidrome_playlist_visibility(
+        current_user,
+        playlist.name,
+        playlist.folder_slug,
+        playlist.visibility == "public"
+    )
 
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
     if req.is_synced:
@@ -141,9 +248,9 @@ async def configure_playlist(
 
     return PlaylistConfigureResponse(
         status="ok",
-        message="Playlist configuration updated successfully.",
+        message="Playlist visibility updated successfully.",
         playlist_id=playlist.spotify_playlist_id,
-        folder_path=str(target_dir),
+        folder_path=str(playlists_dir),
         visibility=playlist.visibility,
         is_synced=playlist.is_synced
     )
@@ -201,11 +308,7 @@ async def get_vault_overview(
     vault_items = []
 
     for pl in playlists:
-        if pl.visibility == "public":
-            folder_path = music_root / "public" / pl.folder_slug
-        else:
-            folder_path = music_root / "users" / current_user.username / "private" / pl.folder_slug
-
+        folder_path = music_root / "playlists" / pl.folder_slug
         m3u8_file = folder_path / f"{pl.folder_slug}.m3u8"
         on_disk_count = 0
         if m3u8_file.exists():

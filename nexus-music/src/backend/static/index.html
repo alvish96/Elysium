@@ -52,19 +52,16 @@
       </div>
 
       <div class="flex items-center gap-3" id="headerRight">
-        <!-- WebSocket live pill -->
         <div id="wsIndicator" class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs bg-slate-800 text-slate-400 border border-slate-700">
           <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
           <span>Live Sync</span>
         </div>
 
-        <!-- Open Web Player shortcut -->
         <a href="http://music.nexus.link" target="_blank" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 flex items-center gap-2 transition">
           <i class="fa-solid fa-play text-brand"></i>
           <span>Web Player</span>
         </a>
 
-        <!-- Auth Section -->
         <div id="userHeaderSection" class="flex items-center gap-3"></div>
       </div>
     </div>
@@ -73,7 +70,7 @@
   <!-- MAIN CONTAINER -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-    <!-- LOGIN MODAL (When Unauthenticated) -->
+    <!-- LOGIN MODAL -->
     <div id="loginView" class="hidden max-w-md mx-auto my-12 glass-card p-8 rounded-2xl shadow-2xl">
       <div class="text-center mb-6">
         <div class="w-14 h-14 mx-auto rounded-2xl bg-brand/10 border border-brand/30 flex items-center justify-center text-brand text-2xl mb-4">
@@ -102,27 +99,11 @@
     <!-- AUTHENTICATED APP DASHBOARD -->
     <div id="appView" class="hidden space-y-6">
 
-      <!-- SPOTIFY STATUS BANNER -->
-      <div id="spotifyBanner" class="glass-card p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 border-slate-800">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-[#1DB954]/10 text-[#1DB954] flex items-center justify-center text-xl">
-            <i class="fa-brands fa-spotify"></i>
-          </div>
-          <div>
-            <div class="text-sm font-semibold text-white flex items-center gap-2">
-              Spotify Account: <span id="spotifyStatusText" class="text-slate-400">Checking...</span>
-            </div>
-            <p class="text-xs text-slate-400">Tokens are encrypted in PostgreSQL and auto-refreshed in the background</p>
-          </div>
-        </div>
-        <div id="spotifyActionContainer"></div>
-      </div>
-
       <!-- TABS & ACTIONS BAR -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div class="flex gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 w-fit">
           <button onclick="switchTab('playlists')" id="tabBtnPlaylists" class="px-4 py-2 rounded-lg text-sm font-semibold transition bg-brand text-slate-950 shadow">
-            <i class="fa-brands fa-spotify mr-1.5"></i> My Spotify Playlists
+            <i class="fa-brands fa-spotify mr-1.5"></i> My Synced Playlists
           </button>
           <button onclick="switchTab('vault')" id="tabBtnVault" class="px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-400 hover:text-white">
             <i class="fa-solid fa-server mr-1.5"></i> Server Vault Overview
@@ -130,9 +111,14 @@
         </div>
 
         <div class="flex items-center gap-3">
-          <div class="relative w-full sm:w-64">
+          <!-- IMPORT PLAYLIST BUTTON -->
+          <button onclick="openImportModal()" class="px-3.5 py-2 bg-brand hover:bg-brand-hover text-slate-950 font-bold text-sm rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/40">
+            <i class="fa-solid fa-plus"></i> Import Playlist by URL
+          </button>
+
+          <div class="relative w-full sm:w-60">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-sm"></i>
-            <input type="text" id="searchInput" oninput="filterPlaylists()" placeholder="Search playlists..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand">
+            <input type="text" id="searchInput" oninput="filterPlaylists()" placeholder="Filter..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand">
           </div>
           <button onclick="reloadActiveTab()" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition" title="Refresh">
             <i class="fa-solid fa-rotate-right"></i>
@@ -143,27 +129,78 @@
       <!-- TAB 1: SPOTIFY PLAYLISTS -->
       <div id="tabPlaylists" class="space-y-4">
         <div class="flex items-center justify-between text-xs text-slate-400 px-1">
-          <span id="playlistCountText">Loading Spotify playlists...</span>
-          <span>Changes are saved immediately & processed by spotDL</span>
+          <span id="playlistCountText">Loading playlists...</span>
+          <span>Deduplicated in /tracks • Unlimited users supported</span>
         </div>
 
-        <div id="playlistsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Populated by JS -->
-        </div>
+        <div id="playlistsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </div>
 
       <!-- TAB 2: SERVER VAULT OVERVIEW -->
       <div id="tabVault" class="hidden space-y-4">
         <div class="text-xs text-slate-400 px-1">
-          Folder structure mapped to <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/</code> on Atlantis
+          Static playlist files stored in <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/playlists/</code> on Atlantis
         </div>
-        <div id="vaultList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Populated by JS -->
-        </div>
+        <div id="vaultList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </div>
 
     </div>
   </main>
+
+  <!-- IMPORT PLAYLIST MODAL -->
+  <div id="importModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-card max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-700">
+        <h3 class="font-bold text-white text-lg flex items-center gap-2">
+          <i class="fa-brands fa-spotify text-brand"></i> Import Spotify Playlist
+        </h3>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Paste any Spotify Playlist link (your own, a friend's, or any public playlist). 
+        <strong>No Spotify account login or developer whitelist required.</strong>
+      </p>
+
+      <form onsubmit="handleImportSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Spotify Playlist URL or ID</label>
+          <input type="text" id="importUrlInput" required placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-brand">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Initial Visibility</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-500">
+              <input type="radio" name="importVisibility" value="private" checked class="text-brand focus:ring-0">
+              <div>
+                <div class="text-xs font-bold text-white">🔒 Private</div>
+                <div class="text-[10px] text-slate-400">Visible only to you</div>
+              </div>
+            </label>
+            <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-500">
+              <input type="radio" name="importVisibility" value="public" class="text-brand focus:ring-0">
+              <div>
+                <div class="text-xs font-bold text-white">🌍 Public</div>
+                <div class="text-[10px] text-slate-400">Visible to all users</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div id="importError" class="text-rose-400 text-xs hidden"></div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="closeImportModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Cancel</button>
+          <button type="submit" id="importSubmitBtn" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-hover text-slate-950 transition flex items-center gap-2 shadow">
+            <span>Import & Sync</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
@@ -194,7 +231,6 @@
         USER = await meRes.json();
         showApp();
         initWebSocket();
-        checkSpotifyStatus();
         loadSpotifyPlaylists();
       } catch (e) {
         showLogin();
@@ -242,7 +278,6 @@
         USER = { username: data.username, is_admin: data.is_admin };
         showApp();
         initWebSocket();
-        checkSpotifyStatus();
         loadSpotifyPlaylists();
       } catch (err) {
         errBox.textContent = err.message;
@@ -257,68 +292,95 @@
       showLogin();
     }
 
-    async function checkSpotifyStatus() {
-      try {
-        const res = await apiFetch('/api/v1/spotify/status');
-        const data = await res.json();
-        const statText = document.getElementById('spotifyStatusText');
-        const actionBox = document.getElementById('spotifyActionContainer');
-
-        if (data.connected) {
-          statText.innerHTML = `<span class="text-emerald-400 font-semibold">Connected (${data.spotify_id || 'Active'})</span>`;
-          actionBox.innerHTML = `
-            <button onclick="connectSpotify()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 transition">
-              Reconnect / Switch Account
-            </button>
-          `;
-        } else {
-          statText.innerHTML = `<span class="text-amber-400 font-semibold">Not Connected</span>`;
-          actionBox.innerHTML = `
-            <button onclick="connectSpotify()" class="px-4 py-2 bg-[#1DB954] hover:bg-[#1aa34a] text-slate-950 text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/40">
-              <i class="fa-brands fa-spotify"></i> Connect Spotify Account
-            </button>
-          `;
-        }
-      } catch (e) {
-        console.error(e);
-      }
+    function openImportModal() {
+      document.getElementById('importUrlInput').value = '';
+      document.getElementById('importError').classList.add('hidden');
+      document.getElementById('importModal').classList.remove('hidden');
     }
 
-    async function connectSpotify() {
+    function closeImportModal() {
+      document.getElementById('importModal').classList.add('hidden');
+    }
+
+    async function handleImportSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('importUrlInput').value.trim();
+      const vis = document.querySelector('input[name="importVisibility"]:checked').value;
+      const errBox = document.getElementById('importError');
+      const submitBtn = document.getElementById('importSubmitBtn');
+
+      errBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resolving...';
+
       try {
-        const res = await apiFetch('/api/v1/spotify/login');
+        const res = await apiFetch('/api/v1/playlists/import', {
+          method: 'POST',
+          body: JSON.stringify({ url_or_id: input, visibility: vis })
+        });
         const data = await res.json();
-        if (data.authorization_url) {
-          window.location.href = data.authorization_url;
-        }
-      } catch (e) {
-        alert('Could not start Spotify authentication.');
+        if (!res.ok) throw new Error(data.detail || 'Import failed');
+
+        closeImportModal();
+        await loadSpotifyPlaylists();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Import & Sync</span>';
       }
     }
 
     async function loadSpotifyPlaylists() {
       const container = document.getElementById('playlistsList');
       const countText = document.getElementById('playlistCountText');
-      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500">Loading playlists from Spotify...</div>';
+      container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500">Loading playlists...</div>';
 
       try {
         const res = await apiFetch('/api/v1/spotify/playlists');
         ALL_PLAYLISTS = await res.json();
-        countText.textContent = `Showing ${ALL_PLAYLISTS.length} Spotify playlists`;
+        countText.textContent = `Showing ${ALL_PLAYLISTS.length} playlists`;
         renderPlaylists(ALL_PLAYLISTS);
       } catch (e) {
-        container.innerHTML = `
-          <div class="col-span-3 text-center py-12 text-slate-400">
-            <p>Could not fetch Spotify playlists. Please connect your Spotify account above.</p>
-          </div>
-        `;
+        // Fallback: If Spotify OAuth returns 403, load the user's DB playlists directly from vault!
+        try {
+          const vRes = await apiFetch('/api/v1/playlists/vault');
+          const vault = await vRes.json();
+          ALL_PLAYLISTS = vault.map(v => ({
+            id: v.spotify_playlist_id,
+            name: v.name,
+            cover_url: v.cover_url,
+            total_tracks: v.total_tracks,
+            is_synced: true,
+            visibility: v.visibility,
+            folder_slug: v.folder_slug,
+            sync_status: v.sync_status,
+            downloaded_tracks: v.downloaded_tracks
+          }));
+          countText.textContent = `Showing ${ALL_PLAYLISTS.length} playlists`;
+          renderPlaylists(ALL_PLAYLISTS);
+        } catch (err2) {
+          container.innerHTML = `
+            <div class="col-span-3 text-center py-12 text-slate-400">
+              <p>No playlists found. Click <strong>Import Playlist by URL</strong> above to add one!</p>
+            </div>
+          `;
+        }
       }
     }
 
     function renderPlaylists(list) {
       const container = document.getElementById('playlistsList');
       if (list.length === 0) {
-        container.innerHTML = '<div class="col-span-3 text-center py-12 text-slate-500">No playlists found.</div>';
+        container.innerHTML = `
+          <div class="col-span-3 text-center py-12 text-slate-400">
+            <p>No playlists added yet.</p>
+            <button onclick="openImportModal()" class="mt-3 px-4 py-2 bg-brand text-slate-950 font-bold rounded-xl text-xs">
+              + Import Your First Playlist
+            </button>
+          </div>
+        `;
         return;
       }
 
@@ -336,7 +398,7 @@
                 <div class="overflow-hidden">
                   <h3 class="font-bold text-white text-sm truncate" title="${p.name}">${p.name}</h3>
                   <p class="text-xs text-slate-400 mt-0.5">${p.total_tracks} tracks</p>
-                  <p class="text-[11px] font-mono text-emerald-400/90 truncate mt-1">/${isPublic ? 'public' : 'users/' + USER.username + '/private'}/${p.folder_slug}</p>
+                  <p class="text-[11px] font-mono text-emerald-400/90 truncate mt-1">/playlists/${p.folder_slug}</p>
                 </div>
               </div>
 
@@ -356,14 +418,12 @@
 
             <!-- CONTROLS -->
             <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-              <!-- SYNC TOGGLE -->
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" onchange="toggleSync('${p.id}', this.checked)" ${isSynced ? 'checked' : ''} class="sr-only peer">
                 <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand relative"></div>
                 <span class="text-xs font-semibold ${isSynced ? 'text-white' : 'text-slate-500'}">Sync</span>
               </label>
 
-              <!-- VISIBILITY PILL -->
               <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
                 <button onclick="changeVisibility('${p.id}', 'private')" class="px-2.5 py-1 rounded-md font-medium transition ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-white'}">
                   <i class="fa-solid fa-lock text-[10px] mr-1"></i> Private
@@ -373,7 +433,6 @@
                 </button>
               </div>
 
-              <!-- SYNC NOW BUTTON -->
               <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Force Resync Now">
                 <i class="fa-solid fa-bolt text-xs"></i>
               </button>
@@ -454,7 +513,7 @@
                 </span>
                 <span class="text-xs text-slate-400 font-mono">${v.folder_slug}</span>
               </div>
-              <span class="text-xs text-slate-400">${v.on_disk_count} files on disk</span>
+              <span class="text-xs text-slate-400">${v.on_disk_count} tracks</span>
             </div>
 
             <h3 class="text-base font-bold text-white mb-1">${v.name}</h3>
