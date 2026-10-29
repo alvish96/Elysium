@@ -3,6 +3,7 @@ import re
 import json
 import base64
 import shutil
+import sqlite3
 from pathlib import Path
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -24,6 +25,8 @@ class PlaylistImportRequest(BaseModel):
     url_or_id: str
     visibility: str = "private"  # "private" or "public"
     auto_sync: bool = True       # True = Import & Sync, False = Import Only
+
+NAVIDROME_DB_PATH = os.getenv("NAVIDROME_DB_PATH", "/mnt/navidrome/navidrome.db")
 
 def sanitize_slug(text: str) -> str:
     text = re.sub(r"[^\w\s-]", "", text.strip())
@@ -55,7 +58,37 @@ async def get_client_credentials_token() -> str:
             raise HTTPException(status_code=500, detail=f"Failed to obtain Spotify App token: {resp.text}")
         return resp.json()["access_token"]
 
+def set_navidrome_playlist_owner_and_visibility(username: str, playlist_name: str, folder_slug: str, is_public: bool):
+    """Enforces multi-user isolation in Navidrome SQLite DB."""
+    db_paths = [NAVIDROME_DB_PATH, "/mnt/internal/appdata/navidrome/navidrome.db"]
+    target_db = next((p for p in db_paths if os.path.exists(p)), None)
+    if not target_db:
+        return
+
+    try:
+        conn = sqlite3.connect(target_db, timeout=10.0)
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM user WHERE user_name = ?", (username,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return
+
+        user_id = row[0]
+        pub_int = 1 if is_public else 0
+        cur.execute("""
+            UPDATE playlist 
+            SET owner_id = ?, public = ?
+            WHERE path LIKE ? OR name = ? OR name = ?;
+        """, (user_id, pub_int, f"%/{folder_slug}/%", playlist_name, folder_slug))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error syncing Navidrome DB: {e}")
+
 async def update_navidrome_playlist_visibility(user: User, playlist_name: str, folder_slug: str, is_public: bool):
+    set_navidrome_playlist_owner_and_visibility(user.username, playlist_name, folder_slug, is_public)
+
     token = decrypt_value(user.subsonic_token_enc)
     salt = decrypt_value(user.subsonic_salt_enc)
     if not token or not salt:
@@ -80,24 +113,17 @@ async def update_navidrome_playlist_visibility(user: User, playlist_name: str, f
                 return
 
             primary_id = matching[0].get("id")
-            if len(matching) > 1:
-                for extra in matching[1:]:
-                    extra_id = extra.get("id")
-                    del_url = f"{settings.NAVIDROME_URL}/rest/deletePlaylist.view?playlistId={extra_id}&{subsonic_params}"
-                    await client.get(del_url)
-
             pub_val = "true" if is_public else "false"
             update_url = f"{settings.NAVIDROME_URL}/rest/updatePlaylist.view?playlistId={primary_id}&public={pub_val}&{subsonic_params}"
             await client.get(update_url)
         except Exception as e:
-            print(f"Warning: Could not update Navidrome visibility: {e}")
+            print(f"Warning: Could not update Navidrome visibility via Subsonic API: {e}")
 
 @router.get("/search-public")
 async def search_spotify_public_playlists(
     q: str = Query(..., min_length=1),
     current_user: User = Depends(get_current_user)
 ):
-    """Searches Spotify's global public catalog via App Credentials (no user OAuth restriction)."""
     token = await get_client_credentials_token()
     url = f"https://api.spotify.com/v1/search?q={httpx.URL(q)}&type=playlist&limit=12"
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -165,7 +191,7 @@ async def import_playlist_by_url(
         if resp.status_code != 200:
             raise HTTPException(
                 status_code=400,
-                detail=f"Could not resolve Spotify playlist. Ensure the playlist is Public or Unlisted. Error: {resp.text}"
+                detail=f"Could not resolve Spotify playlist. Ensure playlist is Public or Unlisted. Error: {resp.text}"
             )
         data = resp.json()
 
@@ -260,7 +286,8 @@ async def delete_imported_playlist(
     await db.delete(playlist)
     await db.commit()
 
-    await update_navidrome_playlist_visibility(current_user, playlist.name, playlist.folder_slug, False)
+    # Remove from Navidrome
+    set_navidrome_playlist_owner_and_visibility(current_user.username, playlist.name, playlist.folder_slug, False)
 
     return {"status": "ok", "message": f"Deleted playlist {playlist.name}"}
 
@@ -304,6 +331,7 @@ async def configure_playlist(
     await db.commit()
     await db.refresh(playlist)
 
+    # Immediately synchronize Navidrome database ownership & visibility
     await update_navidrome_playlist_visibility(
         current_user,
         playlist.name,
@@ -386,16 +414,22 @@ async def get_vault_overview(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Playlist).where(
-        (Playlist.owner_id == current_user.id) | (Playlist.visibility == "public")
-    )
+    # Admins see all playlists in the vault tagged with their owner
+    # Standard users see their own playlists + public playlists tagged with the owner
+    if current_user.is_admin:
+        stmt = select(Playlist, User.username).join(User, Playlist.owner_id == User.id)
+    else:
+        stmt = select(Playlist, User.username).join(User, Playlist.owner_id == User.id).where(
+            (Playlist.owner_id == current_user.id) | (Playlist.visibility == "public")
+        )
+
     res = await db.execute(stmt)
-    playlists = res.scalars().all()
+    rows = res.all()
 
     music_root = Path(settings.MUSIC_ROOT)
     vault_items = []
 
-    for pl in playlists:
+    for pl, owner_username in rows:
         folder_path = music_root / "playlists" / pl.folder_slug
         m3u8_file = folder_path / f"{pl.folder_slug}.m3u8"
         on_disk_count = 0
@@ -409,6 +443,7 @@ async def get_vault_overview(
             "folder_slug": pl.folder_slug,
             "visibility": pl.visibility,
             "cover_url": pl.cover_url,
+            "owner_username": owner_username,
             "is_owner": pl.owner_id == current_user.id,
             "sync_status": pl.sync_status,
             "downloaded_tracks": pl.downloaded_tracks,

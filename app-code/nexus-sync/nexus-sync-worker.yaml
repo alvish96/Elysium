@@ -39,19 +39,12 @@ spec:
           args:
             - |
               set -e
-              echo "==> Preparing system dependencies (ffmpeg & curl)..."
-              if [ ! -f /usr/bin/ffmpeg ]; then
-                apt-get update && apt-get install -y --no-install-recommends ffmpeg curl
-              fi
-
-              echo "==> Preparing persistent worker virtual environment..."
+              apt-get update && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates && rm -rf /var/lib/apt/lists/*
               if [ ! -f /opt/worker-venv/bin/spotdl ]; then
                 python3 -m venv /opt/worker-venv
-                /opt/worker-venv/bin/pip install --no-cache-dir -r /app/worker-requirements.txt
+                /opt/worker-venv/bin/pip install --no-cache-dir -r /app/requirements.txt spotdl
               fi
-
-              echo "==> Starting Nexus Sync Worker..."
-              exec /opt/worker-venv/bin/python /app/worker.py
+              exec /opt/worker-venv/bin/python worker.py
           envFrom:
             - secretRef:
                 name: nexus-music-secrets
@@ -64,8 +57,8 @@ spec:
               value: "http://navidrome-svc.media.svc.cluster.local:4533"
             - name: MUSIC_ROOT
               value: "/mnt/audio_pool/music"
-            - name: APPRISE_URL
-              value: "http://apprise-svc.monitoring.svc.cluster.local:8000/notify/"
+            - name: NAVIDROME_DB_PATH
+              value: "/mnt/navidrome/navidrome.db"
           volumeMounts:
             - name: app-code
               mountPath: /app
@@ -73,12 +66,12 @@ spec:
               mountPath: /opt/worker-venv
             - name: audio-pool
               mountPath: /mnt/audio_pool/music
-            - name: temp-scratch
-              mountPath: /tmp/spotdl
+            - name: navidrome-data
+              mountPath: /mnt/navidrome
           resources:
             requests:
-              cpu: 150m
-              memory: 256Mi
+              cpu: 250m
+              memory: 512Mi
             limits:
               cpu: 2000m
               memory: 2Gi
@@ -95,5 +88,7 @@ spec:
           hostPath:
             path: /mnt/audio_pool/music
             type: DirectoryOrCreate
-        - name: temp-scratch
-          emptyDir: {}
+        - name: navidrome-data
+          hostPath:
+            path: /mnt/internal/appdata/navidrome
+            type: Directory

@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import shutil
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -28,6 +29,7 @@ logger = logging.getLogger("nexus-worker")
 
 SPOTIFY_API_BASE = "https://api.spotify.com/v1"
 APPRISE_URL = os.getenv("APPRISE_URL", "http://apprise-svc.monitoring.svc.cluster.local:8000/notify/")
+NAVIDROME_DB_PATH = os.getenv("NAVIDROME_DB_PATH", "/mnt/navidrome/navidrome.db")
 
 def sanitize_filename(name: str) -> str:
     cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
@@ -47,6 +49,37 @@ async def send_notification(title: str, body: str):
     except Exception as e:
         logger.warning(f"Apprise notification failed: {e}")
 
+def set_navidrome_playlist_owner_and_visibility(username: str, playlist_name: str, folder_slug: str, is_public: bool):
+    """Directly sets owner_id and public flag in Navidrome SQLite database."""
+    db_paths = [NAVIDROME_DB_PATH, "/mnt/internal/appdata/navidrome/navidrome.db"]
+    target_db = next((p for p in db_paths if os.path.exists(p)), None)
+    if not target_db:
+        logger.warning(f"Navidrome DB not accessible at {NAVIDROME_DB_PATH}.")
+        return
+
+    try:
+        conn = sqlite3.connect(target_db, timeout=10.0)
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM user WHERE user_name = ?", (username,))
+        row = cur.fetchone()
+        if not row:
+            logger.warning(f"User '{username}' not found in Navidrome user table.")
+            conn.close()
+            return
+
+        user_id = row[0]
+        pub_int = 1 if is_public else 0
+        cur.execute("""
+            UPDATE playlist 
+            SET owner_id = ?, public = ?
+            WHERE path LIKE ? OR name = ? OR name = ?;
+        """, (user_id, pub_int, f"%/{folder_slug}/%", playlist_name, folder_slug))
+        conn.commit()
+        conn.close()
+        logger.info(f"Assigned Navidrome playlist '{playlist_name}' to user '{username}' (owner_id: {user_id}, public: {is_public}).")
+    except Exception as e:
+        logger.error(f"Error updating Navidrome playlist ownership in SQLite: {e}")
+
 async def trigger_navidrome_scan_and_visibility(user: User, playlist_name: str, folder_slug: str, is_public: bool):
     token = decrypt_value(user.subsonic_token_enc)
     salt = decrypt_value(user.subsonic_salt_enc)
@@ -64,33 +97,9 @@ async def trigger_navidrome_scan_and_visibility(user: User, playlist_name: str, 
             logger.warning(f"Navidrome scan trigger failed: {e}")
             return
 
-        await asyncio.sleep(3)
-
-        try:
-            playlists_url = f"{settings.NAVIDROME_URL}/rest/getPlaylists.view?{subsonic_params}"
-            resp = await client.get(playlists_url)
-            if resp.status_code == 200:
-                data = resp.json().get("subsonic-response", {})
-                all_pl = data.get("playlists", {}).get("playlist", [])
-                if isinstance(all_pl, dict):
-                    all_pl = [all_pl]
-
-                matching = [pl for pl in all_pl if pl.get("name", "") in (playlist_name, folder_slug, f"[{folder_slug}]")]
-                if matching:
-                    # Prune duplicate IDs if Navidrome has any extra
-                    primary_id = matching[0].get("id")
-                    if len(matching) > 1:
-                        for extra in matching[1:]:
-                            extra_id = extra.get("id")
-                            del_url = f"{settings.NAVIDROME_URL}/rest/deletePlaylist.view?playlistId={extra_id}&{subsonic_params}"
-                            await client.get(del_url)
-
-                    pub_flag = "true" if is_public else "false"
-                    update_url = f"{settings.NAVIDROME_URL}/rest/updatePlaylist.view?playlistId={primary_id}&public={pub_flag}&{subsonic_params}"
-                    await client.get(update_url)
-                    logger.info(f"Updated Navidrome playlist '{playlist_name}' visibility to public={pub_flag}.")
-        except Exception as e:
-            logger.warning(f"Could not update playlist visibility in Navidrome: {e}")
+    # Wait for scanner to register m3u8, then set ownership in DB
+    await asyncio.sleep(2)
+    set_navidrome_playlist_owner_and_visibility(user.username, playlist_name, folder_slug, is_public)
 
 async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> bool:
     scratch_dir = Path("/tmp/spotdl") / spotify_track_id
@@ -278,7 +287,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
     tracks_dir = music_root / "tracks"
     tracks_dir.mkdir(parents=True, exist_ok=True)
 
-    # Static permanent playlist folder
     target_dir = music_root / "playlists" / playlist.folder_slug
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -330,7 +338,6 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
             "downloaded_count": downloaded_count
         })
 
-    # Write permanent .m3u8 playlist file with relative paths to tracks/
     m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
     m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
     for fn in playlist_track_filenames:
@@ -367,9 +374,9 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
 
     await send_notification(
         title="🎵 Nexus Music Sync",
-        body=f"Synced playlist '{playlist.name}' ({downloaded_count}/{len(tracks_meta)} tracks ready)."
+        body=f"Synced playlist '{playlist.name}' for {user.username} ({downloaded_count}/{len(tracks_meta)} tracks ready)."
     )
-    logger.info(f"✅ Finished syncing playlist: {playlist.name}")
+    logger.info(f"✅ Finished syncing playlist: {playlist.name} (Owner: {user.username})")
 
 async def queue_worker_loop():
     logger.info("Connecting to Redis queue 'nexus:queue:playlists'...")
@@ -418,7 +425,7 @@ async def periodic_2hr_scheduler():
             logger.error(f"Scheduler error: {e}")
 
 async def main():
-    logger.info("Starting Nexus Music Background Worker...")
+    logger.info("Starting Nexus Music Background Worker with Navidrome Multi-User Isolation...")
     await asyncio.gather(
         queue_worker_loop(),
         periodic_2hr_scheduler()
