@@ -15,11 +15,6 @@
               DEFAULT: '#10b981',
               hover: '#059669',
               dark: '#064e3b'
-            },
-            slate: {
-              850: '#141d2e',
-              900: '#0f172a',
-              950: '#0a0f1d'
             }
           }
         }
@@ -28,24 +23,36 @@
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    :root {
-      --bg-color: #0f172a;
-      --card-bg: rgba(30, 41, 59, 0.75);
-      --card-border: rgba(51, 65, 85, 0.8);
-      --text-main: #f8fafc;
-      --text-sub: #94a3b8;
+    :root, html.dark {
+      --bg-base: #0b0f19;
+      --card-bg: rgba(20, 27, 45, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --sidebar-bg: rgba(13, 19, 33, 0.88);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --input-bg: rgba(11, 15, 25, 0.85);
+      --pill-bg: rgba(15, 23, 42, 0.95);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.25);
     }
     html.light {
-      --bg-color: #f1f5f9;
-      --card-bg: rgba(255, 255, 255, 0.85);
-      --card-border: rgba(203, 213, 225, 0.9);
-      --text-main: #0f172a;
-      --text-sub: #64748b;
+      --bg-base: #f8fafc;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --card-border: rgba(203, 213, 225, 0.8);
+      --sidebar-bg: rgba(255, 255, 255, 0.96);
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --input-bg: rgba(241, 245, 249, 0.95);
+      --pill-bg: rgba(241, 245, 249, 0.95);
+      --accent: #059669;
+      --accent-glow: rgba(5, 150, 105, 0.2);
     }
     body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
       background-attachment: fixed;
       background-size: cover;
       background-position: center;
@@ -54,200 +61,262 @@
     .glass-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15);
+    }
+    .glass-sidebar {
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--card-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
     .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
-    .custom-scroll::-webkit-scrollbar { width: 6px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.3); border-radius: 4px; }
+    .sidebar-collapsed .sidebar-text { display: none !important; }
+    .sidebar-collapsed .sidebar-expanded-only { display: none !important; }
+    .sidebar-collapsed .sidebar-item-center { justify-content: center !important; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row overflow-x-hidden">
 
   <!-- LEFT VERTICAL SIDEBAR -->
-  <aside id="sidebar" class="w-full md:w-64 glass-card md:min-h-screen flex flex-col justify-between shrink-0 border-r border-slate-800 z-40 transition-all duration-300">
-    <div class="p-4 space-y-6">
+  <aside id="sidebar" class="fixed top-0 left-0 h-screen z-40 glass-sidebar flex flex-col justify-between shrink-0 transition-all duration-300 w-64">
+    
+    <!-- TOP CONTROLS & NAV -->
+    <div class="p-3.5 space-y-4 overflow-y-auto custom-scroll flex-1">
       
-      <!-- BRAND LOGO -->
-      <div class="flex items-center gap-3 px-2">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-emerald-950/40">
-          <i class="fa-solid fa-music"></i>
+      <!-- TOP BAR: COLLAPSE & THEME TOGGLE -->
+      <div class="flex items-center justify-between px-1">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-base shadow-lg shadow-emerald-950/40 shrink-0">
+            <i class="fa-solid fa-music"></i>
+          </div>
+          <span class="sidebar-text font-bold text-sm tracking-tight" style="color: var(--text-primary)">Nexus Sync</span>
         </div>
-        <div>
-          <h1 class="text-base font-bold tracking-tight flex items-center gap-1.5">
-            Nexus Music
-          </h1>
-          <p class="text-[11px] text-slate-400">Sync & Visibility Engine</p>
+
+        <div class="flex items-center gap-1">
+          <!-- QUICK THEME TOGGLE BUTTON -->
+          <button onclick="toggleTheme()" id="btnQuickTheme" class="p-1.5 rounded-lg text-xs hover:bg-slate-800/40 transition" title="Toggle Light/Dark Theme" style="color: var(--text-secondary)">
+            <i id="themeToggleIcon" class="fa-solid fa-moon"></i>
+          </button>
+          
+          <!-- SIDEBAR FOLD/COLLAPSE BUTTON -->
+          <button onclick="toggleSidebarFold()" id="btnSidebarFold" class="p-1.5 rounded-lg text-xs hover:bg-slate-800/40 transition" title="Fold/Expand Sidebar" style="color: var(--text-secondary)">
+            <i id="foldIcon" class="fa-solid fa-chevron-left"></i>
+          </button>
         </div>
       </div>
 
-      <!-- MAIN NAVIGATION TABS -->
+      <!-- PROMINENT IMPORT PLAYLIST BUTTON IN SIDEBAR -->
+      <button onclick="openImportModal()" class="w-full flex items-center sidebar-item-center gap-2 px-3 py-2.5 bg-brand hover:bg-brand-hover text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/30 transition">
+        <i class="fa-solid fa-plus text-xs"></i>
+        <span class="sidebar-text">Import Playlist by URL</span>
+      </button>
+
+      <!-- NAVIGATION TABS -->
       <nav class="space-y-1">
-        <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">My Library</p>
+        <p class="sidebar-text px-2.5 text-[10px] font-bold uppercase tracking-wider mb-1" style="color: var(--text-muted)">My Library</p>
         
-        <button onclick="switchTab('spotify')" id="navBtnSpotify" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition bg-brand text-slate-950 shadow">
-          <span class="flex items-center gap-2.5">
+        <button onclick="switchTab('spotify')" id="navBtnSpotify" class="w-full flex items-center sidebar-item-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition bg-brand text-slate-950 shadow">
+          <span class="flex items-center gap-2.5 truncate">
             <i class="fa-brands fa-spotify text-sm"></i>
-            <span>Spotify Account</span>
+            <span class="sidebar-text">Spotify Account</span>
           </span>
-          <span id="badgeSpotifyCount" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-950/20">0</span>
+          <span id="badgeSpotifyCount" class="sidebar-text text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-950/20">0</span>
         </button>
 
-        <button onclick="switchTab('imported')" id="navBtnImported" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-white hover:bg-slate-800/60">
-          <span class="flex items-center gap-2.5">
+        <button onclick="switchTab('imported')" id="navBtnImported" class="w-full flex items-center sidebar-item-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition hover:bg-slate-800/30" style="color: var(--text-secondary)">
+          <span class="flex items-center gap-2.5 truncate">
             <i class="fa-solid fa-link text-sm"></i>
-            <span>Imported Links</span>
+            <span class="sidebar-text">Imported Links</span>
           </span>
-          <span id="badgeImportedCount" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">0</span>
+          <span id="badgeImportedCount" class="sidebar-text text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">0</span>
         </button>
 
-        <button onclick="switchTab('vault')" id="navBtnVault" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-white hover:bg-slate-800/60">
-          <span class="flex items-center gap-2.5">
+        <button onclick="switchTab('vault')" id="navBtnVault" class="w-full flex items-center sidebar-item-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition hover:bg-slate-800/30" style="color: var(--text-secondary)">
+          <span class="flex items-center gap-2.5 truncate">
             <i class="fa-solid fa-server text-sm"></i>
-            <span>Server Vault</span>
+            <span class="sidebar-text">Server Vault</span>
           </span>
-          <span id="badgeVaultCount" class="text-[10px] font-mono text-slate-400">Disk</span>
+          <span class="sidebar-text text-[10px] font-mono" style="color: var(--text-muted)">Disk</span>
         </button>
       </nav>
 
-      <!-- USEFUL LINKS SECTION -->
+      <!-- SPOTIFY OAUTH SESSION DIRECTLY ON SIDEBAR -->
+      <div class="sidebar-expanded-only p-2.5 rounded-xl border border-slate-800/80 bg-slate-950/40 space-y-1.5">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="flex items-center gap-1.5" style="color: var(--text-secondary)">
+            <i class="fa-brands fa-spotify text-emerald-400"></i> Spotify OAuth
+          </span>
+          <span id="sidebarSpotifyStatusBadge" class="text-[10px] text-amber-400 font-semibold">Checking...</span>
+        </div>
+        <button onclick="connectSpotify()" id="sidebarSpotifyBtn" class="w-full py-1 px-2 bg-slate-800 hover:bg-slate-700 text-[11px] font-medium rounded-lg text-slate-200 border border-slate-700 transition">
+          Connect Account
+        </button>
+      </div>
+
+      <!-- ECOSYSTEM & LINKS SECTION -->
       <div class="space-y-1 pt-2 border-t border-slate-800/70">
-        <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Ecosystem & Links</p>
+        <p class="sidebar-text px-2.5 text-[10px] font-bold uppercase tracking-wider mb-1" style="color: var(--text-muted)">Ecosystem & Links</p>
         
-        <a href="https://developer.spotify.com/dashboard" target="_blank" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition">
-          <i class="fa-solid fa-code text-xs"></i>
-          <span>Spotify Dev Dashboard</span>
-          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto text-slate-500"></i>
+        <a href="https://nexus.link/boards/apps-v2" target="_blank" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-1.5 rounded-xl text-xs hover:text-emerald-400 hover:bg-slate-800/30 transition" style="color: var(--text-secondary)" title="Nexus Apps Board">
+          <i class="fa-solid fa-table-cells-large text-xs text-brand"></i>
+          <span class="sidebar-text">Nexus Apps Board</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto sidebar-text opacity-50"></i>
         </a>
 
-        <a href="http://music.nexus.link" target="_blank" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition">
+        <a href="http://music.nexus.link" target="_blank" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-1.5 rounded-xl text-xs hover:text-emerald-400 hover:bg-slate-800/30 transition" style="color: var(--text-secondary)" title="Feishin Web Player">
           <i class="fa-solid fa-play text-xs text-brand"></i>
-          <span>Feishin Web Player</span>
-          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto text-slate-500"></i>
+          <span class="sidebar-text">Feishin Web Player</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto sidebar-text opacity-50"></i>
         </a>
 
-        <a href="http://navidrome.nexus.link" target="_blank" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition">
-          <i class="fa-solid fa-compact-disc text-xs"></i>
-          <span>Navidrome Subsonic</span>
-          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto text-slate-500"></i>
+        <a href="http://navidrome.nexus.link" target="_blank" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-1.5 rounded-xl text-xs hover:text-emerald-400 hover:bg-slate-800/30 transition" style="color: var(--text-secondary)" title="Navidrome Subsonic">
+          <i class="fa-solid fa-compact-disc text-xs text-brand"></i>
+          <span class="sidebar-text">Navidrome Subsonic</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto sidebar-text opacity-50"></i>
         </a>
 
-        <a href="http://gitops.nexus.link" target="_blank" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition">
-          <i class="fa-solid fa-circle-nodes text-xs"></i>
-          <span>ArgoCD GitOps</span>
-          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto text-slate-500"></i>
+        <a href="http://gitops.nexus.link" target="_blank" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-1.5 rounded-xl text-xs hover:text-emerald-400 hover:bg-slate-800/30 transition" style="color: var(--text-secondary)" title="ArgoCD GitOps">
+          <i class="fa-solid fa-circle-nodes text-xs text-brand"></i>
+          <span class="sidebar-text">ArgoCD GitOps</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto sidebar-text opacity-50"></i>
         </a>
       </div>
 
-      <!-- SETTINGS TRIGGER -->
+      <!-- DEV SECTION -->
+      <div class="space-y-1 pt-2 border-t border-slate-800/70">
+        <p class="sidebar-text px-2.5 text-[10px] font-bold uppercase tracking-wider mb-1" style="color: var(--text-muted)">Dev</p>
+        
+        <a href="https://developer.spotify.com/dashboard" target="_blank" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-1.5 rounded-xl text-xs hover:text-emerald-400 hover:bg-slate-800/30 transition" style="color: var(--text-secondary)" title="Spotify Developer Dashboard">
+          <i class="fa-solid fa-code text-xs text-cyan-400"></i>
+          <span class="sidebar-text">Spotify Dev Dashboard</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto sidebar-text opacity-50"></i>
+        </a>
+      </div>
+
+      <!-- SETTINGS & THEME TRIGGER -->
       <div class="pt-2 border-t border-slate-800/70">
-        <button onclick="openSettingsModal()" class="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/60 transition">
+        <button onclick="openSettingsModal()" class="w-full flex items-center sidebar-item-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800/40 transition" style="color: var(--text-primary)" title="Settings & Theme">
           <i class="fa-solid fa-gear text-sm"></i>
-          <span>Settings & Theme</span>
+          <span class="sidebar-text">Settings & Canvas</span>
         </button>
       </div>
 
     </div>
 
-    <!-- SIDEBAR FOOTER (USER & WS STATUS) -->
-    <div class="p-3 border-t border-slate-800/80 bg-slate-950/40">
-      <div id="wsIndicator" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] text-slate-400 mb-2 bg-slate-900/60 border border-slate-800">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
-        <span class="truncate">Live WebSocket Active</span>
+    <!-- SIDEBAR FOOTER (USER PILL & LOGOUT AT BOTTOM) -->
+    <div class="p-3 border-t border-slate-800/80 bg-slate-950/40 shrink-0">
+      <div id="wsIndicator" class="flex items-center sidebar-item-center gap-2 px-2.5 py-1 rounded-lg text-[10px] mb-2 bg-slate-900/60 border border-slate-800" style="color: var(--text-secondary)">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot shrink-0"></span>
+        <span class="sidebar-text truncate">Live WS Connected</span>
       </div>
 
-      <div id="userFooterSection" class="flex items-center justify-between px-2 pt-1 text-xs">
+      <div class="flex items-center justify-between px-1 text-xs">
         <div class="flex items-center gap-2 truncate">
-          <i class="fa-solid fa-user-circle text-base text-brand"></i>
-          <span id="footerUsername" class="font-bold truncate text-slate-200">guest</span>
+          <i class="fa-solid fa-user-circle text-base text-brand shrink-0"></i>
+          <span id="footerUsername" class="sidebar-text font-bold truncate text-slate-200">guest</span>
         </div>
-        <button onclick="logout()" class="p-1.5 text-slate-400 hover:text-rose-400 transition" title="Sign Out">
-          <i class="fa-solid fa-right-from-bracket"></i>
+        <button onclick="logout()" class="p-1.5 text-slate-400 hover:text-rose-400 transition" title="Log Out">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
         </button>
       </div>
     </div>
   </aside>
 
-  <!-- MAIN VIEWPORT -->
-  <div class="flex-1 flex flex-col min-h-screen overflow-y-auto">
+  <!-- MAIN PAGE CONTENT VIEWPORT -->
+  <div id="mainContent" class="flex-1 flex flex-col min-h-screen transition-all duration-300 md:ml-64">
 
-    <!-- TOP HEADER BAR -->
-    <header class="glass-card sticky top-0 z-30 px-6 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-      
-      <!-- GLOBAL SEARCH BAR WITH SPOTIFY TOGGLE -->
-      <div class="flex-1 max-w-xl flex items-center gap-2">
-        <div class="relative w-full">
-          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
-          <input type="text" id="globalSearchInput" oninput="handleSearchInput()" placeholder="Search local playlists or search Spotify catalog..." class="w-full pl-9 pr-24 py-2 bg-slate-950/70 border border-slate-800 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand">
+    <!-- TOP HEADER: CENTERED UNIVERSAL SEARCH BAR WITH SUGGESTIONS -->
+    <header class="glass-card sticky top-0 z-30 px-6 py-3 border-b border-slate-800 flex items-center justify-center">
+      <div class="w-full max-w-2xl relative">
+        <div class="relative flex items-center">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-500 text-xs pointer-events-none"></i>
+          <input type="text" id="globalSearchInput" oninput="handleSearchInput()" onfocus="showSearchSuggestions()" placeholder="Search library playlists or query Spotify global catalog..." class="w-full pl-9 pr-28 py-2 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-brand transition" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
           
-          <!-- SPOTIFY CATALOG SEARCH BUTTON -->
-          <button onclick="searchSpotifyCatalog()" id="btnSpotifyCatalogSearch" class="absolute right-1.5 top-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-emerald-400 rounded-lg border border-slate-700 transition" title="Search Spotify's global public catalog">
+          <button onclick="searchSpotifyCatalog()" id="btnSpotifyCatalogSearch" class="absolute right-1.5 top-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-emerald-400 rounded-lg border border-slate-700 transition" title="Search Spotify global catalog via Client Credentials">
             <i class="fa-brands fa-spotify mr-1"></i> Search API
           </button>
         </div>
-      </div>
 
-      <!-- ACTION CONTROLS: IMPORT, SORT, FILTER, VIEW SWITCHER -->
-      <div class="flex items-center gap-2.5 shrink-0 flex-wrap">
-        
-        <!-- IMPORT PLAYLIST BUTTON -->
-        <button onclick="openImportModal()" class="px-3.5 py-2 bg-brand hover:bg-brand-hover text-slate-950 font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-950/40">
-          <i class="fa-solid fa-plus"></i>
-          <span class="hidden sm:inline">Import Playlist</span>
-        </button>
-
-        <!-- SORT DROPDOWN -->
-        <div class="relative">
-          <select id="sortSelect" onchange="applySortAndFilter()" class="appearance-none bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 pr-7 focus:outline-none focus:border-brand cursor-pointer">
-            <option value="name_asc">Name (A-Z)</option>
-            <option value="name_desc">Name (Z-A)</option>
-            <option value="tracks_desc">Most Tracks</option>
-            <option value="tracks_asc">Least Tracks</option>
-          </select>
-          <i class="fa-solid fa-arrow-down-short-wide absolute right-2.5 top-3 text-[10px] text-slate-500 pointer-events-none"></i>
-        </div>
-
-        <!-- FILTER DROPDOWN -->
-        <div class="relative">
-          <select id="filterSelect" onchange="applySortAndFilter()" class="appearance-none bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 pr-7 focus:outline-none focus:border-brand cursor-pointer">
-            <option value="all">All Items</option>
-            <option value="synced">Synced Only</option>
-            <option value="unsynced">Unsynced Only</option>
-            <option value="private">Private Only</option>
-            <option value="public">Public Only</option>
-          </select>
-          <i class="fa-solid fa-filter absolute right-2.5 top-3 text-[10px] text-slate-500 pointer-events-none"></i>
-        </div>
-
-        <!-- VIEW TOGGLE (GRID VS LIST) -->
-        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-          <button onclick="setViewMode('grid')" id="viewBtnGrid" class="px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 transition" title="Grid View">
-            <i class="fa-solid fa-grip"></i>
-          </button>
-          <button onclick="setViewMode('list')" id="viewBtnList" class="px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition" title="List View">
-            <i class="fa-solid fa-list"></i>
-          </button>
-        </div>
-
-        <button onclick="reloadActiveTab()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition" title="Refresh">
-          <i class="fa-solid fa-rotate-right text-xs"></i>
-        </button>
-
+        <!-- DYNAMIC SEARCH AUTOCOMPLETE SUGGESTIONS DROPDOWN -->
+        <div id="searchSuggestionsBox" class="hidden absolute left-0 right-0 top-11 glass-card rounded-2xl p-2 shadow-2xl z-50 border border-slate-700 space-y-1"></div>
       </div>
     </header>
 
-    <!-- CONTENT BODY -->
+    <!-- MAIN BODY CONTAINER -->
     <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
 
-      <!-- SPOTIFY PUBLIC CATALOG SEARCH RESULTS CONTAINER (WHEN ACTIVE) -->
+      <!-- HERO HEADER: NEXUS MUSIC TITLE WITH INTEGRATED REFRESH BUTTON & SUB-TOOLBAR -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+        
+        <!-- TITLE WITH INTEGRATED REFRESH BUTTON -->
+        <div class="flex items-center gap-3">
+          <div class="flex items-baseline gap-2">
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              Nexus Music
+            </h1>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Vault Engine
+            </span>
+          </div>
+
+          <!-- INTEGRATED TITLE REFRESH BUTTON -->
+          <button onclick="triggerHeaderRefresh()" id="headerRefreshBtn" class="p-2 rounded-xl hover:bg-slate-800/40 text-slate-400 hover:text-emerald-400 transition" title="Refresh library data">
+            <i id="refreshIcon" class="fa-solid fa-rotate-right text-sm"></i>
+          </button>
+        </div>
+
+        <!-- SUB-TOOLBAR: SORT, FILTER, AND GRID/LIST SWITCHER ALIGNED RIGHT -->
+        <div class="flex items-center gap-2.5 flex-wrap">
+          
+          <!-- SORT DROPDOWN -->
+          <div class="relative">
+            <select id="sortSelect" onchange="applySortAndFilter()" class="appearance-none text-xs rounded-xl px-3 py-2 pr-7 focus:outline-none focus:border-brand cursor-pointer" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
+              <option value="name_asc">Name (A–Z)</option>
+              <option value="name_desc">Name (Z–A)</option>
+              <option value="tracks_desc">Most Tracks</option>
+              <option value="tracks_asc">Least Tracks</option>
+            </select>
+            <i class="fa-solid fa-arrow-down-short-wide absolute right-2.5 top-3 text-[10px] pointer-events-none" style="color: var(--text-muted)"></i>
+          </div>
+
+          <!-- FILTER DROPDOWN -->
+          <div class="relative">
+            <select id="filterSelect" onchange="applySortAndFilter()" class="appearance-none text-xs rounded-xl px-3 py-2 pr-7 focus:outline-none focus:border-brand cursor-pointer" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
+              <option value="all">All Playlists</option>
+              <option value="synced">Synced Only</option>
+              <option value="unsynced">Unsynced Only</option>
+              <option value="private">Private Only</option>
+              <option value="public">Public Only</option>
+            </select>
+            <i class="fa-solid fa-filter absolute right-2.5 top-3 text-[10px] pointer-events-none" style="color: var(--text-muted)"></i>
+          </div>
+
+          <!-- GRID VS LIST/TABLE VIEW SWITCHER -->
+          <div class="flex p-0.5 rounded-xl border border-slate-800" style="background: var(--pill-bg)">
+            <button onclick="setViewMode('grid')" id="viewBtnGrid" class="px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 font-bold transition" title="Grid Cards View">
+              <i class="fa-solid fa-grip"></i>
+            </button>
+            <button onclick="setViewMode('list')" id="viewBtnList" class="px-2.5 py-1.5 rounded-lg text-xs transition" style="color: var(--text-secondary)" title="List/Table View">
+              <i class="fa-solid fa-list"></i>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SPOTIFY GLOBAL CATALOG SEARCH RESULTS PANEL -->
       <section id="catalogSearchSection" class="hidden glass-card p-5 rounded-2xl border-emerald-500/40 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2">
             <i class="fa-brands fa-spotify text-emerald-400 text-lg"></i>
-            <h2 class="font-bold text-sm text-white">Spotify Global Catalog Search Results</h2>
+            <h2 class="font-bold text-sm" style="color: var(--text-primary)">Spotify Global Catalog Results</h2>
           </div>
-          <button onclick="closeCatalogSearch()" class="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800">
+          <button onclick="closeCatalogSearch()" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">
             Close Results
           </button>
         </div>
@@ -256,7 +325,7 @@
 
       <!-- TAB 1: SPOTIFY ACCOUNT PLAYLISTS -->
       <section id="tabSpotify" class="space-y-4">
-        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+        <div class="flex items-center justify-between text-xs px-1" style="color: var(--text-secondary)">
           <span id="spotifyCountText">Loading Spotify account playlists...</span>
           <span>From connected Spotify account • Deduplicated in /tracks</span>
         </div>
@@ -265,7 +334,7 @@
 
       <!-- TAB 2: IMPORTED LINK PLAYLISTS -->
       <section id="tabImported" class="hidden space-y-4">
-        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+        <div class="flex items-center justify-between text-xs px-1" style="color: var(--text-secondary)">
           <span id="importedCountText">Loading link-imported playlists...</span>
           <span>Added via URL • Full Sync and Private/Public toggles</span>
         </div>
@@ -274,81 +343,95 @@
 
       <!-- TAB 3: SERVER VAULT OVERVIEW -->
       <section id="tabVault" class="hidden space-y-4">
-        <div class="text-xs text-slate-400 px-1">
+        <div class="text-xs px-1" style="color: var(--text-secondary)">
           Static playlist storage in <code class="bg-slate-800 text-emerald-400 px-1.5 py-0.5 rounded">/mnt/audio_pool/music/playlists/</code> on Atlantis
         </div>
         <div id="vaultList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </section>
 
     </main>
-
   </div>
 
-  <!-- SETTINGS & THEME MODAL -->
-  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <!-- SETTINGS & CANVASES MODAL -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-5">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-700">
-        <h3 class="font-bold text-white text-base flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-brand"></i> Dashboard Settings & Appearance
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base flex items-center gap-2" style="color: var(--text-primary)">
+          <i class="fa-solid fa-palette text-brand"></i> Settings & Appearance Canvas
         </h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">
           <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
-      <!-- THEME SELECTOR -->
+      <!-- SECTION 1: THEME & CONTRAST -->
       <div class="space-y-2">
-        <label class="text-xs font-semibold uppercase text-slate-400">Color Theme</label>
+        <label class="text-xs font-semibold uppercase" style="color: var(--text-muted)">Theme Mode</label>
         <div class="grid grid-cols-2 gap-3">
-          <button onclick="setTheme('dark')" id="themeBtnDark" class="p-3 rounded-xl border border-emerald-500 bg-slate-900 flex items-center justify-center gap-2 text-xs font-bold text-white">
-            <i class="fa-solid fa-moon text-emerald-400"></i> Dark Theme
+          <button onclick="setTheme('dark')" id="modalThemeDark" class="p-3 rounded-xl border border-emerald-500 bg-slate-900 flex items-center justify-center gap-2 text-xs font-bold text-white shadow">
+            <i class="fa-solid fa-moon text-emerald-400"></i> Dark Mode
           </button>
-          <button onclick="setTheme('light')" id="themeBtnLight" class="p-3 rounded-xl border border-slate-700 bg-slate-100 flex items-center justify-center gap-2 text-xs font-bold text-slate-800">
-            <i class="fa-solid fa-sun text-amber-500"></i> Bright Theme
+          <button onclick="setTheme('light')" id="modalThemeLight" class="p-3 rounded-xl border border-slate-700 bg-slate-100 flex items-center justify-center gap-2 text-xs font-bold text-slate-900">
+            <i class="fa-solid fa-sun text-amber-500"></i> Bright Mode
           </button>
         </div>
       </div>
 
-      <!-- BACKGROUND CANVAS CUSTOMIZATION -->
+      <!-- SECTION 2: BACKGROUND CANVAS PALETTE -->
       <div class="space-y-3 pt-2 border-t border-slate-800">
-        <label class="text-xs font-semibold uppercase text-slate-400">Background Canvas</label>
+        <label class="text-xs font-semibold uppercase" style="color: var(--text-muted)">Background Canvas Colors</label>
         
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="setBgPreset('#0f172a')" class="py-2 px-3 rounded-lg text-[11px] font-semibold bg-slate-900 border border-slate-700 hover:border-brand text-slate-200">
-            Slate 900
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="setBgPreset('#0f172a')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#0f172a] border border-slate-700 hover:border-brand text-slate-200">
+            Dark Slate
           </button>
-          <button onclick="setBgPreset('#000000')" class="py-2 px-3 rounded-lg text-[11px] font-semibold bg-black border border-slate-800 hover:border-brand text-slate-200">
+          <button onclick="setBgPreset('#000000')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-black border border-slate-800 hover:border-brand text-slate-200">
             OLED Black
           </button>
-          <button onclick="setBgPreset('#0b1329')" class="py-2 px-3 rounded-lg text-[11px] font-semibold bg-[#0b1329] border border-slate-800 hover:border-brand text-slate-200">
-            Midnight Navy
+          <button onclick="setBgPreset('#081026')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#081026] border border-slate-800 hover:border-brand text-slate-200">
+            Midnight
+          </button>
+          <button onclick="setBgPreset('#041f18')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#041f18] border border-slate-800 hover:border-brand text-slate-200">
+            Emerald Dark
+          </button>
+          <button onclick="setBgPreset('#1e1028')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#1e1028] border border-slate-800 hover:border-brand text-slate-200">
+            Amethyst
+          </button>
+          <button onclick="setBgPreset('#240c12')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#240c12] border border-slate-800 hover:border-brand text-slate-200">
+            Crimson
+          </button>
+          <button onclick="setBgPreset('#f8fafc')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#f8fafc] border border-slate-300 hover:border-brand text-slate-900">
+            Cloud White
+          </button>
+          <button onclick="setBgPreset('#fdfbf7')" class="py-2 px-1 rounded-lg text-[10px] font-semibold bg-[#fdfbf7] border border-slate-300 hover:border-brand text-slate-900">
+            Warm Cream
           </button>
         </div>
 
-        <div>
-          <label class="text-[11px] text-slate-400 block mb-1">Custom Background Wallpaper Image URL</label>
+        <!-- DEVICE FILE PICKER FOR BACKGROUND IMAGE -->
+        <div class="space-y-1.5 pt-2">
+          <label class="text-[11px] font-semibold block" style="color: var(--text-secondary)">Upload Wallpaper Image from Device</label>
+          <input type="file" id="localBgFileInput" accept="image/*" onchange="handleLocalBgUpload(event)" class="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-slate-950 hover:file:bg-brand-hover cursor-pointer" style="color: var(--text-secondary)">
+        </div>
+
+        <!-- URL IMAGE INPUT -->
+        <div class="space-y-1">
+          <label class="text-[11px] font-semibold block" style="color: var(--text-secondary)">Or Paste Image URL</label>
           <div class="flex gap-2">
-            <input type="text" id="bgImageUrlInput" placeholder="https://images.unsplash.com/photo-..." class="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white">
-            <button onclick="applyCustomBgImage()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-emerald-400 rounded-xl border border-slate-700">
+            <input type="text" id="bgImageUrlInput" placeholder="https://images.unsplash.com/..." class="flex-1 px-3 py-1.5 rounded-xl text-xs focus:outline-none focus:border-brand" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
+            <button onclick="applyCustomBgImage()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-emerald-400 rounded-xl border border-slate-700">
               Apply
             </button>
           </div>
         </div>
+
+        <button onclick="resetBackground()" class="w-full py-1.5 rounded-xl text-xs text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition">
+          Reset Background to Default
+        </button>
       </div>
 
-      <!-- SPOTIFY ACCOUNT CONNECTION -->
-      <div class="space-y-2 pt-2 border-t border-slate-800">
-        <label class="text-xs font-semibold uppercase text-slate-400">Spotify OAuth Session</label>
-        <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs">
-          <span id="settingsSpotifyStatus">Checking connection...</span>
-          <button onclick="connectSpotify()" class="px-3 py-1.5 bg-brand hover:bg-brand-hover text-slate-950 font-bold rounded-lg transition">
-            Reconnect
-          </button>
-        </div>
-      </div>
-
-      <div class="flex justify-end pt-2">
-        <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl hover:bg-slate-700 transition">
+      <div class="flex justify-end pt-2 border-t border-slate-800">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 bg-brand text-slate-950 text-xs font-bold rounded-xl hover:bg-brand-hover transition shadow">
           Done
         </button>
       </div>
@@ -356,10 +439,10 @@
   </div>
 
   <!-- IMPORT PLAYLIST MODAL WITH DUAL ACTION BUTTONS -->
-  <div id="importModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div id="importModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-700">
-        <h3 class="font-bold text-white text-base flex items-center gap-2">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="font-bold text-base flex items-center gap-2" style="color: var(--text-primary)">
           <i class="fa-brands fa-spotify text-brand"></i> Import Spotify Playlist
         </h3>
         <button onclick="closeImportModal()" class="text-slate-400 hover:text-white">
@@ -367,32 +450,32 @@
         </button>
       </div>
 
-      <p class="text-xs text-slate-300 leading-relaxed">
-        Paste any Spotify Playlist link (your own, a friend's, or any public playlist).
-        <strong>Works for all users without Spotify whitelist limits.</strong>
+      <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+        Paste any Spotify Playlist link (your own, a friend's, or any public playlist). 
+        Works for all users without Spotify Developer whitelist limits.
       </p>
 
       <form onsubmit="event.preventDefault()" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Spotify Playlist URL or ID</label>
-          <input type="text" id="importUrlInput" required placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-brand">
+          <label class="block text-xs font-semibold uppercase mb-1" style="color: var(--text-muted)">Spotify Playlist URL or ID</label>
+          <input type="text" id="importUrlInput" required placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" class="w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-brand" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Initial Visibility</label>
+          <label class="block text-xs font-semibold uppercase mb-1" style="color: var(--text-muted)">Initial Visibility</label>
           <div class="grid grid-cols-2 gap-3">
-            <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-500">
+            <label class="flex items-center gap-2 p-3 rounded-xl cursor-pointer border hover:border-slate-500" style="background: var(--input-bg); border-color: var(--card-border)">
               <input type="radio" name="importVisibility" value="private" checked class="text-brand focus:ring-0">
               <div>
-                <div class="text-xs font-bold text-white">🔒 Private</div>
-                <div class="text-[10px] text-slate-400">Only visible to your account</div>
+                <div class="text-xs font-bold" style="color: var(--text-primary)">🔒 Private</div>
+                <div class="text-[10px]" style="color: var(--text-muted)">Only visible to your account</div>
               </div>
             </label>
-            <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-500">
+            <label class="flex items-center gap-2 p-3 rounded-xl cursor-pointer border hover:border-slate-500" style="background: var(--input-bg); border-color: var(--card-border)">
               <input type="radio" name="importVisibility" value="public" class="text-brand focus:ring-0">
               <div>
-                <div class="text-xs font-bold text-white">🌍 Public</div>
-                <div class="text-[10px] text-slate-400">Shared with all users</div>
+                <div class="text-xs font-bold" style="color: var(--text-primary)">🌍 Public</div>
+                <div class="text-[10px]" style="color: var(--text-muted)">Shared with all users</div>
               </div>
             </label>
           </div>
@@ -400,7 +483,7 @@
 
         <div id="importError" class="text-rose-400 text-xs hidden"></div>
 
-        <div class="flex items-center justify-end gap-2.5 pt-2">
+        <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-800">
           <button type="button" onclick="closeImportModal()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
             Cancel
           </button>
@@ -417,25 +500,25 @@
     </div>
   </div>
 
-  <!-- AUTH / LOGIN MODAL (OVERLAY WHEN DISCONNECTED) -->
+  <!-- AUTHENTICATION MODAL -->
   <div id="loginView" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
     <div class="glass-card max-w-md w-full p-8 rounded-2xl shadow-2xl space-y-5">
       <div class="text-center">
         <div class="w-14 h-14 mx-auto rounded-2xl bg-brand/10 border border-brand/30 flex items-center justify-center text-brand text-2xl mb-3">
           <i class="fa-solid fa-lock"></i>
         </div>
-        <h2 class="text-lg font-bold text-white">Sign in to Nexus Music</h2>
-        <p class="text-xs text-slate-400 mt-1">Use your standard Navidrome Subsonic credentials</p>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">Sign in to Nexus Music</h2>
+        <p class="text-xs mt-1" style="color: var(--text-secondary)">Use your standard Navidrome Subsonic credentials</p>
       </div>
 
       <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
-          <input type="text" id="loginUsername" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-brand">
+          <label class="block text-xs font-semibold uppercase mb-1" style="color: var(--text-muted)">Username</label>
+          <input type="text" id="loginUsername" required class="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-brand" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
         </div>
         <div>
-          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
-          <input type="password" id="loginPassword" required class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-brand">
+          <label class="block text-xs font-semibold uppercase mb-1" style="color: var(--text-muted)">Password</label>
+          <input type="password" id="loginPassword" required class="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-brand" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--card-border)">
         </div>
         <div id="loginError" class="text-rose-400 text-xs hidden"></div>
         <button type="submit" class="w-full py-3 bg-brand hover:bg-brand-hover text-slate-950 font-bold rounded-xl text-sm transition shadow-lg shadow-emerald-950/50">
@@ -445,12 +528,13 @@
     </div>
   </div>
 
-  <!-- CORE APPLICATION JAVASCRIPT -->
+  <!-- JAVASCRIPT CONTROLLER -->
   <script>
     let TOKEN = localStorage.getItem('nexus_token');
     let USER = null;
     let ACTIVE_TAB = 'spotify';
     let VIEW_MODE = localStorage.getItem('nexus_view_mode') || 'grid';
+    let IS_SIDEBAR_COLLAPSED = localStorage.getItem('nexus_sidebar_collapsed') === 'true';
     let SPOTIFY_PLAYLISTS = [];
     let IMPORTED_PLAYLISTS = [];
     let WS = null;
@@ -468,6 +552,8 @@
 
     async function init() {
       loadSavedAppearance();
+      applySidebarFoldState(IS_SIDEBAR_COLLAPSED);
+
       if (!TOKEN) {
         showLogin();
         return;
@@ -478,6 +564,7 @@
         USER = await meRes.json();
         showApp();
         initWebSocket();
+        checkSidebarSpotifyStatus();
         loadSpotifyPlaylists();
         loadImportedPlaylists();
       } catch (e) {
@@ -516,6 +603,7 @@
         USER = { username: data.username, is_admin: data.is_admin };
         showApp();
         initWebSocket();
+        checkSidebarSpotifyStatus();
         loadSpotifyPlaylists();
         loadImportedPlaylists();
       } catch (err) {
@@ -531,6 +619,35 @@
       showLogin();
     }
 
+    // SIDEBAR FOLD / EXPAND
+    function toggleSidebarFold() {
+      IS_SIDEBAR_COLLAPSED = !IS_SIDEBAR_COLLAPSED;
+      localStorage.setItem('nexus_sidebar_collapsed', IS_SIDEBAR_COLLAPSED);
+      applySidebarFoldState(IS_SIDEBAR_COLLAPSED);
+    }
+
+    function applySidebarFoldState(isCollapsed) {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      const foldIcon = document.getElementById('foldIcon');
+
+      if (isCollapsed) {
+        sidebar.classList.add('sidebar-collapsed');
+        sidebar.classList.remove('w-64');
+        sidebar.classList.add('w-20');
+        mainContent.classList.remove('md:ml-64');
+        mainContent.classList.add('md:ml-20');
+        foldIcon.className = 'fa-solid fa-chevron-right';
+      } else {
+        sidebar.classList.remove('sidebar-collapsed');
+        sidebar.classList.remove('w-20');
+        sidebar.classList.add('w-64');
+        mainContent.classList.remove('md:ml-20');
+        mainContent.classList.add('md:ml-64');
+        foldIcon.className = 'fa-solid fa-chevron-left';
+      }
+    }
+
     // TAB NAVIGATION
     function switchTab(tab) {
       ACTIVE_TAB = tab;
@@ -541,8 +658,8 @@
       const tabI = document.getElementById('tabImported');
       const tabV = document.getElementById('tabVault');
 
-      const inactive = 'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-slate-400 hover:text-white hover:bg-slate-800/60';
-      const active = 'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition bg-brand text-slate-950 shadow';
+      const inactive = 'w-full flex items-center sidebar-item-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition hover:bg-slate-800/30';
+      const active = 'w-full flex items-center sidebar-item-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition bg-brand text-slate-950 shadow';
 
       navS.className = inactive;
       navI.className = inactive;
@@ -564,12 +681,21 @@
         tabV.classList.remove('hidden');
         loadVaultOverview();
       }
+      applySortAndFilter();
+    }
+
+    // INTEGRATED TITLE REFRESH
+    async function triggerHeaderRefresh() {
+      const icon = document.getElementById('refreshIcon');
+      icon.classList.add('fa-spin');
+      if (ACTIVE_TAB === 'spotify') await loadSpotifyPlaylists();
+      else if (ACTIVE_TAB === 'imported') await loadImportedPlaylists();
+      else await loadVaultOverview();
+      setTimeout(() => icon.classList.remove('fa-spin'), 600);
     }
 
     function reloadActiveTab() {
-      if (ACTIVE_TAB === 'spotify') loadSpotifyPlaylists();
-      else if (ACTIVE_TAB === 'imported') loadImportedPlaylists();
-      else loadVaultOverview();
+      triggerHeaderRefresh();
     }
 
     // VIEW MODE (GRID VS LIST)
@@ -580,16 +706,45 @@
       const btnList = document.getElementById('viewBtnList');
 
       if (mode === 'grid') {
-        btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 transition';
-        btnList.className = 'px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition';
+        btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 font-bold transition';
+        btnList.className = 'px-2.5 py-1.5 rounded-lg text-xs transition';
+        btnList.style.color = 'var(--text-secondary)';
       } else {
-        btnList.className = 'px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 transition';
-        btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition';
+        btnList.className = 'px-2.5 py-1.5 rounded-lg text-xs bg-brand text-slate-950 font-bold transition';
+        btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-xs transition';
+        btnGrid.style.color = 'var(--text-secondary)';
       }
       applySortAndFilter();
     }
 
-    // PLAYLIST DATA LOADERS
+    // SPOTIFY OAUTH STATUS IN SIDEBAR
+    async function checkSidebarSpotifyStatus() {
+      try {
+        const res = await apiFetch('/api/v1/spotify/status');
+        const data = await res.json();
+        const badge = document.getElementById('sidebarSpotifyStatusBadge');
+        const btn = document.getElementById('sidebarSpotifyBtn');
+        if (data.connected) {
+          badge.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check"></i> Connected</span>`;
+          btn.textContent = 'Switch Account';
+        } else {
+          badge.innerHTML = `<span class="text-amber-400">Not Linked</span>`;
+          btn.textContent = 'Connect Account';
+        }
+      } catch (e) {}
+    }
+
+    async function connectSpotify() {
+      try {
+        const res = await apiFetch('/api/v1/spotify/login');
+        const data = await res.json();
+        if (data.authorization_url) window.location.href = data.authorization_url;
+      } catch (e) {
+        alert('Could not start Spotify auth.');
+      }
+    }
+
+    // DATA FETCHERS
     async function loadSpotifyPlaylists() {
       const container = document.getElementById('spotifyList');
       const countText = document.getElementById('spotifyCountText');
@@ -605,9 +760,9 @@
         applySortAndFilter();
       } catch (e) {
         container.innerHTML = `
-          <div class="col-span-3 text-center py-12 text-slate-400 glass-card rounded-2xl p-6">
+          <div class="col-span-3 text-center py-12 glass-card rounded-2xl p-6">
             <p class="font-medium text-white mb-1">Spotify Account Not Linked or Limited by Whitelist</p>
-            <p class="text-xs text-slate-400">Use the <strong>Import Playlist</strong> button above to import any playlist directly.</p>
+            <p class="text-xs text-slate-400">Use the <strong>Import Playlist by URL</strong> button in the sidebar to add any playlist.</p>
           </div>
         `;
         countText.textContent = '0 playlists available via OAuth';
@@ -632,189 +787,73 @@
       }
     }
 
-    // SORT, FILTER & RENDER ENGINE
-    function applySortAndFilter() {
-      const isImported = (ACTIVE_TAB === 'imported');
-      const sourceList = isImported ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
-      const targetElementId = isImported ? 'importedList' : 'spotifyList';
-
-      const sortVal = document.getElementById('sortSelect').value;
-      const filterVal = document.getElementById('filterSelect').value;
-      const query = document.getElementById('globalSearchInput').value.toLowerCase().trim();
-
-      let list = [...sourceList];
-
-      // 1. Text Filter
-      if (query) {
-        list = list.filter(p => p.name.toLowerCase().includes(query) || p.folder_slug.toLowerCase().includes(query));
-      }
-
-      // 2. Dropdown Filter
-      if (filterVal === 'synced') list = list.filter(p => p.is_synced);
-      else if (filterVal === 'unsynced') list = list.filter(p => !p.is_synced);
-      else if (filterVal === 'private') list = list.filter(p => p.visibility !== 'public');
-      else if (filterVal === 'public') list = list.filter(p => p.visibility === 'public');
-
-      // 3. Sorting
-      if (sortVal === 'name_asc') list.sort((a, b) => a.name.localeCompare(b.name));
-      else if (sortVal === 'name_desc') list.sort((a, b) => b.name.localeCompare(a.name));
-      else if (sortVal === 'tracks_desc') list.sort((a, b) => b.total_tracks - a.total_tracks);
-      else if (sortVal === 'tracks_asc') list.sort((a, b) => a.total_tracks - b.total_tracks);
-
-      renderItems(list, targetElementId, isImported);
+    // SEARCH & AUTOCOMPLETE SUGGESTIONS
+    function handleSearchInput() {
+      applySortAndFilter();
+      updateSearchSuggestions();
     }
 
-    function renderItems(list, targetElementId, isImportedTab) {
-      const container = document.getElementById(targetElementId);
-      if (!list || list.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-3 text-center py-12 text-slate-400 glass-card rounded-2xl p-6">
-            <p class="font-medium text-white mb-2">No playlists match your current filter.</p>
-            ${isImportedTab ? '<button onclick="openImportModal()" class="px-4 py-2 bg-brand text-slate-950 font-bold rounded-xl text-xs shadow">+ Import Playlist</button>' : ''}
-          </div>
-        `;
+    function showSearchSuggestions() {
+      updateSearchSuggestions();
+    }
+
+    function updateSearchSuggestions() {
+      const q = document.getElementById('globalSearchInput').value.trim();
+      const box = document.getElementById('searchSuggestionsBox');
+
+      if (!q) {
+        box.classList.add('hidden');
         return;
       }
 
-      if (VIEW_MODE === 'grid') {
-        container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
-        container.innerHTML = list.map(p => renderCardHTML(p, isImportedTab)).join('');
-      } else {
-        container.className = 'flex flex-col gap-2';
-        container.innerHTML = list.map(p => renderListRowHTML(p, isImportedTab)).join('');
+      const activeList = (ACTIVE_TAB === 'imported') ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
+      const matches = activeList.filter(p => p.name.toLowerCase().includes(q.toLowerCase())).slice(0, 5);
+
+      let html = '';
+      if (matches.length > 0) {
+        html += `<div class="text-[10px] font-bold uppercase px-2 py-1 text-slate-400">Library Matches</div>`;
+        matches.forEach(m => {
+          html += `
+            <div onclick="selectSearchSuggestion('${m.name.replace(/'/g, "\\'")}')" class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/40 cursor-pointer text-xs">
+              <span class="font-semibold truncate">${m.name}</span>
+              <span class="text-[10px] text-slate-400">${m.total_tracks} tracks</span>
+            </div>
+          `;
+        });
       }
-    }
 
-    function renderCardHTML(p, isImportedTab) {
-      const isSynced = p.is_synced;
-      const isPublic = p.visibility === 'public';
-      const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60';
-      const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
-
-      return `
-        <div id="card-${p.id}" class="glass-card rounded-2xl p-4 flex flex-col justify-between transition hover:border-slate-600">
-          <div>
-            <div class="flex gap-3 mb-3">
-              <img src="${cover}" class="w-16 h-16 rounded-xl object-cover bg-slate-800 shrink-0 border border-slate-700">
-              <div class="overflow-hidden flex-1">
-                <div class="flex items-center justify-between gap-1">
-                  <h3 class="font-bold text-white text-sm truncate" title="${p.name}">${p.name}</h3>
-                  ${isImportedTab ? `
-                    <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Remove playlist">
-                      <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                  ` : ''}
-                </div>
-                <p class="text-xs text-slate-400 mt-0.5">${p.total_tracks} tracks</p>
-                <p class="text-[11px] font-mono text-emerald-400/90 truncate mt-1">/playlists/${p.folder_slug}</p>
-              </div>
-            </div>
-
-            <!-- PROGRESS BAR -->
-            <div class="mt-2 mb-3 bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-              <div class="flex justify-between items-center text-xs mb-1.5">
-                <span id="status-${p.id}" class="text-slate-400 font-medium capitalize flex items-center gap-1.5">
-                  ${getStatusBadge(p.sync_status)}
-                </span>
-                <span id="prog-text-${p.id}" class="text-slate-400 font-mono text-[11px]">${p.downloaded_tracks}/${p.total_tracks} (${percent}%)</span>
-              </div>
-              <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div id="bar-${p.id}" class="h-full bg-brand transition-all duration-300" style="width: ${percent}%;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- CONTROLS -->
-          <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
-              <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand relative"></div>
-              <span class="text-xs font-semibold ${isSynced ? 'text-white' : 'text-slate-500'}">Sync</span>
-            </label>
-
-            <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
-              <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2.5 py-1 rounded-md font-medium transition ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-white'}">
-                <i class="fa-solid fa-lock text-[10px] mr-1"></i> Private
-              </button>
-              <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2.5 py-1 rounded-md font-medium transition ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}">
-                <i class="fa-solid fa-globe text-[10px] mr-1"></i> Public
-              </button>
-            </div>
-
-            <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Force Resync Now">
-              <i class="fa-solid fa-bolt text-xs"></i>
-            </button>
-          </div>
+      html += `
+        <div onclick="searchSpotifyCatalog()" class="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 cursor-pointer text-xs font-bold mt-1">
+          <i class="fa-brands fa-spotify"></i>
+          <span>Search Spotify Global Catalog for "${q}"</span>
+          <i class="fa-solid fa-arrow-right text-[10px] ml-auto"></i>
         </div>
       `;
+
+      box.innerHTML = html;
+      box.classList.remove('hidden');
     }
 
-    function renderListRowHTML(p, isImportedTab) {
-      const isSynced = p.is_synced;
-      const isPublic = p.visibility === 'public';
-      const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=60';
-      const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
-
-      return `
-        <div id="row-${p.id}" class="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 transition hover:border-slate-600">
-          <div class="flex items-center gap-3 min-w-[240px] flex-1">
-            <img src="${cover}" class="w-11 h-11 rounded-lg object-cover bg-slate-800 border border-slate-700 shrink-0">
-            <div class="truncate">
-              <h3 class="font-bold text-white text-xs truncate" title="${p.name}">${p.name}</h3>
-              <p class="text-[11px] text-slate-400">${p.total_tracks} tracks • <span class="font-mono text-emerald-400/90">${p.folder_slug}</span></p>
-            </div>
-          </div>
-
-          <!-- MINI PROGRESS -->
-          <div class="w-44 shrink-0">
-            <div class="flex justify-between text-[10px] text-slate-400 mb-1">
-              <span>${getStatusBadge(p.sync_status)}</span>
-              <span class="font-mono">${p.downloaded_tracks}/${p.total_tracks}</span>
-            </div>
-            <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full bg-brand" style="width: ${percent}%;"></div>
-            </div>
-          </div>
-
-          <!-- CONTROLS -->
-          <div class="flex items-center gap-3 shrink-0">
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
-              <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-brand relative"></div>
-            </label>
-
-            <div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-[11px]">
-              <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400'}">Private</button>
-              <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400'}">Public</button>
-            </div>
-
-            <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30" title="Resync">
-              <i class="fa-solid fa-bolt text-xs"></i>
-            </button>
-
-            ${isImportedTab ? `
-              <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs" title="Delete">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
-            ` : ''}
-          </div>
-        </div>
-      `;
+    function selectSearchSuggestion(name) {
+      document.getElementById('globalSearchInput').value = name;
+      document.getElementById('searchSuggestionsBox').classList.add('hidden');
+      applySortAndFilter();
     }
 
-    function getStatusBadge(st) {
-      if (st === 'syncing') return `<span class="w-2 h-2 rounded-full bg-amber-400 pulse-dot inline-block mr-1"></span><span class="text-amber-400">Syncing</span>`;
-      if (st === 'completed') return `<i class="fa-solid fa-check text-emerald-400 mr-1"></i><span class="text-emerald-400">Synced</span>`;
-      if (st === 'queued') return `<i class="fa-solid fa-clock text-blue-400 mr-1"></i><span class="text-blue-400">Queued</span>`;
-      if (st === 'failed') return `<i class="fa-solid fa-triangle-exclamation text-rose-400 mr-1"></i><span class="text-rose-400">Failed</span>`;
-      return `<span class="text-slate-500">Idle</span>`;
-    }
+    document.addEventListener('click', (e) => {
+      const box = document.getElementById('searchSuggestionsBox');
+      const input = document.getElementById('globalSearchInput');
+      if (box && !box.contains(e.target) && e.target !== input) {
+        box.classList.add('hidden');
+      }
+    });
 
     // SPOTIFY CATALOG SEARCH
     async function searchSpotifyCatalog() {
       const q = document.getElementById('globalSearchInput').value.trim();
+      document.getElementById('searchSuggestionsBox').classList.add('hidden');
       if (!q) {
-        alert('Please enter keywords in the search bar to query Spotify.');
+        alert('Please enter a search query.');
         return;
       }
 
@@ -873,64 +912,180 @@
       }
     }
 
-    function handleSearchInput() {
-      applySortAndFilter();
+    // SORT, FILTER & RENDER DISPATCHER
+    function applySortAndFilter() {
+      const isImported = (ACTIVE_TAB === 'imported');
+      const sourceList = isImported ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
+      const targetElementId = isImported ? 'importedList' : 'spotifyList';
+
+      const sortVal = document.getElementById('sortSelect').value;
+      const filterVal = document.getElementById('filterSelect').value;
+      const query = document.getElementById('globalSearchInput').value.toLowerCase().trim();
+
+      let list = [...sourceList];
+
+      if (query) {
+        list = list.filter(p => p.name.toLowerCase().includes(query) || (p.folder_slug && p.folder_slug.toLowerCase().includes(query)));
+      }
+
+      if (filterVal === 'synced') list = list.filter(p => p.is_synced);
+      else if (filterVal === 'unsynced') list = list.filter(p => !p.is_synced);
+      else if (filterVal === 'private') list = list.filter(p => p.visibility !== 'public');
+      else if (filterVal === 'public') list = list.filter(p => p.visibility === 'public');
+
+      if (sortVal === 'name_asc') list.sort((a, b) => a.name.localeCompare(b.name));
+      else if (sortVal === 'name_desc') list.sort((a, b) => b.name.localeCompare(a.name));
+      else if (sortVal === 'tracks_desc') list.sort((a, b) => b.total_tracks - a.total_tracks);
+      else if (sortVal === 'tracks_asc') list.sort((a, b) => a.total_tracks - b.total_tracks);
+
+      renderItems(list, targetElementId, isImported);
     }
 
-    // IMPORT MODAL & DUAL SUBMIT
-    function openImportModal() {
-      document.getElementById('importUrlInput').value = '';
-      document.getElementById('importError').classList.add('hidden');
-      document.getElementById('importModal').classList.remove('hidden');
-    }
-
-    function closeImportModal() {
-      document.getElementById('importModal').classList.add('hidden');
-    }
-
-    async function submitImport(autoSync) {
-      const input = document.getElementById('importUrlInput').value.trim();
-      const vis = document.querySelector('input[name="importVisibility"]:checked').value;
-      const errBox = document.getElementById('importError');
-      const btnOnly = document.getElementById('btnImportOnly');
-      const btnSync = document.getElementById('btnImportSync');
-
-      if (!input) {
-        errBox.textContent = 'Please enter a Spotify playlist URL or ID.';
-        errBox.classList.remove('hidden');
+    function renderItems(list, targetElementId, isImportedTab) {
+      const container = document.getElementById(targetElementId);
+      if (!list || list.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-3 text-center py-12 glass-card rounded-2xl p-6">
+            <p class="font-medium text-white mb-2">No playlists match your current filter.</p>
+            ${isImportedTab ? '<button onclick="openImportModal()" class="px-4 py-2 bg-brand text-slate-950 font-bold rounded-xl text-xs shadow">+ Import Playlist</button>' : ''}
+          </div>
+        `;
         return;
       }
 
-      errBox.classList.add('hidden');
-      btnOnly.disabled = true;
-      btnSync.disabled = true;
-
-      const activeBtn = autoSync ? btnSync : btnOnly;
-      const originalText = activeBtn.innerHTML;
-      activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-
-      try {
-        const res = await apiFetch('/api/v1/playlists/import', {
-          method: 'POST',
-          body: JSON.stringify({ url_or_id: input, visibility: vis, auto_sync: autoSync })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Import failed');
-
-        closeImportModal();
-        switchTab('imported');
-        await loadImportedPlaylists();
-      } catch (err) {
-        errBox.textContent = err.message;
-        errBox.classList.remove('hidden');
-      } finally {
-        btnOnly.disabled = false;
-        btnSync.disabled = false;
-        activeBtn.innerHTML = originalText;
+      if (VIEW_MODE === 'grid') {
+        container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+        container.innerHTML = list.map(p => renderCardHTML(p, isImportedTab)).join('');
+      } else {
+        container.className = 'flex flex-col gap-2.5';
+        container.innerHTML = list.map(p => renderListRowHTML(p, isImportedTab)).join('');
       }
     }
 
-    // SYNC & VISIBILITY CONTROLLERS
+    function renderCardHTML(p, isImportedTab) {
+      const isSynced = p.is_synced;
+      const isPublic = p.visibility === 'public';
+      const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60';
+      const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
+
+      return `
+        <div id="card-${p.id}" class="glass-card rounded-2xl p-4 flex flex-col justify-between transition hover:border-slate-500/60 shadow-lg">
+          <div>
+            <div class="flex gap-3 mb-3">
+              <img src="${cover}" class="w-16 h-16 rounded-xl object-cover bg-slate-800 shrink-0 border border-slate-700">
+              <div class="overflow-hidden flex-1">
+                <div class="flex items-center justify-between gap-1">
+                  <h3 class="font-bold text-sm truncate" style="color: var(--text-primary)" title="${p.name}">${p.name}</h3>
+                  ${isImportedTab ? `
+                    <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 text-xs" title="Remove playlist">
+                      <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                  ` : ''}
+                </div>
+                <p class="text-xs mt-0.5" style="color: var(--text-secondary)">${p.total_tracks} tracks</p>
+                <p class="text-[11px] font-mono text-emerald-400/90 truncate mt-1">/playlists/${p.folder_slug}</p>
+              </div>
+            </div>
+
+            <!-- PROGRESS BAR -->
+            <div class="mt-2 mb-3 p-2.5 rounded-xl border border-slate-800/80" style="background: var(--input-bg)">
+              <div class="flex justify-between items-center text-xs mb-1.5">
+                <span id="status-${p.id}" class="font-medium capitalize flex items-center gap-1.5" style="color: var(--text-secondary)">
+                  ${getStatusBadge(p.sync_status)}
+                </span>
+                <span id="prog-text-${p.id}" class="font-mono text-[11px]" style="color: var(--text-secondary)">${p.downloaded_tracks}/${p.total_tracks} (${percent}%)</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="bar-${p.id}" class="h-full bg-brand transition-all duration-300" style="width: ${percent}%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTROLS -->
+          <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand relative"></div>
+              <span class="text-xs font-semibold ${isSynced ? 'text-white' : 'text-slate-500'}">Sync</span>
+            </label>
+
+            <div class="inline-flex rounded-lg p-0.5 border border-slate-800 text-xs" style="background: var(--pill-bg)">
+              <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2.5 py-1 rounded-md font-medium transition ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-white'}">
+                <i class="fa-solid fa-lock text-[10px] mr-1"></i> Private
+              </button>
+              <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2.5 py-1 rounded-md font-medium transition ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}">
+                <i class="fa-solid fa-globe text-[10px] mr-1"></i> Public
+              </button>
+            </div>
+
+            <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Force Resync Now">
+              <i class="fa-solid fa-bolt text-xs"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderListRowHTML(p, isImportedTab) {
+      const isSynced = p.is_synced;
+      const isPublic = p.visibility === 'public';
+      const cover = p.cover_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=60';
+      const percent = p.total_tracks > 0 ? Math.min(100, Math.round((p.downloaded_tracks / p.total_tracks) * 100)) : 0;
+
+      return `
+        <div id="row-${p.id}" class="glass-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 transition hover:border-slate-500/60 shadow">
+          <div class="flex items-center gap-3 min-w-[240px] flex-1">
+            <img src="${cover}" class="w-12 h-12 rounded-lg object-cover bg-slate-800 border border-slate-700 shrink-0">
+            <div class="truncate">
+              <h3 class="font-bold text-xs truncate" style="color: var(--text-primary)" title="${p.name}">${p.name}</h3>
+              <p class="text-[11px] mt-0.5" style="color: var(--text-secondary)">${p.total_tracks} tracks • <span class="font-mono text-emerald-400/90">${p.folder_slug}</span></p>
+            </div>
+          </div>
+
+          <div class="w-48 shrink-0">
+            <div class="flex justify-between text-[10px] mb-1" style="color: var(--text-secondary)">
+              <span>${getStatusBadge(p.sync_status)}</span>
+              <span class="font-mono">${p.downloaded_tracks}/${p.total_tracks}</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full bg-brand" style="width: ${percent}%;"></div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 shrink-0">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" onchange="toggleSync('${p.id}', this.checked, ${isImportedTab})" ${isSynced ? 'checked' : ''} class="sr-only peer">
+              <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-brand relative"></div>
+            </label>
+
+            <div class="inline-flex rounded-lg p-0.5 border border-slate-800 text-[11px]" style="background: var(--pill-bg)">
+              <button onclick="changeVisibility('${p.id}', 'private', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${!isPublic ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400'}">Private</button>
+              <button onclick="changeVisibility('${p.id}', 'public', ${isImportedTab})" class="px-2 py-0.5 rounded font-medium ${isPublic ? 'bg-brand text-slate-950 font-bold' : 'text-slate-400'}">Public</button>
+            </div>
+
+            <button onclick="syncNow('${p.id}')" ${!isSynced ? 'disabled' : ''} class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30" title="Resync">
+              <i class="fa-solid fa-bolt text-xs"></i>
+            </button>
+
+            ${isImportedTab ? `
+              <button onclick="deletePlaylist('${p.id}', '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs" title="Delete">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function getStatusBadge(st) {
+      if (st === 'syncing') return `<span class="w-2 h-2 rounded-full bg-amber-400 pulse-dot inline-block mr-1"></span><span class="text-amber-400">Syncing</span>`;
+      if (st === 'completed') return `<i class="fa-solid fa-check text-emerald-400 mr-1"></i><span class="text-emerald-400">Synced</span>`;
+      if (st === 'queued') return `<i class="fa-solid fa-clock text-blue-400 mr-1"></i><span class="text-blue-400">Queued</span>`;
+      if (st === 'failed') return `<i class="fa-solid fa-triangle-exclamation text-rose-400 mr-1"></i><span class="text-rose-400">Failed</span>`;
+      return `<span style="color: var(--text-muted)">Idle</span>`;
+    }
+
+    // ACTIONS
     async function toggleSync(playlistId, isSynced, isImportedTab) {
       const list = isImportedTab ? IMPORTED_PLAYLISTS : SPOTIFY_PLAYLISTS;
       const p = list.find(x => x.id === playlistId);
@@ -986,7 +1141,7 @@
       }
     }
 
-    // VAULT AUDIT
+    // VAULT
     async function loadVaultOverview() {
       const container = document.getElementById('vaultList');
       container.innerHTML = '<div class="col-span-2 text-center py-12 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading server storage...</div>';
@@ -1000,22 +1155,22 @@
         }
 
         container.innerHTML = vault.map(v => `
-          <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="glass-card rounded-2xl p-5 border border-slate-800 shadow">
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
                 <span class="px-2.5 py-1 rounded-md text-xs font-semibold ${v.visibility === 'public' ? 'bg-brand/20 text-brand border border-brand/30' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
                   ${v.visibility === 'public' ? '<i class="fa-solid fa-globe mr-1"></i> Public' : '<i class="fa-solid fa-lock mr-1"></i> Private'}
                 </span>
-                <span class="text-xs text-slate-400 font-mono">${v.folder_slug}</span>
+                <span class="text-xs font-mono" style="color: var(--text-secondary)">${v.folder_slug}</span>
               </div>
-              <span class="text-xs text-slate-400">${v.on_disk_count} tracks</span>
+              <span class="text-xs" style="color: var(--text-secondary)">${v.on_disk_count} tracks</span>
             </div>
 
-            <h3 class="text-base font-bold text-white mb-1">${v.name}</h3>
-            <p class="text-xs text-slate-500 font-mono truncate mb-4">${v.folder_path}</p>
+            <h3 class="text-base font-bold mb-1" style="color: var(--text-primary)">${v.name}</h3>
+            <p class="text-xs font-mono truncate mb-4" style="color: var(--text-muted)">${v.folder_path}</p>
 
             <div class="flex items-center justify-between pt-3 border-t border-slate-800 text-xs">
-              <span class="text-slate-400">Last Synced: ${v.last_synced_at ? new Date(v.last_synced_at).toLocaleString() : 'Never'}</span>
+              <span style="color: var(--text-secondary)">Last Synced: ${v.last_synced_at ? new Date(v.last_synced_at).toLocaleString() : 'Never'}</span>
               <button onclick="syncNow('${v.spotify_playlist_id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg transition">
                 <i class="fa-solid fa-rotate-right mr-1 text-brand"></i> Sync Now
               </button>
@@ -1027,56 +1182,94 @@
       }
     }
 
-    // THEME & APPEARANCE ENGINE
+    // MODAL DIALOGS
+    function openImportModal() {
+      document.getElementById('importUrlInput').value = '';
+      document.getElementById('importError').classList.add('hidden');
+      document.getElementById('importModal').classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+      document.getElementById('importModal').classList.add('hidden');
+    }
+
+    async function submitImport(autoSync) {
+      const input = document.getElementById('importUrlInput').value.trim();
+      const vis = document.querySelector('input[name="importVisibility"]:checked').value;
+      const errBox = document.getElementById('importError');
+      const btnOnly = document.getElementById('btnImportOnly');
+      const btnSync = document.getElementById('btnImportSync');
+
+      if (!input) {
+        errBox.textContent = 'Please enter a Spotify playlist URL or ID.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      errBox.classList.add('hidden');
+      btnOnly.disabled = true;
+      btnSync.disabled = true;
+
+      const activeBtn = autoSync ? btnSync : btnOnly;
+      const originalText = activeBtn.innerHTML;
+      activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+      try {
+        const res = await apiFetch('/api/v1/playlists/import', {
+          method: 'POST',
+          body: JSON.stringify({ url_or_id: input, visibility: vis, auto_sync: autoSync })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Import failed');
+
+        closeImportModal();
+        switchTab('imported');
+        await loadImportedPlaylists();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btnOnly.disabled = false;
+        btnSync.disabled = false;
+        activeBtn.innerHTML = originalText;
+      }
+    }
+
     function openSettingsModal() {
       document.getElementById('settingsModal').classList.remove('hidden');
-      checkSettingsSpotify();
     }
 
     function closeSettingsModal() {
       document.getElementById('settingsModal').classList.add('hidden');
     }
 
-    async function checkSettingsSpotify() {
-      try {
-        const res = await apiFetch('/api/v1/spotify/status');
-        const data = await res.json();
-        const stat = document.getElementById('settingsSpotifyStatus');
-        if (data.connected) {
-          stat.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i>Connected (${data.spotify_id || 'Active'})</span>`;
-        } else {
-          stat.innerHTML = `<span class="text-amber-400 font-semibold">Not Connected</span>`;
-        }
-      } catch (e) {}
-    }
-
-    async function connectSpotify() {
-      try {
-        const res = await apiFetch('/api/v1/spotify/login');
-        const data = await res.json();
-        if (data.authorization_url) window.location.href = data.authorization_url;
-      } catch (e) {
-        alert('Could not start Spotify auth.');
-      }
+    // THEME & CANVAS CUSTOMIZER
+    function toggleTheme() {
+      const current = localStorage.getItem('nexus_theme') || 'dark';
+      setTheme(current === 'dark' ? 'light' : 'dark');
     }
 
     function setTheme(mode) {
       localStorage.setItem('nexus_theme', mode);
       const html = document.documentElement;
-      const btnDark = document.getElementById('themeBtnDark');
-      const btnLight = document.getElementById('themeBtnLight');
+      const icon = document.getElementById('themeToggleIcon');
+      const btnDark = document.getElementById('modalThemeDark');
+      const btnLight = document.getElementById('modalThemeLight');
 
       if (mode === 'light') {
         html.classList.remove('dark');
         html.classList.add('light');
-        btnLight.classList.add('border-emerald-500');
-        btnDark.classList.remove('border-emerald-500');
+        if (icon) icon.className = 'fa-solid fa-sun text-amber-500';
+        if (btnLight) btnLight.classList.add('border-emerald-500');
+        if (btnDark) btnDark.classList.remove('border-emerald-500');
       } else {
         html.classList.remove('light');
         html.classList.add('dark');
-        btnDark.classList.add('border-emerald-500');
-        btnLight.classList.remove('border-emerald-500');
+        if (icon) icon.className = 'fa-solid fa-moon text-emerald-400';
+        if (btnDark) btnDark.classList.add('border-emerald-500');
+        if (btnLight) btnLight.classList.remove('border-emerald-500');
       }
+      applySortAndFilter();
     }
 
     function setBgPreset(color) {
@@ -1093,6 +1286,30 @@
       localStorage.setItem('nexus_bg_image', url);
     }
 
+    function handleLocalBgUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Data = e.target.result;
+        document.body.style.backgroundImage = `url('${base64Data}')`;
+        try {
+          localStorage.setItem('nexus_bg_image', base64Data);
+        } catch (err) {
+          console.warn('Image too large for localStorage, applied for current session.');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetBackground() {
+      localStorage.removeItem('nexus_bg_color');
+      localStorage.removeItem('nexus_bg_image');
+      document.body.style.backgroundImage = 'none';
+      document.body.style.backgroundColor = 'var(--bg-base)';
+    }
+
     function loadSavedAppearance() {
       const savedTheme = localStorage.getItem('nexus_theme') || 'dark';
       setTheme(savedTheme);
@@ -1102,8 +1319,6 @@
 
       if (savedBgImg) {
         document.body.style.backgroundImage = `url('${savedBgImg}')`;
-        const inp = document.getElementById('bgImageUrlInput');
-        if (inp) inp.value = savedBgImg;
       } else if (savedBgColor) {
         document.body.style.backgroundColor = savedBgColor;
       }
