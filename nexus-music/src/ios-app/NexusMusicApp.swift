@@ -1,25 +1,29 @@
 import SwiftUI
+import Observation
 
 @main
-struct NexusMusicApp: App {
+public struct NexusMusicApp: App {
     @State private var apiClient = APIClient.shared
     @State private var wsManager = WebSocketManager.shared
     @State private var audioPlayer = AudioPlayerManager.shared
+    @State private var theme = ThemeManager.shared
 
-    var body: some Scene {
+    public init() {}
+
+    public var body: some Scene {
         WindowGroup {
             Group {
                 if apiClient.isAuthenticated {
-                    MainTabView()
-                        .environment(apiClient)
-                        .environment(wsManager)
-                        .environment(audioPlayer)
+                    MainContainerView()
                 } else {
                     LoginView()
-                        .environment(apiClient)
                 }
             }
-            .preferredColorScheme(.dark)
+            .environment(apiClient)
+            .environment(wsManager)
+            .environment(audioPlayer)
+            .environment(theme)
+            .preferredColorScheme(theme.isLightMode ? .light : .dark)
             .task {
                 apiClient.checkExistingLogin()
             }
