@@ -558,7 +558,7 @@
       const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
       if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
       const res = await fetch(endpoint, { ...options, headers });
-      if (res.status === 401) {
+      if (res.status === 401 && !path.includes("/spotify/") && !url?.includes?.("/spotify/")) {
         logout();
         throw new Error('Unauthorized');
       }
