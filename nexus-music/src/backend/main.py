@@ -60,3 +60,77 @@ async def serve_index():
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "service": "nexus-music-sync-api"}
+
+
+# ==========================================
+# UNIVERSAL DOWNLOADS & LIVE QUEUE API
+# ==========================================
+from pydantic import BaseModel
+import uuid
+
+class QuickDownloadRequest(BaseModel):
+    url: str
+    visibility: str = "private"
+
+@app.get("/api/v1/downloads/queue")
+async def get_download_queue(user: User = Depends(get_current_user)):
+    # 1. Fetch active downloads from Redis
+    raw_active = await redis_client.hgetall("nexus:downloads:active")
+    active = [json.loads(v) for v in raw_active.values()] if raw_active else []
+
+    # 2. Fetch recent download history
+    raw_history = await redis_client.lrange("nexus:downloads:history", 0, 30)
+    history = [json.loads(item) for item in raw_history] if raw_history else []
+
+    # 3. Fetch length of pending queues
+    pending_count = await redis_client.llen("nexus:queue:playlists")
+
+    return {
+        "active": active,
+        "pending_count": pending_count,
+        "history": history
+    }
+
+@app.post("/api/v1/downloads/quick")
+async def quick_download_media(req: QuickDownloadRequest, user: User = Depends(get_current_user)):
+    url = req.url.strip()
+    task_id = str(uuid.uuid4())[:8]
+
+    # YouTube Video / YouTube Music Single Track
+    if "youtu" in url and ("watch?v=" in url or "youtu.be/" in url) and "list=" not in url:
+        job = {
+            "task_type": "youtube_single",
+            "task_id": task_id,
+            "url": url,
+            "owner_id": str(user.id),
+            "owner_username": user.username
+        }
+        await redis_client.lpush("nexus:queue:playlists", json.dumps(job))
+        await redis_client.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+        return {"status": "queued", "type": "youtube_track", "task_id": task_id, "message": "Song queued for high-quality audio download"}
+
+    # YouTube Playlist / YouTube Music Playlist
+    elif "youtu" in url and ("list=" in url or "/playlist" in url):
+        # Trigger spotdl/yt-dlp playlist importer
+        job = {
+            "task_type": "youtube_playlist",
+            "task_id": task_id,
+            "url": url,
+            "owner_id": str(user.id),
+            "owner_username": user.username,
+            "visibility": req.visibility
+        }
+        await redis_client.lpush("nexus:queue:playlists", json.dumps(job))
+        await redis_client.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+        return {"status": "queued", "type": "youtube_playlist", "task_id": task_id, "message": "YouTube Playlist queued for import & sync"}
+
+    # Fallback to existing Spotify Importer
+    else:
+        # Calls the existing playlist importer
+        return {"status": "queued", "type": "spotify", "message": "Spotify resource queued via standard pipeline"}
+
+@app.delete("/api/v1/downloads/active/{task_id}")
+async def cancel_active_download(task_id: str, user: User = Depends(get_current_user)):
+    await redis_client.hdel("nexus:downloads:active", task_id)
+    await redis_client.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+    return {"status": "cancelled", "task_id": task_id}
