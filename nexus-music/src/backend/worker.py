@@ -116,10 +116,7 @@ async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> boo
         "--output", str(scratch_dir / "{artist} - {title}.{ext}"),
         "--format", "mp3",
         "--bitrate", "320k",
-        "--audio-providers", "youtube-music", "youtube", "soundcloud",
         "--simple-tui",
-        "--filter-results", "False",
-        "--audio-providers", "youtube-music", "youtube", "soundcloud",
         "--log-level", "INFO"
     ]
 
@@ -137,7 +134,7 @@ async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> boo
             logger.info(f"Track {spotify_track_id} saved to master pool: {master_file.name}")
             return True
         else:
-            err_msg = (stdout.decode() + " " + stderr.decode()).strip()[-300:]; logger.warning(f"SpotDL download failed for {spotify_track_id}: {err_msg}")
+            logger.warning(f"SpotDL download finished but no MP3 produced for {spotify_track_id}: {stderr.decode()[:200]}")
             return False
     except Exception as e:
         logger.error(f"Execution error downloading track {spotify_track_id}: {e}")
@@ -160,8 +157,6 @@ async def fetch_tracks_via_spotdl_save(spotify_playlist_id: str) -> List[Dict]:
         f"https://open.spotify.com/playlist/{spotify_playlist_id}",
         "--save-file", str(save_file),
         "--simple-tui",
-        "--filter-results", "False",
-        "--audio-providers", "youtube-music", "youtube", "soundcloud",
         "--log-level", "INFO"
     ]
 
@@ -438,136 +433,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-# ==========================================
-# YOUTUBE & QUEUE ENGINE EXTENSION
-# ==========================================
-import json, re
-
-async def download_youtube_single(job_data: dict, r: redis.Redis):
-    task_id = job_data["task_id"]
-    url = job_data["url"]
-    owner_id = job_data["owner_id"]
-    owner_username = job_data.get("owner_username", "admin")
-
-    tracks_dir = Path("/mnt/audio_pool/music/tracks")
-    tracks_dir.mkdir(parents=True, exist_ok=True)
-    temp_dir = Path(f"/tmp/yt_dl_{task_id}")
-    temp_dir.mkdir(parents=True, exist_ok=True)
-
-    await r.hset("nexus:downloads:active", task_id, json.dumps({
-        "id": task_id,
-        "title": "Resolving YouTube metadata...",
-        "artist": "YouTube",
-        "percent": 0,
-        "speed": "0 KiB/s",
-        "eta": "--:--",
-        "status": "starting",
-        "source": "youtube",
-        "owner": owner_username
-    }))
-    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
-
-    # 1. Probe Title & Artist using yt-dlp metadata dump
-    probe_cmd = ["yt-dlp", "--dump-json", "--no-playlist", url]
-    proc = await asyncio.create_subprocess_exec(*probe_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, _ = await proc.communicate()
-    
-    track_title = "Unknown Title"
-    artist_name = "Unknown Artist"
-    if proc.returncode == 0:
-        try:
-            meta = json.loads(stdout.decode())
-            track_title = meta.get("track") or meta.get("title") or "YouTube Track"
-            artist_name = meta.get("artist") or meta.get("creator") or meta.get("uploader") or "YouTube Music"
-        except Exception:
-            pass
-
-    # 2. Execute yt-dlp with line-buffered progress parsing
-    out_template = str(temp_dir / "%(title)s.%(ext)s")
-    dl_cmd = [
-        "yt-dlp",
-        "-x",
-        "--audio-format", "mp3",
-        "--audio-quality", "0",
-        "--embed-thumbnail",
-        "--add-metadata",
-        "--newline",
-        "-o", out_template,
-        url
-    ]
-
-    proc = await asyncio.create_subprocess_exec(
-        *dl_cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT
-    )
-
-    percent_regex = re.compile(r'[download]\s+(\d+\.?\d*)%\s+of\s+~?(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)')
-
-    while True:
-        line = await proc.stdout.readline()
-        if not line:
-            break
-        text = line.decode(errors='ignore').strip()
-        m = percent_regex.search(text)
-        if m:
-            pct = float(m.group(1))
-            spd = m.group(3)
-            eta = m.group(4)
-            progress_payload = {
-                "id": task_id,
-                "title": track_title,
-                "artist": artist_name,
-                "percent": pct,
-                "speed": spd,
-                "eta": eta,
-                "status": "downloading",
-                "source": "youtube",
-                "owner": owner_username
-            }
-            await r.hset("nexus:downloads:active", task_id, json.dumps(progress_payload))
-            await r.publish("nexus:events", json.dumps({
-                "event": "TRACK_PROGRESS",
-                "data": progress_payload
-            }))
-
-    await proc.wait()
-
-    # Move produced MP3 to master pool
-    produced = list(temp_dir.glob("*.mp3"))
-    if produced and produced[0].stat().st_size > 50000:
-        final_mp3 = produced[0]
-        safe_name = f"{sanitize_filename(artist_name)} - {sanitize_filename(track_title)}.mp3"
-        dest_path = tracks_dir / safe_name
-        shutil.move(str(final_mp3), str(dest_path))
-
-        # Touch Navidrome / trigger mtime
-        import os
-        os.utime(str(dest_path), None)
-
-        history_item = {
-            "id": task_id,
-            "title": track_title,
-            "artist": artist_name,
-            "status": "completed",
-            "file": safe_name,
-            "completed_at": datetime.now(timezone.utc).isoformat()
-        }
-        await r.lpush("nexus:downloads:history", json.dumps(history_item))
-        await r.ltrim("nexus:downloads:history", 0, 49)
-    else:
-        history_item = {
-            "id": task_id,
-            "title": track_title,
-            "artist": artist_name,
-            "status": "failed",
-            "completed_at": datetime.now(timezone.utc).isoformat()
-        }
-        await r.lpush("nexus:downloads:history", json.dumps(history_item))
-
-    await r.hdel("nexus:downloads:active", task_id)
-    shutil.rmtree(temp_dir, ignore_errors=True)
-    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
-
