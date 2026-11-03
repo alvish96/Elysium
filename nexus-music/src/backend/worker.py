@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 #!/usr/bin/env python3
 import asyncio
 import json
@@ -378,6 +379,134 @@ async def sync_playlist_task(job_data: dict, r: redis.Redis):
     )
     logger.info(f"✅ Finished syncing playlist: {playlist.name} (Owner: {user.username})")
 
+# === YOUTUBE ENGINE ===
+async def download_youtube_single(job_data: dict, r: redis.Redis):
+    task_id = job_data.get("task_id", "unknown")
+    url = job_data.get("url", "")
+    owner_username = job_data.get("owner_username", "admin")
+
+    tracks_dir = Path("/mnt/audio_pool/music/tracks")
+    tracks_dir.mkdir(parents=True, exist_ok=True)
+    temp_dir = Path(f"/tmp/yt_dl_{task_id}")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    yt_bin = "/opt/worker-venv/bin/yt-dlp"
+    if not Path(yt_bin).exists():
+        yt_bin = "yt-dlp"
+
+    logger.info(f"[Worker] Processing YouTube download task {task_id} for URL: {url}")
+
+    await r.hset("nexus:downloads:active", task_id, json.dumps({
+        "id": task_id,
+        "title": "Resolving track metadata...",
+        "artist": "YouTube",
+        "percent": 0.0,
+        "speed": "0 KiB/s",
+        "eta": "--:--",
+        "status": "starting",
+        "owner": owner_username
+    }))
+    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+
+    track_title = "Unknown Track"
+    artist_name = "YouTube Music"
+    try:
+        probe = await asyncio.create_subprocess_exec(
+            yt_bin, "--dump-json", "--no-playlist", url,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        p_out, _ = await probe.communicate()
+        if probe.returncode == 0:
+            meta = json.loads(p_out.decode("utf-8", errors="ignore"))
+            track_title = meta.get("track") or meta.get("title") or "Unknown Track"
+            artist_name = meta.get("artist") or meta.get("uploader") or meta.get("creator") or "YouTube"
+    except Exception as e:
+        logger.warning(f"[Worker] Metadata probe warning: {e}")
+
+    out_tmpl = str(temp_dir / "%(title)s.%(ext)s")
+    dl_cmd = [
+        yt_bin,
+        "-x",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "--embed-thumbnail",
+        "--add-metadata",
+        "--no-playlist",
+        "--newline",
+        "-o", out_tmpl,
+        url
+    ]
+
+    proc = await asyncio.create_subprocess_exec(
+        *dl_cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT
+    )
+
+    pct_re = re.compile(r'[download]\s+(\d+\.?\d*)%\s+of\s+~?(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)')
+
+    while True:
+        line = await proc.stdout.readline()
+        if not line:
+            break
+        text = line.decode("utf-8", errors="ignore").strip()
+        m = pct_re.search(text)
+        if m:
+            pct = float(m.group(1))
+            spd = m.group(3)
+            eta = m.group(4)
+            progress_payload = {
+                "id": task_id,
+                "title": track_title,
+                "artist": artist_name,
+                "percent": pct,
+                "speed": spd,
+                "eta": eta,
+                "status": "downloading",
+                "owner": owner_username
+            }
+            await r.hset("nexus:downloads:active", task_id, json.dumps(progress_payload))
+            await r.publish("nexus:events", json.dumps({"event": "TRACK_PROGRESS", "data": progress_payload}))
+
+    await proc.wait()
+
+    mp3s = list(temp_dir.glob("*.mp3"))
+    if mp3s and mp3s[0].stat().st_size > 50000:
+        safe_artist = sanitize_filename(artist_name)
+        safe_title = sanitize_filename(track_title)
+        final_filename = f"{safe_artist} - {safe_title}.mp3"
+        dest = tracks_dir / final_filename
+        shutil.move(str(mp3s[0]), str(dest))
+        import os
+        os.utime(str(dest), None)
+
+        history_entry = {
+            "id": task_id,
+            "title": track_title,
+            "artist": artist_name,
+            "status": "completed",
+            "file": final_filename,
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }
+        await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+        await r.ltrim("nexus:downloads:history", 0, 49)
+        logger.info(f"[Worker] Saved audio file to tracks directory: {dest}")
+    else:
+        history_entry = {
+            "id": task_id,
+            "title": track_title,
+            "artist": artist_name,
+            "status": "failed",
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }
+        await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+        logger.warning(f"[Worker] Download finished without producing valid MP3 for {url}")
+
+    await r.hdel("nexus:downloads:active", task_id)
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+# === END YOUTUBE ENGINE ===
+
 async def queue_worker_loop():
     logger.info("Connecting to Redis queue 'nexus:queue:playlists'...")
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
@@ -389,7 +518,15 @@ async def queue_worker_loop():
                 _, payload_raw = item
                 try:
                     job_data = json.loads(payload_raw)
-                    await sync_playlist_task(job_data, r)
+                    task_type = job_data.get('task_type', 'sync_playlist')
+                    if task_type == 'youtube_single':
+                        await download_youtube_single(job_data, r)
+                    else:
+                        task_type = job_data.get('task_type', 'sync_playlist')
+                        if task_type == 'youtube_single':
+                            await download_youtube_single(job_data, r)
+                        else:
+                            await sync_playlist_task(job_data, r)
                 except Exception as ex:
                     logger.error(f"Error executing sync task: {ex}", exc_info=True)
         except asyncio.CancelledError:
@@ -433,3 +570,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# =========================================================================
+# YOUTUBE DOWNLOAD ENGINE & DISPATCHER
+# =========================================================================
