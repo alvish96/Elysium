@@ -507,6 +507,173 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
     await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
 # === END YOUTUBE ENGINE ===
 
+# === YOUTUBE PLAYLIST ENGINE ===
+async def download_youtube_playlist(job_data: dict, r: redis.Redis):
+    task_id = job_data.get("task_id", "unknown")
+    url = job_data.get("url", "")
+    owner_username = job_data.get("owner_username", "admin")
+
+    tracks_dir = Path("/mnt/audio_pool/music/tracks")
+    tracks_dir.mkdir(parents=True, exist_ok=True)
+    playlists_dir = Path("/mnt/audio_pool/music/playlists")
+    playlists_dir.mkdir(parents=True, exist_ok=True)
+    temp_dir = Path(f"/tmp/yt_pl_{task_id}")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    yt_bin = "/opt/worker-venv/bin/yt-dlp"
+    if not Path(yt_bin).exists():
+        yt_bin = "yt-dlp"
+
+    logger.info(f"[Worker] Processing YouTube playlist task {task_id} for URL: {url}")
+
+    await r.hset("nexus:downloads:active", task_id, json.dumps({
+        "id": task_id,
+        "title": "Resolving playlist metadata...",
+        "artist": "YouTube Playlist",
+        "percent": 0.0,
+        "speed": "0 KiB/s",
+        "eta": "--:--",
+        "status": "starting",
+        "owner": owner_username
+    }))
+    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+
+    # Probe playlist title
+    playlist_title = f"YouTube_Playlist_{task_id}"
+    try:
+        probe = await asyncio.create_subprocess_exec(
+            yt_bin, "--flat-playlist", "--dump-single-json", url,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        p_out, _ = await probe.communicate()
+        if probe.returncode == 0:
+            meta = json.loads(p_out.decode("utf-8", errors="ignore"))
+            playlist_title = meta.get("title") or playlist_title
+    except Exception as e:
+        logger.warning(f"[Worker] Playlist probe warning: {e}")
+
+    safe_slug = sanitize_filename(playlist_title).lower().replace(" ", "_")
+    if not safe_slug:
+        safe_slug = f"yt_playlist_{task_id}"
+    playlist_folder = playlists_dir / safe_slug
+    playlist_folder.mkdir(parents=True, exist_ok=True)
+
+    out_tmpl = str(temp_dir / "%(title)s.%(ext)s")
+    dl_cmd = [
+        yt_bin,
+        "-x",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "--embed-thumbnail",
+        "--add-metadata",
+        "--yes-playlist",
+        "--newline",
+        "-o", out_tmpl,
+        url
+    ]
+
+    proc = await asyncio.create_subprocess_exec(
+        *dl_cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT
+    )
+
+    playlist_name_re = re.compile(r'\[download\] Downloading playlist:\s*(.*)')
+    item_re = re.compile(r'\[download\] Downloading item (\d+) of (\d+)')
+    pct_re = re.compile(r'\[download\]\s+(\d+\.?\d*)%\s+of\s+~?(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)')
+
+    cur_item = 1
+    total_items = 1
+
+    while True:
+        line = await proc.stdout.readline()
+        if not line:
+            break
+        text = line.decode("utf-8", errors="ignore").strip()
+
+        m_name = playlist_name_re.search(text)
+        if m_name:
+            detected = m_name.group(1).strip()
+            if detected:
+                playlist_title = detected
+
+        m_item = item_re.search(text)
+        if m_item:
+            cur_item = int(m_item.group(1))
+            total_items = int(m_item.group(2))
+
+        m_pct = pct_re.search(text)
+        if m_pct:
+            pct = float(m_pct.group(1))
+            spd = m_pct.group(3)
+            eta = m_pct.group(4)
+            overall_pct = round(((cur_item - 1) / max(total_items, 1)) * 100 + (pct / max(total_items, 1)), 1)
+            overall_pct = min(100.0, max(0.0, overall_pct))
+
+            progress_payload = {
+                "id": task_id,
+                "title": f"[{cur_item}/{total_items}] {playlist_title}",
+                "artist": "YouTube Playlist",
+                "percent": overall_pct,
+                "speed": spd,
+                "eta": eta,
+                "status": "downloading",
+                "owner": owner_username
+            }
+            await r.hset("nexus:downloads:active", task_id, json.dumps(progress_payload))
+            await r.publish("nexus:events", json.dumps({"event": "TRACK_PROGRESS", "data": progress_payload}))
+
+    await proc.wait()
+
+    # Ingest produced MP3 files and build .m3u8 index
+    mp3_files = sorted(list(temp_dir.glob("*.mp3")))
+    m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist_title}"]
+    downloaded_tracks = []
+
+    for f in mp3_files:
+        if f.stat().st_size > 50000:
+            clean_name = sanitize_filename(f.stem) + ".mp3"
+            dest = tracks_dir / clean_name
+            if not dest.exists():
+                shutil.move(str(f), str(dest))
+            else:
+                f.unlink(missing_ok=True)
+            os.utime(str(dest), None)
+            downloaded_tracks.append(clean_name)
+            m3u8_lines.append(f"../../tracks/{clean_name}")
+
+    if downloaded_tracks:
+        m3u8_file = playlist_folder / f"{safe_slug}.m3u8"
+        m3u8_file.write_text("\n".join(m3u8_lines), encoding="utf-8")
+        os.utime(str(m3u8_file), None)
+
+        history_entry = {
+            "id": task_id,
+            "title": playlist_title,
+            "artist": f"YouTube Playlist ({len(downloaded_tracks)} songs)",
+            "status": "completed",
+            "file": f"{safe_slug}.m3u8",
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }
+        await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+        await r.ltrim("nexus:downloads:history", 0, 49)
+        logger.info(f"[Worker] Created playlist {safe_slug}.m3u8 with {len(downloaded_tracks)} songs")
+    else:
+        history_entry = {
+            "id": task_id,
+            "title": playlist_title,
+            "artist": "YouTube Playlist",
+            "status": "failed",
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }
+        await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+        logger.warning(f"[Worker] Failed to download any valid MP3s for playlist {url}")
+
+    await r.hdel("nexus:downloads:active", task_id)
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+# === END YOUTUBE PLAYLIST ENGINE ===
+
 async def queue_worker_loop():
     logger.info("Connecting to Redis queue 'nexus:queue:playlists'...")
     r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
