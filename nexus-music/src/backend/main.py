@@ -66,12 +66,9 @@ static_dir = Path("/app/static")
 static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    index_file = static_dir / "index.html"
-    if index_file.exists():
-        return index_file.read_text(encoding="utf-8")
-    return "<h1>Nexus Music Sync API is running</h1>"
+@app.get("/")
+async def serve_main_galactic_ui():
+    return FileResponse("/app/static/v2/index.html")
 
 @app.get("/api/health")
 async def health_check():
@@ -167,3 +164,59 @@ async def serve_v2_workspace():
 @app.get("/v2.0")
 async def serve_v20_backup():
     return FileResponse("/app/static/v2.0/index.html")
+
+# === V2.1 MAIN PROMOTION & TRACKS ARCHIVE ROUTES ===
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+from pathlib import Path
+import os
+
+@app.get("/v1")
+@app.get("/legacy")
+async def serve_legacy_v1_ui():
+    return FileResponse("/app/static/index.html")
+
+@app.get("/tracks")
+async def serve_downloaded_tracks_page():
+    return FileResponse("/app/static/v2/tracks.html")
+
+@app.get("/api/v1/downloads/tracks")
+async def list_downloaded_tracks():
+    tracks_dir = Path("/mnt/audio_pool/music/tracks")
+    items = []
+    total_bytes = 0
+    if tracks_dir.exists():
+        files = sorted(
+            [f for f in tracks_dir.glob("*.mp3") if f.is_file()],
+            key=lambda x: x.stat().st_mtime,
+            reverse=True
+        )
+        for f in files:
+            st = f.stat()
+            total_bytes += st.st_size
+            stem = f.stem
+            if " - " in stem:
+                artist, title = stem.split(" - ", 1)
+            else:
+                artist, title = "YouTube Audio", stem
+            items.append({
+                "filename": f.name,
+                "title": title.strip(),
+                "artist": artist.strip(),
+                "size_mb": round(st.st_size / (1024 * 1024), 2),
+                "modified_at": st.st_mtime
+            })
+    return {
+        "total_count": len(items),
+        "total_size_mb": round(total_bytes / (1024 * 1024), 2),
+        "tracks": items
+    }
+
+@app.get("/api/v1/downloads/tracks/stream/{filename}")
+async def stream_downloaded_track(filename: str):
+    safe_name = os.path.basename(filename)
+    target = Path("/mnt/audio_pool/music/tracks") / safe_name
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Track file not found")
+    return FileResponse(str(target), media_type="audio/mpeg", filename=safe_name)
+# === END V2.1 ROUTES ===

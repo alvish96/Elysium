@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS // DOWNLOADED TRACKS ARCHIVE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/v2/styles.css?v=2.2" />
+  <style>
+    .player-dock {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-glass);
+      backdrop-filter: blur(24px);
+      border-top: 2px solid var(--accent);
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.75);
+      padding: 14px 6vw;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      z-index: 1200;
+    }
+    audio {
+      height: 36px;
+      flex: 1;
+      max-width: 520px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="galacticCanvas"></canvas>
+  <div class="kyber-ambient-aura"></div>
+  <div class="distant-live-star"></div>
+
+  <header class="imperial-hud">
+    <a href="/" class="hud-brand">
+      <div class="hud-reticle"></div>
+      <span>&larr; RETURN TO MAIN CONSOLE</span>
+    </a>
+
+    <div class="hud-controls">
+      <span id="tracksStorageBadge" style="font-family:var(--font-mono); font-size:11px; color:var(--accent); letter-spacing:0.15em;">
+        SCANNING STORAGE POOL...
+      </span>
+      <button class="hud-btn accent-outline" onclick="loadDownloadedTracks()">
+        ↻ REFRESHVAULT
+      </button>
+    </div>
+  </header>
+
+  <section class="cinematic-stage" style="padding-bottom:140px;">
+    <div class="diagonal-stripe-bar"></div>
+    <div class="sector-eyebrow">
+      <span>[ MASTER AUDIO POOL // /mnt/audio_pool/music/tracks ]</span>
+      <span>//</span>
+      <span>320KBPS MP3 VAULT</span>
+    </div>
+
+    <h1 class="monumental-title">
+      DOWNLOADED<br/>
+      <span class="hollow-stroke">TRACKS.</span>
+    </h1>
+    <p class="monumental-subtitle">
+      Complete inventory of all tracks extracted via YouTube, YouTube Music, and Spotify links on Atlantis. Stream directly in your browser or download raw MP3 files.
+    </p>
+
+    <div class="vault-command-bar">
+      <input
+        type="text"
+        id="trackSearchInput"
+        class="vault-search-input"
+        style="width:100%; max-width:520px; font-size:15px;"
+        placeholder="SEARCH DOWNLOADED TRACKS BY TITLE, ARTIST, OR FILENAME..."
+        oninput="renderTrackRows()"
+      />
+      <div style="font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);" id="trackFilterCount">
+        0 TRACKS
+      </div>
+    </div>
+
+    <div id="tracksVaultList" class="holocron-list"></div>
+  </section>
+
+  <!-- FLOATING IN-BROWSER AUDIO PLAYER DECK -->
+  <div class="player-dock" id="playerDock">
+    <div style="min-width:0; flex:1;">
+      <div style="font-family:var(--font-mono); font-size:10px; color:var(--accent); letter-spacing:0.18em;">NOW AUDITIONING // MASTER POOL</div>
+      <div id="nowPlayingTitle" style="font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">—</div>
+    </div>
+    <audio id="imperialAudioPlayer" controls preload="none"></audio>
+    <button class="hud-btn" onclick="closeAudioPlayer()">✕ CLOSE</button>
+  </div>
+
+  <script>
+    let allTracks = [];
+
+    // Inherit user's chosen Lightsaber color and Polarity from main console
+    try {
+      const savedSaber = JSON.parse(localStorage.getItem('nexus_v21_saber'));
+      if (savedSaber && savedSaber.hex) {
+        document.documentElement.style.setProperty('--accent', savedSaber.hex);
+        document.documentElement.style.setProperty('--accent-glow', savedSaber.glow);
+        document.documentElement.style.setProperty('--accent-soft', savedSaber.soft);
+      }
+      if (localStorage.getItem('nexus_v21_polarity') === 'light') {
+        document.body.classList.add('light-polarity');
+      }
+    } catch (e) {}
+
+    async function loadDownloadedTracks() {
+      try {
+        const res = await fetch('/api/v1/downloads/tracks?_t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        allTracks = data.tracks || [];
+        document.getElementById('tracksStorageBadge').textContent =
+          `${data.total_count || 0} TRACKS // ${data.total_size_mb || 0} MB ON DISK`;
+        renderTrackRows();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderTrackRows() {
+      const q = (document.getElementById('trackSearchInput').value || '').trim().toLowerCase();
+      const container = document.getElementById('tracksVaultList');
+
+      const filtered = allTracks.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q) ||
+        t.filename.toLowerCase().includes(q)
+      );
+
+      document.getElementById('trackFilterCount').textContent = `${filtered.length} TRACKS SHOWN`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="padding:50px 0; font-family:var(--font-mono); color:var(--fg-muted); letter-spacing:0.2em;">[ NO MATCHING TRACKS IN /mnt/audio_pool/music/tracks ]</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map((t, idx) => {
+        const dateStr = new Date(t.modified_at * 1000).toLocaleString([], {
+          month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+        const streamUrl = `/api/v1/downloads/tracks/stream/${encodeURIComponent(t.filename)}`;
+        const safeLabel = `${t.artist} — ${t.title}`.replace(/'/g, "\'");
+
+        return `
+          <div class="holocron-row">
+            <div class="holocron-left-info">
+              <div class="holocron-idx">${String(idx + 1).padStart(2, '0')}</div>
+              <div class="holocron-title-wrap">
+                <div class="holocron-title" title="${t.filename.replace(/"/g, '&quot;')}">${t.title}</div>
+                <div class="holocron-slug">👤 ${t.artist} // 📁 ${t.filename}</div>
+              </div>
+            </div>
+
+            <div class="holocron-right-actions">
+              <div class="holocron-owner" style="width:90px;">${t.size_mb} MB</div>
+              <div class="holocron-owner" style="width:130px;">${dateStr}</div>
+              <button class="hud-btn accent-outline" onclick="playTrackInBrowser('${streamUrl}', '${safeLabel}')">
+                ▶ PLAY
+              </button>
+              <a href="${streamUrl}" download="${t.filename.replace(/"/g, '&quot;')}" class="hud-btn">
+                ⬇ MP3
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function playTrackInBrowser(url, label) {
+      const dock = document.getElementById('playerDock');
+      const player = document.getElementById('imperialAudioPlayer');
+      document.getElementById('nowPlayingTitle').textContent = label;
+      dock.style.display = 'flex';
+      player.src = url;
+      player.play();
+    }
+
+    function closeAudioPlayer() {
+      const dock = document.getElementById('playerDock');
+      const player = document.getElementById('imperialAudioPlayer');
+      player.pause();
+      player.src = '';
+      dock.style.display = 'none';
+    }
+
+    window.addEventListener('DOMContentLoaded', loadDownloadedTracks);
+  </script>
+</body>
+</html>

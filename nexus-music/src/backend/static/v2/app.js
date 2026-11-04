@@ -566,29 +566,30 @@ function renderArchives() {
 
     return `
       <div class="holocron-row">
-        <div class="holocron-idx">${String(idx + 1).padStart(2, '0')}</div>
-        <div>
+        <!-- LEFT FLEXIBLE TITLE AREA (NEVER PUSHES RIGHT BUTTONS) -->
+        <div class="holocron-left-info">
+          <div class="holocron-idx">${String(idx + 1).padStart(2, '0')}</div>
           ${cover ? `<img src="${cover}" class="holocron-art" loading="lazy" />` : `<div class="holocron-art"></div>`}
-        </div>
-        <div>
-          <div class="holocron-title">${name}</div>
-          <div class="holocron-slug">/playlists/${slug}</div>
-        </div>
-        <div class="holocron-owner" style="font-family:var(--font-mono); font-size:11px; letter-spacing:0.12em; color:var(--fg-muted);">
-          👤 ${owner}
-        </div>
-        <div class="holocron-progress-col">
-          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; margin-bottom:6px;">
-            <span>${dl} / ${total}</span>
-            <span style="color:var(--accent);">${pct}%</span>
-          </div>
-          <div class="stream-bar-track">
-            <div class="stream-bar-fill" style="width:${pct}%;"></div>
+          <div class="holocron-title-wrap">
+            <div class="holocron-title" title="${name.replace(/"/g, '&quot;')}">${name}</div>
+            <div class="holocron-slug">/playlists/${slug}</div>
           </div>
         </div>
 
-        <!-- PLAYLIST DOWNLOAD SWITCH BUTTON (SYNC ON/OFF) -->
-        <div>
+        <!-- RIGHT LOCKED ACTION CLUSTER (UNIFORM ACROSS ALL ROWS) -->
+        <div class="holocron-right-actions">
+          <div class="holocron-owner">👤 ${owner}</div>
+
+          <div class="holocron-progress-col">
+            <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; margin-bottom:6px;">
+              <span>${dl} / ${total}</span>
+              <span style="color:var(--accent);">${pct}%</span>
+            </div>
+            <div class="stream-bar-track">
+              <div class="stream-bar-fill" style="width:${pct}%;"></div>
+            </div>
+          </div>
+
           <div class="saber-switch-wrap ${isSynced ? 'synced' : ''}" onclick="togglePlaylistSyncSwitch('${id}', ${!isSynced}, '${vis}', '${slug}')" title="Toggle Automatic Playlist Download Sync">
             <div class="saber-switch-track">
               <div class="saber-switch-knob"></div>
@@ -597,27 +598,33 @@ function renderArchives() {
               ${isSynced ? 'SYNC ON' : 'SYNC OFF'}
             </span>
           </div>
-        </div>
 
-        <div class="holocron-vis">
-          <button class="hud-btn" onclick="flipArchiveVis('${id}', ${isSynced}, '${vis}', '${slug}')">
+          <button class="hud-btn holocron-vis-btn" onclick="flipArchiveVis('${id}', ${isSynced}, '${vis}', '${slug}')">
             ${vis === 'public' ? '🌍 PUBLIC' : '🔒 PRIVATE'}
           </button>
-        </div>
 
-        <div style="display:flex; justify-content:flex-end; gap:6px;">
-          <button class="hud-btn accent-outline" onclick="syncArchiveNow('${id}')" title="Force Sync Playlist Now">
-            ⚡ SYNC
-          </button>
-          ${appState.archiveSource === 'imported' ? `
-            <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d;" onclick="deleteImportedArchive('${id}')" title="Delete Imported Playlist">
-              ✕
+          <div class="holocron-sync-btn-group">
+            <button class="hud-btn accent-outline" onclick="syncArchiveNow('${id}')" title="Force Sync Playlist Now">
+              ⚡ SYNC
             </button>
-          ` : ''}
+            ${appState.archiveSource === 'imported' ? `
+              <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d; padding:8px 10px;" onclick="deleteImportedArchive('${id}')" title="Delete Imported Playlist">
+                ✕
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
     `;
   }).join('');
+}
+
+function logoutCommander() {
+  localStorage.removeItem('nexus_token');
+  localStorage.removeItem('jwt_token');
+  localStorage.removeItem('token');
+  localStorage.removeItem('access_token');
+  openAuthModal();
 }
 
 async function togglePlaylistSyncSwitch(spotifyId, nextSyncedState, currentVis, slug) {

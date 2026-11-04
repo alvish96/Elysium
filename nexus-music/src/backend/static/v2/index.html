@@ -3,26 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS // GALACTIC AUDIO ARCHIVE v2.1</title>
+  <title>NEXUS // GALACTIC AUDIO ARCHIVE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/v2/styles.css?v=2.1" />
+  <link rel="stylesheet" href="/static/v2/styles.css?v=2.2" />
 </head>
 <body>
 
   <!-- 60FPS STARFIELD & COSMIC DUST CANVAS -->
   <canvas id="galacticCanvas"></canvas>
   <div class="kyber-ambient-aura"></div>
-  <div class="distant-live-star" id="distantStar" title="Binary Star System // Live Telemetry Pulse"></div>
+  <div class="distant-live-star" id="distantStar"></div>
 
   <!-- SCROLL-LINKED PARALLAX SPACE (DARK) & LANDED HANGAR (WHITE) BACKGROUNDS -->
   <div class="galactic-backdrop-layer">
-
-    <!-- SECTOR 01 BG: X-WING & TIE SQUADRON (SPACE) / LANDED MILLENNIUM FALCON (WHITE) -->
+    <!-- SECTOR 01 BG -->
     <div class="sector-bg-art active" id="bg-sector-01">
-      <!-- Dark Mode: Floating X-Wing & TIE Fighters in Space -->
       <svg class="space-only" width="900" height="500" viewBox="0 0 900 500" fill="none" style="opacity:0.18;">
-        <!-- X-Wing Starfighter Vector Silhouette -->
         <g stroke="var(--accent)" stroke-width="1.5">
           <polygon points="680,140 760,120 715,155 680,140" fill="rgba(255,255,255,0.03)"/>
           <line x1="650" y1="150" x2="780" y2="115" stroke="#fff" stroke-width="2"/>
@@ -30,7 +27,6 @@
           <line x1="730" y1="115" x2="690" y2="175"/>
           <circle cx="710" cy="145" r="8" stroke="var(--accent)"/>
         </g>
-        <!-- Distant TIE Fighters -->
         <g stroke="#ffffff" stroke-width="1.5" opacity="0.7">
           <polygon points="180,110 190,90 190,150 180,130" />
           <circle cx="205" cy="120" r="10" />
@@ -38,146 +34,79 @@
           <polygon points="230,110 220,90 220,150 230,130" />
         </g>
       </svg>
-
-      <!-- Light Mode: Starships Landed on Planetary Hangar Docking Bay -->
       <svg class="landed-only" width="1100" height="620" viewBox="0 0 1100 620" fill="none" style="opacity:0.22;">
-        <!-- Hangar Landing Pad Grid & Docking Ring -->
         <ellipse cx="550" cy="490" rx="420" ry="75" stroke="#000" stroke-width="2" stroke-dasharray="12 8"/>
         <ellipse cx="550" cy="490" rx="310" ry="50" stroke="var(--accent)" stroke-width="2"/>
         <line x1="80" y1="490" x2="1020" y2="490" stroke="#000" stroke-width="1.5"/>
-        <!-- Landed Millennium Falcon Style Freighter on Struts -->
         <ellipse cx="550" cy="445" rx="170" ry="42" fill="rgba(0,0,0,0.06)" stroke="#000" stroke-width="2.5"/>
         <polygon points="510,410 550,365 590,410" stroke="#000" stroke-width="2" fill="rgba(0,0,0,0.04)"/>
-        <!-- Boarding Ramp & Landing Gear Struts -->
         <line x1="440" y1="475" x2="430" y2="515" stroke="#000" stroke-width="4"/>
         <line x1="660" y1="475" x2="670" y2="515" stroke="#000" stroke-width="4"/>
-        <polygon points="520,485 580,485 605,530 495,530" fill="var(--accent)" opacity="0.4" stroke="#000" stroke-width="1.5"/>
         <text x="460" y="555" fill="#000" font-family="JetBrains Mono" font-size="12" letter-spacing="4">DOCKING BAY 94 // FREIGHTER LANDED</text>
       </svg>
     </div>
 
-    <!-- SECTOR 02 BG: GIANT DEATH STAR (SPACE) / LANDED X-WING SQUADRON (WHITE) -->
+    <!-- SECTOR 02 BG: DEATH STAR -->
     <div class="sector-bg-art" id="bg-sector-02">
-      <!-- Dark Mode: Detailed Death Star Battle Station -->
       <svg class="space-only" width="680" height="680" viewBox="0 0 680 680" fill="none" style="opacity:0.20;">
         <circle cx="340" cy="340" r="260" stroke="#ffffff" stroke-width="2"/>
         <circle cx="340" cy="340" r="278" stroke="var(--accent)" stroke-width="1" stroke-dasharray="6 10"/>
-        <!-- Equatorial Trench -->
         <line x1="80" y1="340" x2="600" y2="340" stroke="var(--accent)" stroke-width="3"/>
         <line x1="82" y1="348" x2="598" y2="348" stroke="#ffffff" stroke-width="1"/>
-        <!-- Concave Superlaser Dish -->
         <circle cx="255" cy="235" r="74" stroke="var(--accent)" stroke-width="2.5" fill="rgba(0,0,0,0.6)"/>
         <circle cx="255" cy="235" r="42" stroke="#ffffff" stroke-width="1" stroke-dasharray="4 4"/>
         <circle cx="255" cy="235" r="12" fill="var(--accent)"/>
-        <!-- Superlaser Focusing Beams -->
-        <line x1="255" y1="161" x2="255" y2="235" stroke="var(--accent)" stroke-width="1.5"/>
-        <line x1="255" y1="309" x2="255" y2="235" stroke="var(--accent)" stroke-width="1.5"/>
-        <line x1="181" y1="235" x2="255" y2="235" stroke="var(--accent)" stroke-width="1.5"/>
-        <line x1="329" y1="235" x2="255" y2="235" stroke="var(--accent)" stroke-width="1.5"/>
-        <!-- Incomplete Construction Cutout Grid Lines -->
-        <path d="M 120 460 Q 340 510 560 460" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
-        <path d="M 135 200 Q 340 160 545 200" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/>
       </svg>
-
-      <!-- Light Mode: Landed X-Wing Squadron on Hangar Apron -->
       <svg class="landed-only" width="1050" height="580" viewBox="0 0 1050 580" fill="none" style="opacity:0.22;">
         <line x1="50" y1="460" x2="1000" y2="460" stroke="#000" stroke-width="2.5"/>
-        <!-- Landed X-Wing #1 -->
-        <polygon points="220,435 450,415 470,435 220,445" fill="rgba(0,0,0,0.08)" stroke="#000" stroke-width="2"/>
-        <line x1="270" y1="442" x2="265" y2="460" stroke="#000" stroke-width="3.5"/>
-        <line x1="410" y1="435" x2="415" y2="460" stroke="#000" stroke-width="3.5"/>
-        <!-- Landed Imperial Lambda Shuttle with Folded Wings -->
         <polygon points="680,430 750,240 780,430" fill="rgba(0,0,0,0.06)" stroke="#000" stroke-width="2.5"/>
-        <polygon points="640,440 820,440 800,410 660,410" fill="var(--accent)" opacity="0.35" stroke="#000" stroke-width="2"/>
-        <line x1="680" y1="440" x2="675" y2="460" stroke="#000" stroke-width="4"/>
-        <line x1="780" y1="440" x2="785" y2="460" stroke="#000" stroke-width="4"/>
-        <text x="615" y="495" fill="#000" font-family="JetBrains Mono" font-size="12" letter-spacing="4">SECTOR 02 // SHUTTLE & SQUADRON GROUNDED</text>
+        <text x="615" y="495" fill="#000" font-family="JetBrains Mono" font-size="12" letter-spacing="4">SECTOR 02 // SQUADRON GROUNDED</text>
       </svg>
     </div>
 
-    <!-- SECTOR 03 BG: IMPERIAL STAR DESTROYER & RINGED PLANET -->
+    <!-- SECTOR 03 BG: STAR DESTROYER -->
     <div class="sector-bg-art" id="bg-sector-03">
       <svg width="1050" height="600" viewBox="0 0 1050 600" fill="none" style="opacity:0.20;">
-        <!-- Giant Ringed Planet in Lower Corner -->
         <circle cx="840" cy="440" r="140" stroke="currentColor" stroke-width="2"/>
         <ellipse cx="840" cy="440" rx="260" ry="42" transform="rotate(-18 840 440)" stroke="var(--accent)" stroke-width="2"/>
-        <!-- Imperial Star Destroyer Wedge -->
         <polygon points="110,240 690,140 520,330" stroke="currentColor" stroke-width="2.2" fill="rgba(128,128,128,0.05)"/>
         <line x1="110" y1="240" x2="605" y2="235" stroke="var(--accent)" stroke-width="1.8"/>
-        <!-- Command Bridge Tower -->
-        <polygon points="530,165 595,152 590,185 525,195" stroke="currentColor" stroke-width="2"/>
-        <circle cx="545" cy="146" r="5" fill="var(--accent)"/>
-        <circle cx="578" cy="141" r="5" fill="var(--accent)"/>
       </svg>
     </div>
 
-    <!-- SECTOR 04 BG: PLANETARY ORBITAL SHIELD GATE -->
+    <!-- SECTOR 04 BG: SHIELD GATE -->
     <div class="sector-bg-art" id="bg-sector-04">
       <svg width="960" height="540" viewBox="0 0 960 540" fill="none" style="opacity:0.18;">
         <path d="M 80 520 Q 480 260 880 520" stroke="var(--accent)" stroke-width="3"/>
         <path d="M 140 530 Q 480 310 820 530" stroke="currentColor" stroke-width="1" stroke-dasharray="10 10"/>
       </svg>
     </div>
-
   </div>
 
   <!-- SCREEN TRANSITION FX OVERLAY -->
   <div id="transitionFxOverlay"></div>
 
-  <!-- TOP FLOATING IMPERIAL HUD -->
+  <!-- STREAMLINED, UNCLUTTERED TOP HUD -->
   <header class="imperial-hud">
-    <div class="hud-brand" onclick="triggerGlobalReload()" title="Click to Reload All Telemetry">
+    <a href="#sector-01" class="hud-brand">
       <div class="hud-reticle" id="brandReticle"></div>
-      <span>NEXUS // GALACTIC v2.1</span>
-    </div>
+      <span>NEXUS // GALACTIC</span>
+    </a>
 
     <nav class="hud-nav">
       <a href="#sector-01" class="hud-link active" data-sector="sector-01">01 // Transmit</a>
       <a href="#sector-02" class="hud-link" data-sector="sector-02">02 // Telemetry</a>
       <a href="#sector-03" class="hud-link" data-sector="sector-03">03 // Holocron</a>
-      <a href="#sector-04" class="hud-link" data-sector="sector-04">04 // Fleet</a>
+      <a href="#sector-04" class="hud-link" data-sector="sector-04">04 // Config &amp; Fleet</a>
     </nav>
 
     <div class="hud-controls">
-      <!-- Authentic Lightsaber Kyber Crystal Picker -->
-      <div class="kyber-dock" title="Select Lightsaber Kyber Crystal Color">
-        <span class="kyber-label">SABER</span>
-        <button class="kyber-crystal" style="background:#ff1e1e; color:#ff1e1e;" onclick="setSaberColor('#ff1e1e', 'rgba(255,30,30,0.55)', 'rgba(255,30,30,0.14)')" title="Sith Crimson (Red)"></button>
-        <button class="kyber-crystal" style="background:#2bff4f; color:#2bff4f;" onclick="setSaberColor('#2bff4f', 'rgba(43,255,79,0.55)', 'rgba(43,255,79,0.14)')" title="Consular Green"></button>
-        <button class="kyber-crystal active" style="background:#00ffcc; color:#00ffcc;" onclick="setSaberColor('#00ffcc', 'rgba(0,255,204,0.55)', 'rgba(0,255,204,0.14)')" title="Guardian Teal"></button>
-        <button class="kyber-crystal" style="background:#00e5ff; color:#00e5ff;" onclick="setSaberColor('#00e5ff', 'rgba(0,229,255,0.55)', 'rgba(0,229,255,0.14)')" title="Skywalker Blue/Cyan"></button>
-        <button class="kyber-crystal" style="background:#ff7700; color:#ff7700;" onclick="setSaberColor('#ff7700', 'rgba(255,119,0,0.55)', 'rgba(255,119,0,0.14)')" title="Baylan / Cal Orange"></button>
-        <button class="kyber-crystal" style="background:#ffd000; color:#ffd000;" onclick="setSaberColor('#ffd000', 'rgba(255,208,0,0.55)', 'rgba(255,208,0,0.14)')" title="Temple Guard Yellow"></button>
-        <button class="kyber-crystal" style="background:#b829ff; color:#b829ff;" onclick="setSaberColor('#b829ff', 'rgba(184,41,255,0.55)', 'rgba(184,41,255,0.14)')" title="Mace Windu Violet"></button>
-        <button class="kyber-crystal" style="background:#ffffff; color:#ffffff;" onclick="setSaberColor('#ffffff', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.14)')" title="Ahsoka / Darksaber White"></button>
-      </div>
-
-      <!-- Reload Button -->
-      <button class="hud-btn accent-outline" onclick="triggerGlobalReload()" title="Reload All Page Data">
-        <span id="reloadIcon">↻</span> RELOAD
-      </button>
-
-      <!-- Transition FX Selector -->
-      <button class="hud-btn" id="fxModeBtn" onclick="cycleTransitionFxMode()" title="Change Scroll Transition FX">
-        FX // FLYBY
-      </button>
-
-      <!-- Space (Black) vs Landed Hangar (White) Polarity Switch -->
-      <button class="hud-btn" onclick="togglePolarity()" id="polarityBtn" title="Switch Space vs Landed Hangar Mode">
-        ◐ SPACE MODE
-      </button>
-
-      <!-- Spotify Connect / Disconnect Quick Status -->
-      <button class="hud-btn" id="hudSpotifyBtn" onclick="handleSpotifyConnect()">
-        🟢 SPOTIFY: CHECKING
-      </button>
-      <button class="hud-btn" id="hudSpotifyUnlinkBtn" style="display:none; color:#ff4d4d; border-color:rgba(255,77,77,0.4);" onclick="handleSpotifyDisconnect()" title="Disconnect Spotify Account">
-        ✕ UNLINK
-      </button>
-
-      <button class="hud-btn" onclick="openAuthModal()" id="hudUserBtn">CMD // ALVISH</button>
-      <a href="/v2.0" class="hud-btn" title="View Saved v2.0 Snapshot">v2.0</a>
-      <a href="/" class="hud-btn" title="Switch to Legacy v1 UI">v1 ↗</a>
+      <a href="/tracks" class="hud-btn accent-outline" title="Open Downloaded Tracks Archive Page">
+        🎵 DOWNLOADED TRACKS ↗
+      </a>
+      <a href="#sector-04" class="hud-btn" title="Jump to System Configuration & Settings">
+        ⚙ SETTINGS
+      </a>
     </div>
   </header>
 
@@ -244,7 +173,7 @@
   </div>
 
   <!-- =================================================================== -->
-  <!-- SECTOR 02: LIVE TELEMETRY & QUEUE MATRIX (DEATH STAR SECTOR)        -->
+  <!-- SECTOR 02: LIVE TELEMETRY & QUEUE MATRIX                            -->
   <!-- =================================================================== -->
   <section id="sector-02" class="cinematic-stage" data-bg="bg-sector-02">
     <div class="sector-eyebrow">
@@ -253,10 +182,16 @@
       <span>LIVE REDIS TRANSCODER STREAM</span>
     </div>
 
-    <h2 class="monumental-title">
-      ORBITAL<br/>
-      <span class="hollow-stroke">TELEMETRY.</span>
-    </h2>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:20px; margin-bottom:26px;">
+      <h2 class="monumental-title" style="margin-bottom:0;">
+        ORBITAL<br/>
+        <span class="hollow-stroke">TELEMETRY.</span>
+      </h2>
+      <a href="/tracks" class="imperial-fire-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:10px;">
+        OPEN FULL DOWNLOADED TRACKS ARCHIVE &rarr;
+      </a>
+    </div>
+
     <p class="monumental-subtitle">
       Live surveillance of active yt-dlp and FFmpeg extraction streams, queued coordinates, and master files committed to /mnt/audio_pool/music/tracks.
     </p>
@@ -272,7 +207,7 @@
       </div>
       <div class="telemetry-stat-cell">
         <span class="stat-num" id="statCompletedCount">00</span>
-        <span class="stat-label">ARCHIVED MASTER TRACKS</span>
+        <span class="stat-label">RECENTLY ARCHIVED TRACKS</span>
       </div>
     </div>
 
@@ -280,7 +215,6 @@
       <div>
         <div class="breaker-meta" style="margin-bottom:14px;">
           <span style="color:var(--accent);">● ACTIVE STREAMS</span>
-          <button class="hud-btn" onclick="fetchTelemetry()">REFRESH ↻</button>
         </div>
         <div id="telemetryActiveList"></div>
       </div>
@@ -294,7 +228,8 @@
 
       <div>
         <div class="breaker-meta" style="margin-bottom:14px;">
-          <span>✓ ARCHIVED TO DISK</span>
+          <span>✓ RECENT COMPLETIONS</span>
+          <a href="/tracks" class="hud-btn accent-outline" style="padding:4px 10px;">VIEW ALL TRACKS &rarr;</a>
         </div>
         <div id="telemetryHistoryList"></div>
       </div>
@@ -315,7 +250,7 @@
   </div>
 
   <!-- =================================================================== -->
-  <!-- SECTOR 03: HOLOCRON ARCHIVES (STAR DESTROYER SECTOR)                -->
+  <!-- SECTOR 03: HOLOCRON ARCHIVES (LOCKED RIGHT-SIDE CONTROLS)           -->
   <!-- =================================================================== -->
   <section id="sector-03" class="cinematic-stage" data-bg="bg-sector-03">
     <div class="sector-eyebrow">
@@ -328,29 +263,6 @@
       HOLOCRON<br/>
       <span class="hollow-stroke">ARCHIVES.</span>
     </h2>
-
-    <!-- Dedicated Spotify Session Login / Switch / Disconnect Bar -->
-    <div class="spotify-command-strip">
-      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-        <span style="font-family:var(--font-mono); font-size:11px; letter-spacing:0.18em; font-weight:700; color:var(--accent);">
-          [ SPOTIFY OAUTH RELAY ]
-        </span>
-        <span id="sectorSpotifyStatusText" style="font-family:var(--font-mono); font-size:12px;">
-          Checking Spotify link status...
-        </span>
-      </div>
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <button class="hud-btn accent-outline" onclick="handleSpotifyConnect()" id="sectorSpotifyConnectBtn">
-          🔗 CONNECT / SWITCH SPOTIFY ACCOUNT
-        </button>
-        <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d;" onclick="handleSpotifyDisconnect()" id="sectorSpotifyDisconnectBtn">
-          ✕ DISCONNECT SPOTIFY
-        </button>
-        <button class="hud-btn" onclick="triggerGlobalReload()">
-          ↻ RELOAD ARCHIVES
-        </button>
-      </div>
-    </div>
 
     <!-- Dataset & Filter Command Bar -->
     <div class="vault-command-bar">
@@ -382,7 +294,7 @@
       />
     </div>
 
-    <!-- Playlist Rows with Lightsaber Download Switch -->
+    <!-- Playlist Rows with Locked Right-Hand Controls -->
     <div id="holocronArchiveList" class="holocron-list"></div>
   </section>
 
@@ -390,7 +302,7 @@
   <div class="sector-breaker">
     <div class="breaker-meta">
       <span>[ + ] SECTOR TRANSITION // 03 &rarr; 04</span>
-      <span class="breaker-code">R2-D2 ASTROMECH PATROL // ELYSIUM FLEET COMMAND</span>
+      <span class="breaker-code">SYSTEM CONFIGURATION // KYBER &amp; OAUTH CONTROL DECK</span>
       <span>K3S V1.36 GITOPS</span>
     </div>
     <div class="lightsaber-divider">
@@ -400,29 +312,118 @@
   </div>
 
   <!-- =================================================================== -->
-  <!-- SECTOR 04: ELYSIUM FLEET COMMAND & LIVE R2-D2 ASTROMECH PATROL      -->
+  <!-- SECTOR 04: CONFIGURATION, CUSTOMIZATION & ELYSIUM FLEET DECK        -->
   <!-- =================================================================== -->
   <section id="sector-04" class="cinematic-stage" data-bg="bg-sector-04">
     <div class="sector-eyebrow">
-      <span>[ SEC-04 // ASTROMECH DECK & FLEET TERMINALS ]</span>
+      <span>[ SEC-04 // SYSTEM CONFIGURATION &amp; FLEET DECK ]</span>
       <span>//</span>
       <span>COMMAND TERMINALS ONLINE</span>
     </div>
 
     <h2 class="monumental-title">
-      ELYSIUM<br/>
-      <span class="hollow-stroke">FLEET DECK.</span>
+      COMMAND<br/>
+      <span class="hollow-stroke">&amp; FLEET.</span>
     </h2>
     <p class="monumental-subtitle">
-      Direct hyperspace relays to your self-hosted streaming players, Subsonic administration deck, and GitOps deployment engine.
+      Centralized configuration matrix for Kyber saber crystals, transition effects, Spotify OAuth relays, commander authentication, and cluster terminals.
     </p>
 
+    <!-- 3 CONFIGURATION & SETTINGS CARDS (MOVED FROM TOP HUD & SEC-03) -->
+    <div class="config-deck-grid">
+
+      <!-- CARD 1: KYBER CRYSTAL, TRANSITION FX & POLARITY -->
+      <div class="config-card">
+        <div>
+          <div class="config-card-title">[ 01 // KYBER CRYSTAL &amp; VISUAL FX ]</div>
+          <p style="color:var(--fg-muted); font-size:13px; margin-top:8px;">
+            Customize lightsaber plasma accents, scroll transition effects, and deep space vs. landed hangar polarity.
+          </p>
+        </div>
+
+        <div class="kyber-dock-large">
+          <button class="kyber-crystal" style="background:#ff1e1e; color:#ff1e1e;" onclick="setSaberColor('#ff1e1e', 'rgba(255,30,30,0.55)', 'rgba(255,30,30,0.14)')" title="Sith Crimson (Red)"></button>
+          <button class="kyber-crystal" style="background:#2bff4f; color:#2bff4f;" onclick="setSaberColor('#2bff4f', 'rgba(43,255,79,0.55)', 'rgba(43,255,79,0.14)')" title="Consular Green"></button>
+          <button class="kyber-crystal active" style="background:#00ffcc; color:#00ffcc;" onclick="setSaberColor('#00ffcc', 'rgba(0,255,204,0.55)', 'rgba(0,255,204,0.14)')" title="Guardian Teal"></button>
+          <button class="kyber-crystal" style="background:#00e5ff; color:#00e5ff;" onclick="setSaberColor('#00e5ff', 'rgba(0,229,255,0.55)', 'rgba(0,229,255,0.14)')" title="Skywalker Cyan"></button>
+          <button class="kyber-crystal" style="background:#ff7700; color:#ff7700;" onclick="setSaberColor('#ff7700', 'rgba(255,119,0,0.55)', 'rgba(255,119,0,0.14)')" title="Cal Kestis Orange"></button>
+          <button class="kyber-crystal" style="background:#ffd000; color:#ffd000;" onclick="setSaberColor('#ffd000', 'rgba(255,208,0,0.55)', 'rgba(255,208,0,0.14)')" title="Temple Guard Gold"></button>
+          <button class="kyber-crystal" style="background:#b829ff; color:#b829ff;" onclick="setSaberColor('#b829ff', 'rgba(184,41,255,0.55)', 'rgba(184,41,255,0.14)')" title="Mace Windu Violet"></button>
+          <button class="kyber-crystal" style="background:#ffffff; color:#ffffff;" onclick="setSaberColor('#ffffff', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.14)')" title="Darksaber White"></button>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+          <button class="hud-btn accent-outline" id="fxModeBtn" onclick="cycleTransitionFxMode()">
+            FX // FLYBY
+          </button>
+          <button class="hud-btn" onclick="togglePolarity()" id="polarityBtn">
+            ◐ SPACE MODE
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 2: SPOTIFY OAUTH RELAY & ACCOUNT LINKING -->
+      <div class="config-card">
+        <div>
+          <div class="config-card-title">[ 02 // SPOTIFY OAUTH RELAY ]</div>
+          <p id="sectorSpotifyStatusText" style="color:var(--fg); font-family:var(--font-mono); font-size:12px; margin-top:10px;">
+            Checking Spotify link status...
+          </p>
+          <p style="color:var(--fg-muted); font-size:12px; margin-top:6px;">
+            Link or switch your personal Spotify account to synchronize private account playlists automatically.
+          </p>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+          <button class="hud-btn accent-outline" id="sectorSpotifyConnectBtn" onclick="handleSpotifyConnect()">
+            🔗 CONNECT / SWITCH SPOTIFY
+          </button>
+          <button class="hud-btn" id="sectorSpotifyDisconnectBtn" style="border-color:#ff4d4d; color:#ff4d4d; display:none;" onclick="handleSpotifyDisconnect()">
+            ✕ UNLINK SPOTIFY
+          </button>
+          <!-- Hidden legacy IDs so existing JS hooks never throw null errors -->
+          <span id="hudSpotifyBtn" style="display:none;"></span>
+          <span id="hudSpotifyUnlinkBtn" style="display:none;"></span>
+        </div>
+      </div>
+
+      <!-- CARD 3: COMMANDER SESSION, LOGIN / LOGOUT & LEGACY INTERFACES -->
+      <div class="config-card">
+        <div>
+          <div class="config-card-title">[ 03 // COMMANDER SESSION &amp; PORTALS ]</div>
+          <p style="color:var(--fg); font-family:var(--font-mono); font-size:13px; margin-top:10px;">
+            ACTIVE CALLSIGN: <strong id="hudUserBtn" style="color:var(--accent);">CMD // ALVISH</strong>
+          </p>
+          <p style="color:var(--fg-muted); font-size:12px; margin-top:6px;">
+            Manage Subsonic authentication credentials or access legacy interface snapshots.
+          </p>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+          <button class="hud-btn accent-outline" onclick="openAuthModal()">
+            🔑 SWITCH USER / LOGIN
+          </button>
+          <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d;" onclick="logoutCommander()">
+            🚪 LOGOUT
+          </button>
+          <a href="/v1" class="hud-btn" title="Open Legacy v1 Dashboard">
+            LEGACY V1 ↗
+          </a>
+          <a href="/v2.0" class="hud-btn" title="Open v2.0 Imperial Monolith Snapshot">
+            V2.0 ↗
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ELYSIUM FLEET TERMINALS -->
     <div class="fleet-grid">
       <a href="http://music.nexus.link" target="_blank" class="fleet-monolith">
         <div class="breaker-meta"><span>TERMINAL // 01</span><span style="color:var(--accent);">↗</span></div>
         <div>
           <div class="fleet-monolith-title">FEISHIN PLAYER</div>
-          <p style="color:var(--fg-muted); font-size:13px; margin-top:8px;">High-contrast desktop & web streaming interface</p>
+          <p style="color:var(--fg-muted); font-size:13px; margin-top:8px;">High-contrast desktop &amp; web streaming interface</p>
         </div>
       </a>
 
@@ -430,7 +431,7 @@
         <div class="breaker-meta"><span>TERMINAL // 02</span><span style="color:var(--accent);">↗</span></div>
         <div>
           <div class="fleet-monolith-title">NAVIDROME CORE</div>
-          <p style="color:var(--fg-muted); font-size:13px; margin-top:8px;">OpenSubsonic audio indexer & user isolation console</p>
+          <p style="color:var(--fg-muted); font-size:13px; margin-top:8px;">OpenSubsonic audio indexer &amp; user isolation console</p>
         </div>
       </a>
 
@@ -450,8 +451,7 @@
         </div>
       </a>
     </div>
-
-    </section>
+  </section>
 
   <!-- COMMAND AUTH MODAL -->
   <div class="imperial-modal" id="authModal">
@@ -468,6 +468,6 @@
     </div>
   </div>
 
-  <script src="/static/v2/app.js?v=2.1"></script>
+  <script src="/static/v2/app.js?v=2.2"></script>
 </body>
 </html>
