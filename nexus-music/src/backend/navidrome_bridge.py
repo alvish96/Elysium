@@ -16,7 +16,7 @@ from models import User
 from schemas import LoginRequest, TokenResponse, UserOut
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(auto_error=False, tokenUrl="/api/v1/auth/login")
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()

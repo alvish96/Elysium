@@ -396,115 +396,166 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
 
     logger.info(f"[Worker] Processing YouTube download task {task_id} for URL: {url}")
 
-    await r.hset("nexus:downloads:active", task_id, json.dumps({
-        "id": task_id,
-        "title": "Resolving track metadata...",
-        "artist": "YouTube",
-        "percent": 0.0,
-        "speed": "0 KiB/s",
-        "eta": "--:--",
-        "status": "starting",
-        "owner": owner_username
-    }))
-    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+    track_title = "Extracting YouTube stream..."
+    artist_name = "YouTube"
 
-    track_title = "Unknown Track"
-    artist_name = "YouTube Music"
+    async def push_progress(pct: float, spd: str, eta: str, status: str = "downloading"):
+        payload = {
+            "id": task_id,
+            "title": track_title,
+            "artist": artist_name,
+            "percent": round(pct, 1),
+            "speed": spd,
+            "eta": eta,
+            "status": status,
+            "owner": owner_username
+        }
+        await r.hset("nexus:downloads:active", task_id, json.dumps(payload))
+        await r.publish("nexus:events", json.dumps({"event": "TRACK_PROGRESS", "data": payload}))
+
+    await push_progress(5.0, "Connecting...", "--:--", "starting")
+
     try:
-        probe = await asyncio.create_subprocess_exec(
-            yt_bin, "--dump-json", "--no-playlist", url,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        out_tmpl = str(temp_dir / "%(title)s.%(ext)s")
+        dl_cmd = [
+            yt_bin,
+            "-x",
+            "--audio-format", "mp3",
+            "--audio-quality", "0",
+            "--embed-thumbnail",
+            "--add-metadata",
+            "--write-info-json",
+            "--no-playlist",
+            "--newline",
+            "--no-colors",
+            "-o", out_tmpl,
+            url
+        ]
+
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+
+        proc = await asyncio.create_subprocess_exec(
+            *dl_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env
         )
-        p_out, _ = await probe.communicate()
-        if probe.returncode == 0:
-            meta = json.loads(p_out.decode("utf-8", errors="ignore"))
-            track_title = meta.get("track") or meta.get("title") or "Unknown Track"
-            artist_name = meta.get("artist") or meta.get("uploader") or meta.get("creator") or "YouTube"
-    except Exception as e:
-        logger.warning(f"[Worker] Metadata probe warning: {e}")
 
-    out_tmpl = str(temp_dir / "%(title)s.%(ext)s")
-    dl_cmd = [
-        yt_bin,
-        "-x",
-        "--audio-format", "mp3",
-        "--audio-quality", "0",
-        "--embed-thumbnail",
-        "--add-metadata",
-        "--no-playlist",
-        "--newline",
-        "-o", out_tmpl,
-        url
-    ]
+        bs = chr(92)
+        pct_re = re.compile(bs + "[download" + bs + "]" + bs + "s+(" + bs + "d+" + bs + ".?" + bs + "d*)%")
+        spd_re = re.compile("at" + bs + "s+([0-9.]+[A-Za-z]+/s)")
+        eta_re = re.compile("ETA" + bs + "s+([0-9:]+)")
+        dest_re = re.compile(bs + "[download" + bs + "] Destination:" + bs + "s+(.+)")
+        info_re = re.compile(bs + "[info" + bs + "] Writing video metadata as JSON to:" + bs + "s+(.+)")
 
-    proc = await asyncio.create_subprocess_exec(
-        *dl_cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT
-    )
+        current_pct = 5.0
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", errors="ignore").strip()
+            if not text:
+                continue
 
-    pct_re = re.compile(r'[download]\s+(\d+\.?\d*)%\s+of\s+~?(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)')
+            if "[youtube]" in text and "Downloading webpage" in text:
+                current_pct = max(current_pct, 12.0)
+                await push_progress(current_pct, "Handshaking", "--:--")
+                continue
 
-    while True:
-        line = await proc.stdout.readline()
-        if not line:
-            break
-        text = line.decode("utf-8", errors="ignore").strip()
-        m = pct_re.search(text)
-        if m:
-            pct = float(m.group(1))
-            spd = m.group(3)
-            eta = m.group(4)
-            progress_payload = {
+            m_info = info_re.search(text)
+            if m_info:
+                info_file = Path(m_info.group(1).strip())
+                if info_file.exists():
+                    try:
+                        meta = json.loads(info_file.read_text(encoding="utf-8", errors="ignore"))
+                        track_title = meta.get("track") or meta.get("title") or track_title
+                        artist_name = meta.get("artist") or meta.get("uploader") or meta.get("creator") or "YouTube"
+                    except Exception:
+                        pass
+                current_pct = max(current_pct, 20.0)
+                await push_progress(current_pct, "Manifest Locked", "--:--")
+                continue
+
+            m_dest = dest_re.search(text)
+            if m_dest:
+                if track_title == "Extracting YouTube stream...":
+                    track_title = Path(m_dest.group(1).strip()).stem
+                current_pct = max(current_pct, 24.0)
+                await push_progress(current_pct, "Streaming Audio", "--:--")
+                continue
+
+            m_pct = pct_re.search(text)
+            if m_pct:
+                try:
+                    raw_pct = float(m_pct.group(1))
+                    current_pct = round(24.0 + (raw_pct * 0.62), 1)
+                except ValueError:
+                    pass
+                m_spd = spd_re.search(text)
+                spd = m_spd.group(1) if m_spd else "Streaming"
+                m_eta = eta_re.search(text)
+                eta = m_eta.group(1) if m_eta else "00:01"
+                await push_progress(current_pct, spd, eta)
+                continue
+
+            if "[ExtractAudio]" in text:
+                current_pct = 91.0
+                await push_progress(current_pct, "FFmpeg 320kbps", "00:02")
+                continue
+
+            if "[Metadata]" in text or "[EmbedThumbnail]" in text:
+                current_pct = 96.0
+                await push_progress(current_pct, "ID3 Tagging", "00:01")
+                continue
+
+        await proc.wait()
+
+        info_files = list(temp_dir.glob("*.info.json"))
+        if info_files:
+            try:
+                meta = json.loads(info_files[0].read_text(encoding="utf-8", errors="ignore"))
+                track_title = meta.get("track") or meta.get("title") or track_title
+                artist_name = meta.get("artist") or meta.get("uploader") or meta.get("creator") or artist_name
+            except Exception:
+                pass
+
+        mp3s = list(temp_dir.glob("*.mp3"))
+        if mp3s and mp3s[0].stat().st_size > 50000:
+            await push_progress(100.0, "Complete", "00:00")
+            safe_artist = sanitize_filename(artist_name)
+            safe_title = sanitize_filename(track_title)
+            final_filename = f"{safe_artist} - {safe_title}.mp3"
+            dest = tracks_dir / final_filename
+            shutil.move(str(mp3s[0]), str(dest))
+            os.utime(str(dest), None)
+
+            history_entry = {
                 "id": task_id,
                 "title": track_title,
                 "artist": artist_name,
-                "percent": pct,
-                "speed": spd,
-                "eta": eta,
-                "status": "downloading",
-                "owner": owner_username
+                "status": "completed",
+                "file": final_filename,
+                "completed_at": datetime.now(timezone.utc).isoformat()
             }
-            await r.hset("nexus:downloads:active", task_id, json.dumps(progress_payload))
-            await r.publish("nexus:events", json.dumps({"event": "TRACK_PROGRESS", "data": progress_payload}))
+            await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+            await r.ltrim("nexus:downloads:history", 0, 49)
+            logger.info(f"[Worker] Saved audio file to tracks directory: {dest}")
+        else:
+            history_entry = {
+                "id": task_id,
+                "title": track_title,
+                "artist": artist_name,
+                "status": "failed",
+                "completed_at": datetime.now(timezone.utc).isoformat()
+            }
+            await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+            logger.warning(f"[Worker] Download finished without producing MP3 for {url}")
+    finally:
+        await r.hdel("nexus:downloads:active", task_id)
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
 
-    await proc.wait()
-
-    mp3s = list(temp_dir.glob("*.mp3"))
-    if mp3s and mp3s[0].stat().st_size > 50000:
-        safe_artist = sanitize_filename(artist_name)
-        safe_title = sanitize_filename(track_title)
-        final_filename = f"{safe_artist} - {safe_title}.mp3"
-        dest = tracks_dir / final_filename
-        shutil.move(str(mp3s[0]), str(dest))
-        import os
-        os.utime(str(dest), None)
-
-        history_entry = {
-            "id": task_id,
-            "title": track_title,
-            "artist": artist_name,
-            "status": "completed",
-            "file": final_filename,
-            "completed_at": datetime.now(timezone.utc).isoformat()
-        }
-        await r.lpush("nexus:downloads:history", json.dumps(history_entry))
-        await r.ltrim("nexus:downloads:history", 0, 49)
-        logger.info(f"[Worker] Saved audio file to tracks directory: {dest}")
-    else:
-        history_entry = {
-            "id": task_id,
-            "title": track_title,
-            "artist": artist_name,
-            "status": "failed",
-            "completed_at": datetime.now(timezone.utc).isoformat()
-        }
-        await r.lpush("nexus:downloads:history", json.dumps(history_entry))
-        logger.warning(f"[Worker] Download finished without producing valid MP3 for {url}")
-
-    await r.hdel("nexus:downloads:active", task_id)
-    shutil.rmtree(temp_dir, ignore_errors=True)
-    await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
 # === END YOUTUBE ENGINE ===
 
 # === YOUTUBE PLAYLIST ENGINE ===

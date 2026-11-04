@@ -462,17 +462,8 @@ body.light-polarity .space-only { display: none !important; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  opacity: 0.14;
-  transform: translateY(56px) scale(0.96);
-  transition:
-    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, transform;
-}
-
-.cinematic-stage.in-view {
-  opacity: 1;
-  transform: translateY(0) scale(1);
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* OVERSIZED MONUMENTAL TYPOGRAPHY */
@@ -881,54 +872,6 @@ body.light-polarity .space-only { display: none !important; }
   margin-top: 20px;
 }
 
-/* LIVE INTERACTIVE R2-D2 ASTROMECH PATROL TRACK */
-.r2d2-patrol-deck {
-  position: relative;
-  width: 100%;
-  height: 120px;
-  border-bottom: 2px solid var(--accent);
-  box-shadow: 0 6px 20px -6px var(--accent-glow);
-  overflow: hidden;
-  margin-top: 20px;
-}
-
-.r2d2-unit {
-  position: absolute;
-  bottom: 0;
-  left: 10%;
-  width: 74px;
-  height: 92px;
-  cursor: pointer;
-  animation: r2PatrolMove 18s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 12px var(--accent-glow));
-}
-
-.r2d2-unit:hover {
-  animation-play-state: paused;
-}
-
-.r2d2-speech-bubble {
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  padding: 3px 8px;
-  white-space: nowrap;
-  box-shadow: 0 0 10px var(--accent-glow);
-}
-
-@keyframes r2PatrolMove {
-  0% { left: 4%; transform: rotate(2deg); }
-  48% { transform: rotate(2deg); }
-  50% { left: 84%; transform: rotate(-2deg); }
-  100% { left: 12%; transform: rotate(1deg); }
-}
 
 /* AUTH MODAL */
 .imperial-modal {

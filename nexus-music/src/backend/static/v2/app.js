@@ -1,3 +1,65 @@
+
+let fastPollCount = 0;
+function triggerRapidTelemetryPoll() {
+  fastPollCount = 35; // Poll every 400ms for the next 14 seconds
+  fetchTelemetry();
+}
+setInterval(() => {
+  if (fastPollCount > 0) {
+    fastPollCount--;
+    fetchTelemetry();
+  }
+}, 400);
+
+async function handleSpotifyConnect() {
+  const token = getToken();
+  const feedback = document.getElementById('sectorSpotifyStatusText');
+  if (feedback) feedback.textContent = 'Contacting Spotify OAuth relay...';
+
+  try {
+    const res = await apiFetch('/api/v1/spotify/login');
+    if (res.ok) {
+      const data = await res.json();
+      const target = data.authorization_url || data.url || data.auth_url;
+      if (target) {
+        window.location.href = target;
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("apiFetch error, attempting direct redirect:", err);
+  }
+
+  // Fallback: direct browser redirect passing token in query string
+  if (token) {
+    window.location.href = '/api/v1/spotify/login?token=' + encodeURIComponent(token);
+  } else {
+    if (feedback) feedback.textContent = 'Error: Not authenticated. Please sign in to Nexus first.';
+    openAuthModal();
+  }
+}
+
+
+
+async function handleSpotifyDisconnect() {
+  try {
+    const res = await apiFetch('/api/v1/spotify/disconnect', { method: 'POST' });
+    if (res.ok) {
+      await loadAllArchives();
+    }
+  } catch (e) {
+    console.error("Disconnect error:", e);
+  }
+}
+
+
+let telemetryTimer = null;
+
+function setTelemetryInterval(ms) {
+  if (telemetryTimer) clearInterval(telemetryTimer);
+  telemetryTimer = setInterval(fetchTelemetry, ms);
+}
+
 const appState = {
   visibility: 'private',
   archiveSource: 'spotify',
@@ -15,6 +77,7 @@ const appState = {
 
 function getToken() {
   return (
+    localStorage.getItem('nexus_token') ||
     localStorage.getItem('nexus_token') ||
     localStorage.getItem('jwt_token') ||
     localStorage.getItem('token') ||
@@ -34,7 +97,7 @@ async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(path, Object.assign({}, options, { headers }));
+  const res = await fetch(path, Object.assign({ cache: 'no-store' }, options, { headers }));
   if (res.status === 401 && !path.includes('/spotify/')) {
     document.getElementById('authModal').style.display = 'flex';
   }
@@ -191,7 +254,7 @@ function initScrollTransitions() {
         }
       }
     });
-  }, { threshold: 0.28 });
+  }, { rootMargin: '0px 0px -40px 0px', threshold: 0.02 });
 
   stages.forEach(s => stageObserver.observe(s));
 
@@ -201,7 +264,7 @@ function initScrollTransitions() {
         entry.target.classList.add('in-view');
       }
     });
-  }, { threshold: 0.35 });
+  }, { rootMargin: '0px 0px -40px 0px', threshold: 0.01 });
 
   breakers.forEach(b => breakerObserver.observe(b));
 }
@@ -209,30 +272,9 @@ function initScrollTransitions() {
 // -------------------------------------------------------------------------
 // 5. SPOTIFY LOGIN, SWITCH ACCOUNT & DISCONNECT (UNLINK)
 // -------------------------------------------------------------------------
-async function handleSpotifyConnect() {
-  try {
-    const res = await apiFetch('/api/v1/spotify/login');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.auth_url || data.url) {
-        window.location.href = data.auth_url || data.url;
-        return;
-      }
-    }
-    window.location.href = '/api/v1/spotify/login';
-  } catch (e) {
-    window.location.href = '/api/v1/spotify/login';
-  }
-}
 
-async function handleSpotifyDisconnect() {
-  try {
-    const res = await apiFetch('/api/v1/spotify/disconnect', { method: 'POST' });
-    if (res.ok) {
-      await loadAllArchives();
-    }
-  } catch (e) {}
-}
+
+
 
 // -------------------------------------------------------------------------
 // 6. RELOAD BUTTON & GLOBAL TELEMETRY REFRESH
@@ -304,7 +346,7 @@ async function fireTransmission() {
       if (!res.ok) throw new Error(data.detail || 'Transmission rejected');
       feedback.textContent = `[ ✓ ${data.message.toUpperCase()} ]`;
       input.value = '';
-      await fetchTelemetry();
+      triggerRapidTelemetryPoll();
       setTimeout(() => {
         document.getElementById('sector-02').scrollIntoView({ behavior: 'smooth' });
       }, 400);
@@ -336,7 +378,7 @@ async function fireTransmission() {
 // -------------------------------------------------------------------------
 async function fetchTelemetry() {
   try {
-    const res = await apiFetch('/api/v1/downloads/queue');
+    const res = await apiFetch('/api/v1/downloads/queue?_t=' + Date.now());
     if (!res.ok) return;
     const data = await res.json();
 
@@ -345,6 +387,7 @@ async function fetchTelemetry() {
     const history = data.history || [];
 
     document.getElementById('statActiveCount').textContent = String(active.length).padStart(2, '0');
+    if (active.length > 0) { setTelemetryInterval(600); } else { setTelemetryInterval(3000); }
     document.getElementById('statPendingCount').textContent = String(data.pending_count ?? pending.length).padStart(2, '0');
     document.getElementById('statCompletedCount').textContent = String(history.length).padStart(2, '0');
 
@@ -591,14 +634,14 @@ async function togglePlaylistSyncSwitch(spotifyId, nextSyncedState, currentVis, 
     await apiFetch(`/api/v1/playlists/${spotifyId}/sync`, { method: 'POST' });
   }
   await loadAllArchives();
-  await fetchTelemetry();
+  triggerRapidTelemetryPoll();
 }
 
 async function syncArchiveNow(spotifyId) {
   if (!spotifyId) return;
   await apiFetch(`/api/v1/playlists/${spotifyId}/sync`, { method: 'POST' });
   triggerTransitionFx('SABER');
-  await fetchTelemetry();
+  triggerRapidTelemetryPoll();
 }
 
 async function flipArchiveVis(spotifyId, isSynced, currentVis, slug) {
@@ -624,19 +667,7 @@ async function deleteImportedArchive(spotifyId) {
 // -------------------------------------------------------------------------
 // 10. INTERACTIVE R2-D2 ASTROMECH CHIRP
 // -------------------------------------------------------------------------
-function chirpR2D2() {
-  const phrases = [
-    'BEEP-BOOP-WHEEE // HYPERDRIVE READY!',
-    'CHIRP-BEEP // NAVIDROME SUBSONIC ONLINE!',
-    'WHEEE-DOO // DEATH STAR TELEMETRY LOCKED!',
-    'BOOP-BEEP // ALL TRACKS ENCODED AT 320KBPS!'
-  ];
-  const bubble = document.getElementById('r2SpeechBubble');
-  if (bubble) {
-    bubble.textContent = phrases[Math.floor(Math.random() * phrases.length)];
-  }
-  triggerTransitionFx('LIGHTNING');
-}
+
 
 // -------------------------------------------------------------------------
 // 11. AUTHENTICATION & BOOTSTRAP
@@ -695,7 +726,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initScrollTransitions();
   loadAllArchives();
   fetchTelemetry();
-  setInterval(fetchTelemetry, 2500);
+  setTelemetryInterval(3000);
 
   const targetSector = window.location.hash.replace('#', '') || localStorage.getItem('nexus_v2_sector');
   if (targetSector && document.getElementById(targetSector)) {
