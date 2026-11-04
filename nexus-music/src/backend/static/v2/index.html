@@ -6,7 +6,7 @@
   <title>NEXUS // GALACTIC AUDIO ARCHIVE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/v2/styles.css?v=2.2" />
+  <link rel="stylesheet" href="/static/v2/styles.css?v=2.3" />
 </head>
 <body>
 
@@ -211,27 +211,32 @@
       </div>
     </div>
 
-    <div class="telemetry-columns">
-      <div>
+    <!-- FULL-WIDTH ACTIVE DOWNLOADS BAR IN THE MIDDLE -->
+    <div class="active-transcoder-fullbar">
+      <div class="breaker-meta" style="margin-bottom:12px;">
+        <span style="color:var(--accent); display:inline-flex; align-items:center; gap:8px;">
+          <span class="live-pulse-dot"></span> ● ACTIVE TRANSCODING STREAM
+        </span>
+        <span id="activeStreamStateTag" style="color:var(--fg-muted);">ORBITAL TRANSCODER // STANDBY</span>
+      </div>
+      <div id="telemetryActiveList" class="active-fullwidth-container"></div>
+    </div>
+
+    <!-- 2-COLUMN LOWER DECK: PENDING QUEUE (LEFT) & RECENT COMPLETIONS (RIGHT, 4-SONG SCROLL) -->
+    <div class="telemetry-dual-deck">
+      <div class="telemetry-deck-col">
         <div class="breaker-meta" style="margin-bottom:14px;">
-          <span style="color:var(--accent);">● ACTIVE STREAMS</span>
+          <span>⏳ PENDING QUEUE COORDINATES</span>
         </div>
-        <div id="telemetryActiveList"></div>
+        <div id="telemetryPendingList" class="telemetry-scroll-box"></div>
       </div>
 
-      <div>
+      <div class="telemetry-deck-col">
         <div class="breaker-meta" style="margin-bottom:14px;">
-          <span>⏳ QUEUED COORDINATES</span>
-        </div>
-        <div id="telemetryPendingList"></div>
-      </div>
-
-      <div>
-        <div class="breaker-meta" style="margin-bottom:14px;">
-          <span>✓ RECENT COMPLETIONS</span>
+          <span>✓ RECENTLY DOWNLOADED (4-TRACK VIEWPORT)</span>
           <a href="/tracks" class="hud-btn accent-outline" style="padding:4px 10px;">VIEW ALL TRACKS &rarr;</a>
         </div>
-        <div id="telemetryHistoryList"></div>
+        <div id="telemetryHistoryList" class="telemetry-scroll-box"></div>
       </div>
     </div>
   </section>
@@ -468,6 +473,6 @@
     </div>
   </div>
 
-  <script src="/static/v2/app.js?v=2.2"></script>
+  <script src="/static/v2/app.js?v=2.3"></script>
 </body>
 </html>

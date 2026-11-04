@@ -382,7 +382,8 @@ body.light-polarity .space-only { display: none !important; }
 }
 
 .saber-blade-plasma {
-  width: 0%;
+  width: 4%;
+  opacity: 0.45;
   height: 100%;
   background: #ffffff;
   border-radius: 0 6px 6px 0;
@@ -391,11 +392,12 @@ body.light-polarity .space-only { display: none !important; }
     0 0 14px var(--accent),
     0 0 28px var(--accent),
     0 0 52px var(--accent);
-  transition: width 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease;
 }
 
 .sector-breaker.in-view .saber-blade-plasma {
   width: 100%;
+  opacity: 1;
 }
 
 /* CINEMATIC STAGES (100% OPACITY SO NO DIMMING BUGS) */
@@ -956,4 +958,141 @@ body.light-polarity .space-only { display: none !important; }
     border-top: 1px solid var(--hairline);
     padding-top: 10px;
   }
+}
+
+/* FULL-WIDTH ACTIVE DOWNLOADS BAR & 4-SONG SCROLLABLE TELEMETRY DECK */
+.active-transcoder-fullbar {
+  width: 100%;
+  margin-bottom: 32px;
+}
+
+.active-fullwidth-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.live-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: starPulse 1.6s ease-in-out infinite;
+}
+
+.active-stream-banner {
+  border: 1px solid var(--accent);
+  border-left: 5px solid var(--accent);
+  padding: 22px 26px;
+  background: var(--bg-elevated);
+  box-shadow: 0 0 30px var(--accent-soft), inset 0 0 20px var(--accent-soft);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.active-bar-track-lg {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.active-bar-fill-lg {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #ffffff);
+  box-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent);
+  position: relative;
+  transition: width 0.3s ease;
+}
+
+.active-bar-fill-lg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 0, 0, 0.25),
+    rgba(0, 0, 0, 0.25) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  animation: energyFlow 0.8s linear infinite;
+}
+
+@keyframes energyFlow {
+  0% { background-position: 0 0; }
+  100% { background-position: 24px 0; }
+}
+
+.idle-scanner-bar {
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--accent);
+  padding: 18px 24px;
+  background: var(--bg-elevated);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.idle-scanner-beam {
+  position: absolute;
+  bottom: 0;
+  left: -30%;
+  width: 30%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), #ffffff, var(--accent), transparent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: orbitalScanSweep 3.4s ease-in-out infinite;
+}
+
+@keyframes orbitalScanSweep {
+  0% { left: -30%; }
+  50% { left: 100%; }
+  100% { left: -30%; }
+}
+
+.telemetry-dual-deck {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 28px;
+  align-items: start;
+}
+
+.telemetry-scroll-box {
+  max-height: 328px;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.telemetry-scroll-box .stream-slate {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.telemetry-scroll-box::-webkit-scrollbar {
+  width: 5px;
+}
+
+.telemetry-scroll-box::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.telemetry-scroll-box::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  border-radius: 3px;
 }

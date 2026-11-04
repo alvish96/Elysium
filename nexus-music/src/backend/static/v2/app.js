@@ -387,26 +387,44 @@ async function fetchTelemetry() {
     const history = data.history || [];
 
     document.getElementById('statActiveCount').textContent = String(active.length).padStart(2, '0');
-    if (active.length > 0) { setTelemetryInterval(600); } else { setTelemetryInterval(3000); }
+    if (active.length > 0) { setTelemetryInterval(650); } else { setTelemetryInterval(2500); }
     document.getElementById('statPendingCount').textContent = String(data.pending_count ?? pending.length).padStart(2, '0');
     document.getElementById('statCompletedCount').textContent = String(history.length).padStart(2, '0');
 
+    const stateTag = document.getElementById('activeStreamStateTag');
+    if (stateTag) {
+      stateTag.textContent = active.length > 0
+        ? `TRANSCODING ACTIVE // ${active.length} STREAM(S) LOCKED`
+        : 'ORBITAL TRANSCODER // STANDBY';
+      stateTag.style.color = active.length > 0 ? 'var(--accent)' : 'var(--fg-muted)';
+    }
+
     const activeEl = document.getElementById('telemetryActiveList');
     if (active.length === 0) {
-      activeEl.innerHTML = `<div class="stream-slate" style="color:var(--fg-muted); font-family:var(--font-mono); font-size:12px;">[ NO ACTIVE TRANSCODING STREAMS ]</div>`;
+      activeEl.innerHTML = `
+        <div class="idle-scanner-bar">
+          <span>[ NO ACTIVE TRANSCODING STREAMS // AWAITING COORDINATES ]</span>
+          <span style="color:var(--accent);">READY</span>
+          <div class="idle-scanner-beam"></div>
+        </div>
+      `;
     } else {
       activeEl.innerHTML = active.map(t => `
-        <div class="stream-slate">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700; font-size:15px;">${t.title || 'RESOLVING...'}</span>
-            <span style="font-family:var(--font-mono); color:var(--accent); font-weight:700;">${Math.round(t.percent || 0)}%</span>
+        <div class="active-stream-banner">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+            <span style="font-weight:700; font-size:clamp(1.05rem, 1.8vw, 1.4rem); letter-spacing:-0.01em;">
+              ${t.title || 'RESOLVING STREAM...'}
+            </span>
+            <span style="font-family:var(--font-mono); font-size:20px; color:var(--accent); font-weight:700; text-shadow:0 0 12px var(--accent-glow);">
+              ${Math.round(t.percent || 0)}%
+            </span>
           </div>
-          <div class="stream-bar-track">
-            <div class="stream-bar-fill" style="width:${t.percent || 0}%;"></div>
+          <div class="active-bar-track-lg">
+            <div class="active-bar-fill-lg" style="width:${t.percent || 0}%;"></div>
           </div>
-          <div class="breaker-meta" style="font-size:10px;">
-            <span>SPEED: ${t.speed || '--'} // ETA: ${t.eta || '--'}</span>
-            <span>CMD // ${t.owner || 'ALVISH'}</span>
+          <div class="breaker-meta" style="font-size:11px;">
+            <span>TRANSFER RATE: <strong style="color:var(--fg);">${t.speed || '--'}</strong> // ETA: <strong style="color:var(--fg);">${t.eta || '--'}</strong></span>
+            <span>OPERATOR // ${t.owner || 'ALVISH'}</span>
           </div>
         </div>
       `).join('');
@@ -414,7 +432,7 @@ async function fetchTelemetry() {
 
     const pendingEl = document.getElementById('telemetryPendingList');
     if (pending.length === 0) {
-      pendingEl.innerHTML = `<div class="stream-slate" style="color:var(--fg-muted); font-family:var(--font-mono); font-size:12px;">[ QUEUE CLEAR ]</div>`;
+      pendingEl.innerHTML = `<div class="stream-slate" style="color:var(--fg-muted); font-family:var(--font-mono); font-size:12px;">[ QUEUE CLEAR // 0 PENDING ]</div>`;
     } else {
       pendingEl.innerHTML = pending.map((p, idx) => `
         <div class="stream-slate">
@@ -430,16 +448,18 @@ async function fetchTelemetry() {
     if (history.length === 0) {
       histEl.innerHTML = `<div class="stream-slate" style="color:var(--fg-muted); font-family:var(--font-mono); font-size:12px;">[ NO RECENT ARCHIVES ]</div>`;
     } else {
-      histEl.innerHTML = history.slice(0, 8).map(h => `
+      histEl.innerHTML = history.slice(0, 20).map(h => `
         <div class="stream-slate">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:600; font-size:13px;">${h.artist ? h.artist + ' — ' : ''}${h.title}</span>
-            <span style="font-family:var(--font-mono); font-size:10px; color:${h.status === 'completed' ? 'var(--accent)' : '#ff1e1e'};">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <span style="font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${h.artist ? h.artist + ' — ' : ''}${h.title}
+            </span>
+            <span style="font-family:var(--font-mono); font-size:10px; flex-shrink:0; color:${h.status === 'completed' ? 'var(--accent)' : '#ff1e1e'};">
               [${(h.status || 'DONE').toUpperCase()}]
             </span>
           </div>
           <div class="breaker-meta" style="font-size:10px;">
-            <span>${h.file || '320KBPS MP3'}</span>
+            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:75%;">${h.file || '320KBPS MP3'}</span>
             <span>${h.completed_at ? new Date(h.completed_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
           </div>
         </div>
