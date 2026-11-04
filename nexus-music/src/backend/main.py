@@ -156,3 +156,14 @@ async def get_download_queue(user: User = Depends(get_current_user)):
         "pending_count": len(pending),
         "history": history
     }
+
+from fastapi.responses import FileResponse
+
+@app.get("/v2")
+async def serve_v2_workspace():
+    return FileResponse("/app/static/v2/index.html")
+
+
+@app.get("/v2.0")
+async def serve_v20_backup():
+    return FileResponse("/app/static/v2.0/index.html")
