@@ -394,6 +394,12 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
     if not Path(yt_bin).exists():
         yt_bin = "yt-dlp"
 
+    if await r.sismember("nexus:downloads:cancelled", task_id):
+        await r.srem("nexus:downloads:cancelled", task_id)
+        await r.hdel("nexus:downloads:active", task_id)
+        logger.info(f"[Worker] Skipping pre-cancelled task {task_id}")
+        return
+
     logger.info(f"[Worker] Processing YouTube download task {task_id} for URL: {url}")
 
     track_title = "Extracting YouTube stream..."
@@ -414,6 +420,7 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
         await r.publish("nexus:events", json.dumps({"event": "TRACK_PROGRESS", "data": payload}))
 
     await push_progress(5.0, "Connecting...", "--:--", "starting")
+    was_cancelled = False
 
     try:
         out_tmpl = str(temp_dir / "%(title)s.%(ext)s")
@@ -451,6 +458,15 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
 
         current_pct = 5.0
         while True:
+            if await r.sismember("nexus:downloads:cancelled", task_id):
+                was_cancelled = True
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+                logger.info(f"[Worker] Aborted active download task {task_id} via user cancel.")
+                break
+
             line = await proc.stdout.readline()
             if not line:
                 break
@@ -511,6 +527,23 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
 
         await proc.wait()
 
+        if await r.sismember("nexus:downloads:cancelled", task_id):
+            was_cancelled = True
+
+        if was_cancelled:
+            await r.srem("nexus:downloads:cancelled", task_id)
+            history_entry = {
+                "id": task_id,
+                "title": track_title,
+                "artist": artist_name,
+                "status": "cancelled",
+                "file": "Cancelled by user",
+                "completed_at": datetime.now(timezone.utc).isoformat()
+            }
+            await r.lpush("nexus:downloads:history", json.dumps(history_entry))
+            await r.ltrim("nexus:downloads:history", 0, 49)
+            return
+
         info_files = list(temp_dir.glob("*.info.json"))
         if info_files:
             try:
@@ -552,9 +585,11 @@ async def download_youtube_single(job_data: dict, r: redis.Redis):
             await r.lpush("nexus:downloads:history", json.dumps(history_entry))
             logger.warning(f"[Worker] Download finished without producing MP3 for {url}")
     finally:
+        await r.srem("nexus:downloads:cancelled", task_id)
         await r.hdel("nexus:downloads:active", task_id)
         shutil.rmtree(temp_dir, ignore_errors=True)
         await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+
 
 # === END YOUTUBE ENGINE ===
 

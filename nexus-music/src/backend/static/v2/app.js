@@ -68,6 +68,7 @@ const appState = {
   fxModes: ['FLYBY', 'SABER', 'LIGHTNING'],
   fxIndex: 0,
   lastSectorId: 'sector-01',
+  deletedIds: new Set(JSON.parse(localStorage.getItem('nexus_deleted_playlists') || '[]')),
   datasets: {
     spotify: [],
     imported: [],
@@ -409,39 +410,55 @@ async function fetchTelemetry() {
         </div>
       `;
     } else {
-      activeEl.innerHTML = active.map(t => `
-        <div class="active-stream-banner">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
-            <span style="font-weight:700; font-size:clamp(1.05rem, 1.8vw, 1.4rem); letter-spacing:-0.01em;">
-              ${t.title || 'RESOLVING STREAM...'}
-            </span>
-            <span style="font-family:var(--font-mono); font-size:20px; color:var(--accent); font-weight:700; text-shadow:0 0 12px var(--accent-glow);">
-              ${Math.round(t.percent || 0)}%
-            </span>
+      activeEl.innerHTML = active.map(t => {
+        const taskId = t.id || t.task_id || t.title || '';
+        return `
+          <div class="active-stream-banner">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+              <span style="font-weight:700; font-size:clamp(1.05rem, 1.8vw, 1.4rem); letter-spacing:-0.01em;">
+                ${t.title || 'RESOLVING STREAM...'}
+              </span>
+              <div style="display:flex; align-items:center; gap:14px;">
+                <span style="font-family:var(--font-mono); font-size:20px; color:var(--accent); font-weight:700; text-shadow:0 0 12px var(--accent-glow);">
+                  ${Math.round(t.percent || 0)}%
+                </span>
+                <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d; padding:6px 12px;" onclick="cancelDownloadTask('${ String(taskId).replace(/'/g, "\'") }')" title="Cancel Active Download">
+                  ✕ CANCEL
+                </button>
+              </div>
+            </div>
+            <div class="active-bar-track-lg">
+              <div class="active-bar-fill-lg" style="width:${t.percent || 0}%;"></div>
+            </div>
+            <div class="breaker-meta" style="font-size:11px;">
+              <span>TRANSFER RATE: <strong style="color:var(--fg);">${t.speed || '--'}</strong> // ETA: <strong style="color:var(--fg);">${t.eta || '--'}</strong></span>
+              <span>OPERATOR // ${t.owner || 'ALVISH'}</span>
+            </div>
           </div>
-          <div class="active-bar-track-lg">
-            <div class="active-bar-fill-lg" style="width:${t.percent || 0}%;"></div>
-          </div>
-          <div class="breaker-meta" style="font-size:11px;">
-            <span>TRANSFER RATE: <strong style="color:var(--fg);">${t.speed || '--'}</strong> // ETA: <strong style="color:var(--fg);">${t.eta || '--'}</strong></span>
-            <span>OPERATOR // ${t.owner || 'ALVISH'}</span>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     const pendingEl = document.getElementById('telemetryPendingList');
     if (pending.length === 0) {
       pendingEl.innerHTML = `<div class="stream-slate" style="color:var(--fg-muted); font-family:var(--font-mono); font-size:12px;">[ QUEUE CLEAR // 0 PENDING ]</div>`;
     } else {
-      pendingEl.innerHTML = pending.map((p, idx) => `
-        <div class="stream-slate">
-          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:12px;">
-            <span style="word-break:break-all;">#${String(idx + 1).padStart(2, '0')} // ${p.title || p.url}</span>
-            <span style="color:var(--accent); margin-left:8px;">QUEUED</span>
+      pendingEl.innerHTML = pending.map((p, idx) => {
+        const cancelKey = p.id || p.task_id || p.playlist_id || `idx-${idx}`;
+        return `
+          <div class="stream-slate">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; font-family:var(--font-mono); font-size:12px;">
+              <span style="word-break:break-all;">#${String(idx + 1).padStart(2, '0')} // ${p.title || p.url}</span>
+              <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                <span style="color:var(--accent); font-size:10px;">QUEUED</span>
+                <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d; padding:4px 9px;" onclick="cancelDownloadTask('${ String(cancelKey).replace(/'/g, "\'") }')" title="Remove from Queue">
+                  ✕ REMOVE
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     const histEl = document.getElementById('telemetryHistoryList');
@@ -468,9 +485,16 @@ async function fetchTelemetry() {
   } catch (e) {}
 }
 
-// -------------------------------------------------------------------------
-// 9. SECTOR 03: HOLOCRON ARCHIVES & PLAYLIST DOWNLOAD SWITCH
-// -------------------------------------------------------------------------
+async function cancelDownloadTask(itemId) {
+  if (!itemId) return;
+  try {
+    await apiFetch(`/api/v1/downloads/queue/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+    triggerRapidTelemetryPoll();
+  } catch (e) {
+    console.error("Failed to cancel download:", e);
+  }
+}
+
 async function loadAllArchives() {
   try {
     const meRes = await apiFetch('/api/v1/auth/me');
@@ -503,6 +527,15 @@ async function loadAllArchives() {
         secConnBtn.textContent = '🔗 CONNECT SPOTIFY OAUTH';
         secDiscBtn.style.display = 'none';
       }
+    }
+  } catch (e) {}
+
+  try {
+    const delRes = await apiFetch('/api/v1/playlists/deleted');
+    if (delRes.ok) {
+      const delData = await delRes.json();
+      appState.deletedIds = new Set(delData.deleted_ids || []);
+      localStorage.setItem('nexus_deleted_playlists', JSON.stringify(Array.from(appState.deletedIds)));
     }
   } catch (e) {}
 
@@ -549,8 +582,20 @@ function filterArchives(q) {
 function renderArchives() {
   const container = document.getElementById('holocronArchiveList');
   const raw = appState.datasets[appState.archiveSource] || [];
+  const deletedSet = appState.deletedIds || new Set();
 
-  const filtered = raw.filter(item => {
+  const visibleRaw = raw.filter(item => {
+    const id = String(item.spotify_id || item.spotify_playlist_id || item.id || '');
+    const slug = String(item.folder_slug || item.folder_path || '');
+    return !deletedSet.has(id) && (!slug || !deletedSet.has(slug));
+  });
+
+  // Update active tab counter to reflect visible non-deleted items
+  const badgeMap = { spotify: 'cntSpotify', imported: 'cntImported', vault: 'cntVault' };
+  const activeBadge = document.getElementById(badgeMap[appState.archiveSource]);
+  if (activeBadge) activeBadge.textContent = visibleRaw.length;
+
+  const filtered = visibleRaw.filter(item => {
     const name = (item.name || item.title || '').toLowerCase();
     const slug = (item.folder_slug || item.folder_path || '').toLowerCase();
     if (appState.searchQuery && !name.includes(appState.searchQuery) && !slug.includes(appState.searchQuery)) {
@@ -583,10 +628,11 @@ function renderArchives() {
     const isSynced = Boolean(item.is_synced);
     const vis = (item.visibility || 'private').toLowerCase();
     const slug = item.folder_slug || item.folder_path || 'unindexed';
+    const safeId = String(id).replace(/'/g, "\'");
+    const safeSlug = String(slug).replace(/'/g, "\'");
 
     return `
       <div class="holocron-row">
-        <!-- LEFT FLEXIBLE TITLE AREA (NEVER PUSHES RIGHT BUTTONS) -->
         <div class="holocron-left-info">
           <div class="holocron-idx">${String(idx + 1).padStart(2, '0')}</div>
           ${cover ? `<img src="${cover}" class="holocron-art" loading="lazy" />` : `<div class="holocron-art"></div>`}
@@ -596,7 +642,6 @@ function renderArchives() {
           </div>
         </div>
 
-        <!-- RIGHT LOCKED ACTION CLUSTER (UNIFORM ACROSS ALL ROWS) -->
         <div class="holocron-right-actions">
           <div class="holocron-owner">👤 ${owner}</div>
 
@@ -610,7 +655,7 @@ function renderArchives() {
             </div>
           </div>
 
-          <div class="saber-switch-wrap ${isSynced ? 'synced' : ''}" onclick="togglePlaylistSyncSwitch('${id}', ${!isSynced}, '${vis}', '${slug}')" title="Toggle Automatic Playlist Download Sync">
+          <div class="saber-switch-wrap ${isSynced ? 'synced' : ''}" onclick="togglePlaylistSyncSwitch('${safeId}', ${!isSynced}, '${vis}', '${safeSlug}')" title="Toggle Automatic Playlist Download Sync">
             <div class="saber-switch-track">
               <div class="saber-switch-knob"></div>
             </div>
@@ -619,19 +664,17 @@ function renderArchives() {
             </span>
           </div>
 
-          <button class="hud-btn holocron-vis-btn" onclick="flipArchiveVis('${id}', ${isSynced}, '${vis}', '${slug}')">
+          <button class="hud-btn holocron-vis-btn" onclick="flipArchiveVis('${safeId}', ${isSynced}, '${vis}', '${safeSlug}')">
             ${vis === 'public' ? '🌍 PUBLIC' : '🔒 PRIVATE'}
           </button>
 
           <div class="holocron-sync-btn-group">
-            <button class="hud-btn accent-outline" onclick="syncArchiveNow('${id}')" title="Force Sync Playlist Now">
+            <button class="hud-btn accent-outline" onclick="syncArchiveNow('${safeId}')" title="Force Sync Playlist Now">
               ⚡ SYNC
             </button>
-            ${appState.archiveSource === 'imported' ? `
-              <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d; padding:8px 10px;" onclick="deleteImportedArchive('${id}')" title="Delete Imported Playlist">
-                ✕
-              </button>
-            ` : ''}
+            <button class="hud-btn" style="border-color:#ff4d4d; color:#ff4d4d; padding:8px 10px;" onclick="deleteArchiveFromProfile('${safeId}', '${safeSlug}')" title="Remove Playlist from Profile (Preserves Downloaded Songs)">
+              ✕
+            </button>
           </div>
         </div>
       </div>
@@ -639,12 +682,47 @@ function renderArchives() {
   }).join('');
 }
 
-function logoutCommander() {
-  localStorage.removeItem('nexus_token');
-  localStorage.removeItem('jwt_token');
-  localStorage.removeItem('token');
-  localStorage.removeItem('access_token');
-  openAuthModal();
+async function deleteArchiveFromProfile(playlistId, slug) {
+  const targetKey = playlistId || slug;
+  if (!targetKey) return;
+
+  // 1. Optimistically remove from current UI view immediately
+  if (!appState.deletedIds) appState.deletedIds = new Set();
+  if (playlistId) appState.deletedIds.add(String(playlistId));
+  if (slug && slug !== 'unindexed') appState.deletedIds.add(String(slug));
+  localStorage.setItem('nexus_deleted_playlists', JSON.stringify(Array.from(appState.deletedIds)));
+  renderArchives();
+
+  try {
+    // 2. Turn off auto-sync on the playlist if it has a Spotify ID
+    if (playlistId) {
+      await apiFetch(`/api/v1/playlists/${encodeURIComponent(playlistId)}/configure`, {
+        method: 'POST',
+        body: JSON.stringify({ is_synced: false, visibility: 'private', folder_slug: slug === 'unindexed' ? '' : slug })
+      }).catch(() => {});
+
+      // Also call imported delete endpoint if it was an imported playlist
+      await apiFetch(`/api/v1/playlists/imported/${encodeURIComponent(playlistId)}`, {
+        method: 'DELETE'
+      }).catch(() => {});
+    }
+
+    // 3. Remove playlist from profile & delete .m3u8 folder (while preserving all .mp3 songs in /tracks)
+    await apiFetch(`/api/v1/playlists/profile/${encodeURIComponent(targetKey)}?slug=${encodeURIComponent(slug || '')}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    console.error("Error removing playlist from profile:", e);
+  }
+}
+
+async function restoreDeletedPlaylists() {
+  try {
+    await apiFetch('/api/v1/playlists/deleted/restore', { method: 'POST' });
+    appState.deletedIds = new Set();
+    localStorage.removeItem('nexus_deleted_playlists');
+    await loadAllArchives();
+  } catch (e) {}
 }
 
 async function togglePlaylistSyncSwitch(spotifyId, nextSyncedState, currentVis, slug) {

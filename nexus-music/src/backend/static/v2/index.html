@@ -6,7 +6,7 @@
   <title>NEXUS // GALACTIC AUDIO ARCHIVE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/v2/styles.css?v=2.3" />
+  <link rel="stylesheet" href="/static/v2/styles.css?v=2.4" />
 </head>
 <body>
 
@@ -386,6 +386,9 @@
           <button class="hud-btn" id="sectorSpotifyDisconnectBtn" style="border-color:#ff4d4d; color:#ff4d4d; display:none;" onclick="handleSpotifyDisconnect()">
             ✕ UNLINK SPOTIFY
           </button>
+          <button class="hud-btn" onclick="restoreDeletedPlaylists()" title="Restore any playlists removed from your profile view">
+            ↺ RESTORE HIDDEN
+          </button>
           <!-- Hidden legacy IDs so existing JS hooks never throw null errors -->
           <span id="hudSpotifyBtn" style="display:none;"></span>
           <span id="hudSpotifyUnlinkBtn" style="display:none;"></span>
@@ -473,6 +476,6 @@
     </div>
   </div>
 
-  <script src="/static/v2/app.js?v=2.3"></script>
+  <script src="/static/v2/app.js?v=2.4"></script>
 </body>
 </html>
