@@ -161,15 +161,6 @@ async def serve_v2_workspace():
     return FileResponse("/app/static/v2/index.html")
 
 
-@app.get("/v2.0")
-async def serve_v20_backup():
-    return FileResponse("/app/static/v2.0/index.html")
-
-# === V2.1 MAIN PROMOTION & TRACKS ARCHIVE ROUTES ===
-from fastapi.responses import FileResponse
-from fastapi import HTTPException
-from pathlib import Path
-import os
 
 @app.get("/v1")
 @app.get("/legacy")
