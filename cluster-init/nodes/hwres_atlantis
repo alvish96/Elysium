@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Wed Nov  4 00:05:01 UTC 2026
+Last Updated: Thu Nov  5 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.3Gi       200Mi       482Mi       2.0Gi       1.4Gi
-Swap:          3.3Gi       159Mi       3.1Gi
+Mem:            10Gi        10Gi       177Mi       510Mi       1.3Gi       600Mi
+Swap:          3.3Gi       1.6Gi       1.7Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -29,7 +29,6 @@ sdb                        59.5G ext4        disk /mnt/databox_01_59G_1
 sdc                       894.3G ext4        disk /mnt/databox_02_894G_1
 sdd                       894.3G ext4        disk /mnt/databox_03_894G_2
 sde                       894.3G ext4        disk /mnt/databox_07_894G_5
-sdf                           0B             disk 
 sdg                       894.3G ext4        disk /mnt/databox_05_894G_3
 sdh                       894.3G ext4        disk /mnt/databox_06_894G_4
 sdi                       223.6G ext4        disk /mnt/databox_11_223G_2
@@ -43,19 +42,19 @@ sr0                        1024M             rom
 ## Mounted Filesystems
 Filesystem                                             Type           Size  Used Avail Use% Mounted on
 efivarfs                                               efivarfs        84K   17K   63K  21% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   76G   18G  81% /
+/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   76G   18G  82% /
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  3.5G  317G   2% /mnt/internal
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
 tvshows_pool                                           fuse.mergerfs  1.8T  722G 1002G  42% /mnt/tvshows_pool
 movies_pool                                            fuse.mergerfs  1.8T  327G  1.4T  19% /mnt/movies_pool
-nexus_pool                                             fuse.mergerfs  8.8T  1.4T  7.3T  16% /mnt/nexus_pool
+nexus_pool                                             fuse.mergerfs  8.6T  1.4T  7.1T  17% /mnt/nexus_pool
 /dev/sdh                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
 /dev/sdc                                               ext4           880G  327G  535G  38% /mnt/databox_02_894G_1
 audio_pool                                             fuse.mergerfs  1.8T  313G  1.5T  18% /mnt/audio_pool
 /dev/sdd                                               ext4           880G  722G  141G  84% /mnt/databox_03_894G_2
 /dev/sdg                                               ext4           880G  312G  550G  37% /mnt/databox_05_894G_3
-/dev/sdl                                               ext4           916G  360M  897G   1% /mnt/databox_10_931G_1
+/dev/sdl                                               ext4           916G  396M  897G   1% /mnt/databox_10_931G_1
 192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  722G 1002G  42% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/tvshows-pool
 192.168.1.160:/mnt/movies_pool                         nfs4           1.8T  327G  1.4T  19% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/movies-pool
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  3.5G  317G   2% /var/lib/kubelet/pods/32350053-8ae3-4114-b367-947e5bbcd57c/volumes/kubernetes.io~nfs/authentik-media-pv
