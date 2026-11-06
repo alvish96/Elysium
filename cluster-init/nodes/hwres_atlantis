@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Thu Nov  5 00:05:01 UTC 2026
+Last Updated: Fri Nov  6 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi        10Gi       177Mi       510Mi       1.3Gi       600Mi
-Swap:          3.3Gi       1.6Gi       1.7Gi
+Mem:            10Gi       9.4Gi       152Mi       522Mi       2.0Gi       1.3Gi
+Swap:          3.3Gi       858Mi       2.5Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -42,7 +42,7 @@ sr0                        1024M             rom
 ## Mounted Filesystems
 Filesystem                                             Type           Size  Used Avail Use% Mounted on
 efivarfs                                               efivarfs        84K   17K   63K  21% /sys/firmware/efi/efivars
-/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   76G   18G  82% /
+/dev/mapper/ubuntu--vg-ubuntu--lv                      ext4            98G   77G   17G  83% /
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  3.5G  317G   2% /mnt/internal
 /dev/sda2                                              ext4           2.0G  201M  1.6G  11% /boot
 /dev/sda1                                              vfat           1.1G  6.2M  1.1G   1% /boot/efi
@@ -54,7 +54,7 @@ nexus_pool                                             fuse.mergerfs  8.6T  1.4T
 audio_pool                                             fuse.mergerfs  1.8T  313G  1.5T  18% /mnt/audio_pool
 /dev/sdd                                               ext4           880G  722G  141G  84% /mnt/databox_03_894G_2
 /dev/sdg                                               ext4           880G  312G  550G  37% /mnt/databox_05_894G_3
-/dev/sdl                                               ext4           916G  396M  897G   1% /mnt/databox_10_931G_1
+/dev/sdl                                               ext4           916G  434M  897G   1% /mnt/databox_10_931G_1
 192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  722G 1002G  42% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/tvshows-pool
 192.168.1.160:/mnt/movies_pool                         nfs4           1.8T  327G  1.4T  19% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/movies-pool
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  3.5G  317G   2% /var/lib/kubelet/pods/32350053-8ae3-4114-b367-947e5bbcd57c/volumes/kubernetes.io~nfs/authentik-media-pv
@@ -62,7 +62,7 @@ audio_pool                                             fuse.mergerfs  1.8T  313G
 192.168.1.160:/mnt/internal/appdata/homarr_v1          nfs4           338G  3.5G  317G   2% /var/lib/kubelet/pods/7595567a-64fd-4b8b-a2bf-2c413da325c0/volumes/kubernetes.io~nfs/homarr-nfs-pv
 192.168.1.160:/mnt/internal/appdata/uptimekuma         nfs4           338G  3.5G  317G   2% /var/lib/kubelet/pods/40d356a5-cade-4416-9b0d-68f46dd0a9dd/volumes/kubernetes.io~nfs/uptimekuma-pv
 192.168.1.160:/mnt/internal/appdata/tdarr/temp         nfs4           338G  3.5G  317G   2% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/temp-cache
-/dev/sdb                                               ext4            59G   28G   30G  48% /mnt/databox_01_59G_1
+/dev/sdb                                               ext4            59G   28G   30G  49% /mnt/databox_01_59G_1
 /dev/sde                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
 /dev/sdj                                               ext4           880G   28K  862G   1% /mnt/databox_08_894G_6
 /dev/sdk                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
