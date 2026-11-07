@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Fri Nov  6 00:05:01 UTC 2026
+Last Updated: Sat Nov  7 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.4Gi       152Mi       522Mi       2.0Gi       1.3Gi
-Swap:          3.3Gi       858Mi       2.5Gi
+Mem:            10Gi       9.9Gi       244Mi       532Mi       1.3Gi       759Mi
+Swap:          3.3Gi       1.5Gi       1.8Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -54,7 +54,7 @@ nexus_pool                                             fuse.mergerfs  8.6T  1.4T
 audio_pool                                             fuse.mergerfs  1.8T  313G  1.5T  18% /mnt/audio_pool
 /dev/sdd                                               ext4           880G  722G  141G  84% /mnt/databox_03_894G_2
 /dev/sdg                                               ext4           880G  312G  550G  37% /mnt/databox_05_894G_3
-/dev/sdl                                               ext4           916G  434M  897G   1% /mnt/databox_10_931G_1
+/dev/sdl                                               ext4           916G  494M  897G   1% /mnt/databox_10_931G_1
 192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  722G 1002G  42% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/tvshows-pool
 192.168.1.160:/mnt/movies_pool                         nfs4           1.8T  327G  1.4T  19% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/movies-pool
 192.168.1.160:/mnt/internal/appdata/authentik/media    nfs4           338G  3.5G  317G   2% /var/lib/kubelet/pods/32350053-8ae3-4114-b367-947e5bbcd57c/volumes/kubernetes.io~nfs/authentik-media-pv
