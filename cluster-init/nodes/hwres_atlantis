@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Mon Nov  9 00:05:01 UTC 2026
+Last Updated: Tue Nov 10 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,7 +14,7 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.4Gi       141Mi       548Mi       1.9Gi       1.2Gi
+Mem:            10Gi       9.6Gi       173Mi       558Mi       1.8Gi       1.1Gi
 Swap:          3.3Gi       1.0Gi       2.3Gi
 
 ## Block Devices (Disks)
@@ -52,7 +52,7 @@ nexus_pool                                             fuse.mergerfs  8.6T  1.4T
 /dev/sdh                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
 /dev/sdc                                               ext4           880G  327G  535G  38% /mnt/databox_02_894G_1
 audio_pool                                             fuse.mergerfs  1.8T  313G  1.5T  18% /mnt/audio_pool
-/dev/sdd                                               ext4           880G  722G  141G  84% /mnt/databox_03_894G_2
+/dev/sdd                                               ext4           880G  722G  140G  84% /mnt/databox_03_894G_2
 /dev/sdg                                               ext4           880G  312G  550G  37% /mnt/databox_05_894G_3
 /dev/sdl                                               ext4           916G  560M  897G   1% /mnt/databox_10_931G_1
 192.168.1.160:/mnt/tvshows_pool                        nfs4           1.8T  722G 1002G  42% /var/lib/kubelet/pods/bbe98595-ee2a-4191-af41-c4cb66a0a369/volumes/kubernetes.io~nfs/tvshows-pool
