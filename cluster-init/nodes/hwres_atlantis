@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Tue Nov 17 00:05:01 UTC 2026
+Last Updated: Wed Nov 18 00:05:02 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-149-generic #149-Ubuntu SMP PREEMPT_DYNAMIC Fri Oct 23 13:21:10 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.6Gi       190Mi       539Mi       1.7Gi       1.1Gi
-Swap:          3.3Gi       646Mi       2.7Gi
+Mem:            10Gi       9.9Gi       160Mi       547Mi       1.6Gi       820Mi
+Swap:          3.3Gi       949Mi       2.4Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -69,7 +69,7 @@ audio_pool                                             fuse.mergerfs  1.8T  521G
 /dev/sdq                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
 /dev/sdl                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
 /dev/sdi                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
-/dev/sdp                                               ext4           916G  625M  897G   1% /mnt/databox_10_931G_1
+/dev/sdp                                               ext4           916G  632M  897G   1% /mnt/databox_10_931G_1
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdo                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
 /dev/sds                                               ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
