@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Wed Nov 18 00:05:02 UTC 2026
+Last Updated: Thu Nov 19 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-149-generic #149-Ubuntu SMP PREEMPT_DYNAMIC Fri Oct 23 13:21:10 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.9Gi       160Mi       547Mi       1.6Gi       820Mi
-Swap:          3.3Gi       949Mi       2.4Gi
+Mem:            10Gi       9.9Gi       179Mi       559Mi       1.5Gi       814Mi
+Swap:          3.3Gi       1.3Gi       1.9Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
@@ -39,7 +39,6 @@ sdp                       931.5G ext4        disk /mnt/databox_10_931G_1
 sr0                        1024M             rom  
 sdq                       894.3G ext4        disk /mnt/databox_07_894G_5
 sdr                       894.3G ext4        disk /mnt/databox_02_894G_1
-sds                       223.6G ext4        disk /mnt/databox_14_223G_3
 
 ## Mounted Filesystems
 Filesystem                                             Type           Size  Used Avail Use% Mounted on
@@ -50,7 +49,7 @@ efivarfs                                               efivarfs        84K   20K
 /dev/mapper/ubuntu--vg-internal                        ext4           338G  3.6G  317G   2% /mnt/internal
 tvshows_pool                                           fuse.mergerfs  1.8T  735G  988G  43% /mnt/tvshows_pool
 movies_pool                                            fuse.mergerfs  1.8T  339G  1.4T  20% /mnt/movies_pool
-nexus_pool                                             fuse.mergerfs  8.8T  1.6T  7.1T  19% /mnt/nexus_pool
+nexus_pool                                             fuse.mergerfs  8.6T  1.6T  6.9T  19% /mnt/nexus_pool
 audio_pool                                             fuse.mergerfs  1.8T  521G  1.3T  30% /mnt/audio_pool
 /dev/sdd                                               ext4           880G  735G  127G  86% /mnt/databox_03_894G_2
 /dev/sdj                                               ext4           880G   52K  862G   1% /var/lib/kubelet/pods/baa9643d-0f63-47e9-b8ed-a0f18c567258/volumes/kubernetes.io~local-volume/qbit-base-pv
@@ -69,7 +68,6 @@ audio_pool                                             fuse.mergerfs  1.8T  521G
 /dev/sdq                                               ext4           880G   28K  862G   1% /mnt/databox_07_894G_5
 /dev/sdl                                               ext4           880G   52K  862G   1% /mnt/databox_06_894G_4
 /dev/sdi                                               ext4           220G   32K  215G   1% /mnt/databox_09_223G_1
-/dev/sdp                                               ext4           916G  632M  897G   1% /mnt/databox_10_931G_1
+/dev/sdp                                               ext4           916G  645M  897G   1% /mnt/databox_10_931G_1
 /dev/sdm                                               ext4           880G   28K  862G   1% /mnt/databox_12_894G_7
 /dev/sdo                                               ext4           880G   28K  862G   1% /mnt/databox_13_894G_8
-/dev/sds                                               ext4           220G   28K  215G   1% /mnt/databox_14_223G_3
