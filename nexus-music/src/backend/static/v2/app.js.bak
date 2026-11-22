@@ -1702,3 +1702,36 @@ window.clearAllPendingQueue = async function() {
     obs.observe(document.body, { childList: true, subtree: true });
   });
 })();
+
+// === SPOTIFY SINGLE TRACK TRANSMITTER ROUTER ===
+(function() {
+  const SP_TRACK_RE = /(?:open\.spotify\.com\/(?:intl-[a-z]{2,3}\/)?track\/|spotify:track:|spotify\.link\/|spoti\.fi\/)/i;
+  const origFetch = window.fetch;
+
+  window.fetch = async function(input, init) {
+    try {
+      const urlStr = typeof input === "string" ? input : (input && input.url ? input.url : "");
+      if (urlStr.includes("/api/v1/playlists/import") && init && init.body && typeof init.body === "string") {
+        const parsed = JSON.parse(init.body);
+        const candidate = String(parsed.url_or_id || parsed.url || "").trim();
+        if (SP_TRACK_RE.test(candidate)) {
+          const newInit = Object.assign({}, init, {
+            body: JSON.stringify({
+              url: candidate,
+              visibility: parsed.visibility || "private",
+            }),
+          });
+          const res = await origFetch.call(this, "/api/v1/downloads/quick", newInit);
+          if (res.ok) {
+            if (typeof triggerRapidTelemetryPoll === "function") triggerRapidTelemetryPoll();
+            if (typeof fetchTelemetry === "function") setTimeout(fetchTelemetry, 200);
+            const sec2 = document.getElementById("telemetryActiveList");
+            if (sec2) sec2.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return res;
+        }
+      }
+    } catch (_) {}
+    return origFetch.apply(this, arguments);
+  };
+})();

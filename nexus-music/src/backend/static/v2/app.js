@@ -1263,9 +1263,11 @@ window.clearAllPendingQueue = async function() {
 
 // === PLAYLIST RESYNC, RESYNC-ALL & CLICK-TO-SPOTIFY ENHANCER ===
 (function() {
+  const FEISHIN_PLAYER_URL = "http://music.nexus.link";
   const SPOTIFY_ID_RE = /^[A-Za-z0-9]{22}$/;
   const playlistByTitle = new Map();
   const playlistById = new Map();
+  let isEnhancing = false;
 
   function indexPlaylists(items) {
     if (!Array.isArray(items)) return;
@@ -1283,7 +1285,6 @@ window.clearAllPendingQueue = async function() {
     });
   }
 
-  // Capture playlist lists as they load from API
   const prevFetch = window.fetch;
   window.fetch = async function(...args) {
     const res = await prevFetch.apply(this, args);
@@ -1316,8 +1317,36 @@ window.clearAllPendingQueue = async function() {
     return headers;
   }
 
+  function findTitleElement(left, metaName) {
+    if (!left) return null;
+    const explicit = left.querySelector(".holocron-title, .playlist-title, .holocron-name, h3, h4");
+    if (explicit) return explicit;
+
+    const normTarget = String(metaName || "").trim().toLowerCase();
+    const candidates = Array.from(left.querySelectorAll("div, span, p, strong")).filter((el) => {
+      if (el.closest(".nx-spotify-open-btn, .nx-new-badge, .nx-spotify-pill")) return false;
+      if (el.querySelector("img, svg, button, input, a")) return false;
+      if (el.children.length > 0) return false;
+      const txt = (el.textContent || "").trim();
+      if (!txt) return false;
+      if (/^\d{1,3}$/.test(txt)) return false;
+      if (txt.startsWith("/playlists/") || txt.startsWith("/mnt/")) return false;
+      return true;
+    });
+
+    if (normTarget) {
+      const exact = candidates.find((el) => (el.textContent || "").trim().toLowerCase() === normTarget);
+      if (exact) return exact;
+      const prefix = candidates.find((el) => {
+        const t = (el.textContent || "").trim().toLowerCase().replace(/\.+$/, "");
+        return t.length >= 3 && (normTarget.startsWith(t) || t.startsWith(normTarget.slice(0, 10)));
+      });
+      if (prefix) return prefix;
+    }
+    return candidates[0] || null;
+  }
+
   function resolveRowMetadata(row) {
-    // 1. Direct data attribute or Spotify ID inside row onclick attributes
     const directId = row.dataset.playlistId || row.dataset.spotifyId || row.dataset.id || "";
     if (directId && playlistById.has(directId)) return playlistById.get(directId);
 
@@ -1326,8 +1355,9 @@ window.clearAllPendingQueue = async function() {
     if (idMatch) {
       const spId = idMatch[1];
       if (playlistById.has(spId)) return playlistById.get(spId);
-      const titleNode = row.querySelector(".holocron-title, .playlist-title, h3, h4, strong, .holocron-left-info");
-      const rawName = titleNode ? titleNode.textContent.replace(/SPOTIFY\s*↗/gi, "").trim().split("\n")[0].trim() : spId;
+      const left = row.querySelector(".holocron-left-info");
+      const titleEl = findTitleElement(left, "");
+      const rawName = titleEl ? titleEl.textContent.trim() : spId;
       return {
         id: spId,
         name: rawName,
@@ -1337,13 +1367,18 @@ window.clearAllPendingQueue = async function() {
       };
     }
 
-    // 2. Fallback: match by displayed title against API cache
     const left = row.querySelector(".holocron-left-info");
-    if (left) {
-      const firstLine = (left.innerText || "").replace(/SPOTIFY\s*↗/gi, "").split("\n")[0].trim().toLowerCase();
-      if (firstLine && playlistByTitle.has(firstLine)) return playlistByTitle.get(firstLine);
-    }
-    return null;
+    const titleEl = findTitleElement(left, "");
+    const titleText = titleEl ? titleEl.textContent.trim().toLowerCase() : "";
+    if (titleText && playlistByTitle.has(titleText)) return playlistByTitle.get(titleText);
+
+    return {
+      id: "",
+      name: titleEl ? titleEl.textContent.trim() : "Playlist",
+      url: "",
+      visibility: "private",
+      folder_slug: "",
+    };
   }
 
   async function triggerResyncSingle(meta, btnEl) {
@@ -1435,12 +1470,10 @@ window.clearAllPendingQueue = async function() {
     btn.textContent = "↻ RE-SYNC ALL";
     btn.addEventListener("click", () => window.nexusResyncAllPlaylists(btn));
 
-    // Place cleanly inside Sector 03 toolbar next to archive filter/tabs
     const cntSpotify = document.getElementById("cntSpotify");
     const tabBar = cntSpotify ? cntSpotify.closest("div, nav, header") : null;
     if (tabBar && tabBar.parentElement) {
-      const barContainer = tabBar.parentElement;
-      barContainer.appendChild(btn);
+      tabBar.parentElement.appendChild(btn);
       return;
     }
 
@@ -1454,72 +1487,89 @@ window.clearAllPendingQueue = async function() {
   }
 
   function enhanceHolocronUI() {
-    // Also pull from appState.datasets if exposed globally
+    if (isEnhancing) return;
+    isEnhancing = true;
     try {
-      if (typeof appState !== "undefined" && appState && appState.datasets) {
-        Object.values(appState.datasets).forEach((arr) => indexPlaylists(arr));
-      }
-    } catch (_) {}
+      try {
+        if (typeof appState !== "undefined" && appState && appState.datasets) {
+          Object.values(appState.datasets).forEach((arr) => indexPlaylists(arr));
+        }
+      } catch (_) {}
 
-    const rows = document.querySelectorAll(".holocron-row");
-    if (!rows.length) return;
-    ensureResyncAllButton();
+      const rows = document.querySelectorAll(".holocron-row");
+      if (!rows.length) return;
+      ensureResyncAllButton();
 
-    rows.forEach((row) => {
-      const meta = resolveRowMetadata(row);
-      if (!meta || !meta.id) return;
+      rows.forEach((row) => {
+        // Remove any legacy left-side Spotify pill
+        row.querySelectorAll(".nx-spotify-pill").forEach((el) => el.remove());
 
-      // 1. Make playlist title/left block open its Spotify page in a new tab
-      const left = row.querySelector(".holocron-left-info");
-      if (left && meta.url && !left.dataset.nxSpotifyBound) {
-        left.dataset.nxSpotifyBound = "1";
-        left.classList.add("nx-spotify-link");
-        left.title = `Open "${meta.name}" on Spotify`;
+        const meta = resolveRowMetadata(row);
+        const left = row.querySelector(".holocron-left-info");
 
-        // Append subtle SPOTIFY ↗ pill once
-        if (!left.querySelector(".nx-spotify-pill")) {
-          const titleHost = left.querySelector(".holocron-title, .playlist-title, h3, h4, div") || left;
-          const pill = document.createElement("span");
-          pill.className = "nx-spotify-pill";
-          pill.textContent = "SPOTIFY ↗";
-          titleHost.appendChild(pill);
+        if (left && !left.querySelector(".nx-title-line")) {
+          const titleEl = findTitleElement(left, meta ? meta.name : "");
+          if (titleEl && titleEl.parentElement) {
+            const lineWrap = document.createElement("div");
+            lineWrap.className = "nx-title-line";
+
+            titleEl.parentElement.insertBefore(lineWrap, titleEl);
+            lineWrap.appendChild(titleEl);
+
+            // Clicking the playlist name itself redirects to Feishin player
+            titleEl.classList.add("nx-feishin-title");
+            titleEl.title = `Open "${(meta && meta.name) || titleEl.textContent.trim()}" in Feishin Player`;
+            titleEl.addEventListener("click", (e) => {
+              e.stopPropagation();
+              window.open(FEISHIN_PLAYER_URL, "_blank", "noopener,noreferrer");
+            });
+
+            // Dedicated Spotify button right next to the playlist name
+            if (meta && meta.url && meta.url.includes("spotify.com")) {
+              const spBtn = document.createElement("a");
+              spBtn.className = "nx-spotify-open-btn";
+              spBtn.href = meta.url;
+              spBtn.target = "_blank";
+              spBtn.rel = "noopener noreferrer";
+              spBtn.title = `Open "${meta.name}" on Spotify`;
+              spBtn.textContent = "SPOTIFY ↗";
+              spBtn.addEventListener("click", (e) => e.stopPropagation());
+              lineWrap.appendChild(spBtn);
+            }
+          }
         }
 
-        left.addEventListener("click", (e) => {
-          if (e.target.closest("button, input, label, select, a")) return;
-          window.open(meta.url, "_blank", "noopener,noreferrer");
-        });
-      }
-
-      // 2. Add/upgrade per-playlist ↻ RE-SYNC button in right actions column
-      const actions = row.querySelector(".holocron-right-actions");
-      if (actions && !actions.querySelector(".nx-resync-btn")) {
-        // Check if an existing ⚡ SYNC button is present; upgrade it cleanly in place so columns stay aligned
-        const existingSyncBtn = Array.from(actions.querySelectorAll("button")).find((b) =>
-          /sync/i.test(b.textContent || "") && !/delete|remove/i.test(b.textContent || "")
-        );
-
-        const resyncBtn = document.createElement("button");
-        resyncBtn.type = "button";
-        resyncBtn.className = "nx-resync-btn";
-        resyncBtn.title = `Re-sync "${meta.name}" with latest Spotify changes`;
-        resyncBtn.textContent = "↻ RE-SYNC";
-        resyncBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          triggerResyncSingle(meta, resyncBtn);
-        });
-
-        if (existingSyncBtn) {
-          existingSyncBtn.replaceWith(resyncBtn);
-        } else {
-          const delBtn = Array.from(actions.querySelectorAll("button")).find((b) =>
-            /✕|×|delete|del/i.test(b.textContent || "")
+        // Upgrade or inject per-playlist ↻ RE-SYNC button
+        const actions = row.querySelector(".holocron-right-actions");
+        if (actions && meta && meta.id && !actions.querySelector(".nx-resync-btn")) {
+          const existingSyncBtn = Array.from(actions.querySelectorAll("button")).find((b) =>
+            /sync/i.test(b.textContent || "") && !/delete|remove/i.test(b.textContent || "")
           );
-          if (delBtn) actions.insertBefore(resyncBtn, delBtn);
-          else actions.appendChild(resyncBtn);
+
+          const resyncBtn = document.createElement("button");
+          resyncBtn.type = "button";
+          resyncBtn.className = "nx-resync-btn";
+          resyncBtn.title = `Re-sync "${meta.name}" with latest Spotify changes`;
+          resyncBtn.textContent = "↻ RE-SYNC";
+          resyncBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            triggerResyncSingle(meta, resyncBtn);
+          });
+
+          if (existingSyncBtn) {
+            existingSyncBtn.replaceWith(resyncBtn);
+          } else {
+            const delBtn = Array.from(actions.querySelectorAll("button")).find((b) =>
+              /✕|×|delete|del/i.test(b.textContent || "")
+            );
+            if (delBtn) actions.insertBefore(resyncBtn, delBtn);
+            else actions.appendChild(resyncBtn);
+          }
         }
-      }
-    });
+      });
+    } finally {
+      isEnhancing = false;
+    }
   }
 
   window.addEventListener("DOMContentLoaded", () => {
@@ -1528,7 +1578,6 @@ window.clearAllPendingQueue = async function() {
     obs.observe(document.body, { childList: true, subtree: true });
   });
 })();
-
 // === CHECK NEW SPOTIFY PLAYLISTS & SCROLLABLE ARCHIVE CONTAINER ===
 (function() {
   let newlyDiscoveredIds = new Set();
@@ -1685,7 +1734,7 @@ window.clearAllPendingQueue = async function() {
           row.classList.add("nx-newly-discovered");
           const left = row.querySelector(".holocron-left-info");
           if (left && !left.querySelector(".nx-new-badge")) {
-            const titleHost = left.querySelector(".holocron-title, .playlist-title, h3, h4, div") || left;
+            const titleHost = left.querySelector(".nx-title-line, .holocron-title, .playlist-title, h3, h4") || left;
             const badge = document.createElement("span");
             badge.className = "nx-new-badge";
             badge.textContent = "NEW";
@@ -1701,4 +1750,37 @@ window.clearAllPendingQueue = async function() {
     const obs = new MutationObserver(() => applyScrollBoxAndNewHighlights());
     obs.observe(document.body, { childList: true, subtree: true });
   });
+})();
+
+// === SPOTIFY SINGLE TRACK TRANSMITTER ROUTER ===
+(function() {
+  const SP_TRACK_RE = /(?:open\.spotify\.com\/(?:intl-[a-z]{2,3}\/)?track\/|spotify:track:|spotify\.link\/|spoti\.fi\/)/i;
+  const origFetch = window.fetch;
+
+  window.fetch = async function(input, init) {
+    try {
+      const urlStr = typeof input === "string" ? input : (input && input.url ? input.url : "");
+      if (urlStr.includes("/api/v1/playlists/import") && init && init.body && typeof init.body === "string") {
+        const parsed = JSON.parse(init.body);
+        const candidate = String(parsed.url_or_id || parsed.url || "").trim();
+        if (SP_TRACK_RE.test(candidate)) {
+          const newInit = Object.assign({}, init, {
+            body: JSON.stringify({
+              url: candidate,
+              visibility: parsed.visibility || "private",
+            }),
+          });
+          const res = await origFetch.call(this, "/api/v1/downloads/quick", newInit);
+          if (res.ok) {
+            if (typeof triggerRapidTelemetryPoll === "function") triggerRapidTelemetryPoll();
+            if (typeof fetchTelemetry === "function") setTimeout(fetchTelemetry, 200);
+            const sec2 = document.getElementById("telemetryActiveList");
+            if (sec2) sec2.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return res;
+        }
+      }
+    } catch (_) {}
+    return origFetch.apply(this, arguments);
+  };
 })();

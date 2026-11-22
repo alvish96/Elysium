@@ -255,6 +255,139 @@ class PlaylistTelemetryTracker:
         await self.emit(force=force)
 
 
+# ============================================================
+# SPOTIFY URL NORMALIZER & 3-TIER TRACK METADATA RESOLVER
+# ============================================================
+SPOTIFY_TRACK_RE = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?track/|spotify:track:)([A-Za-z0-9]{22})")
+SPOTIFY_PLAYLIST_RE = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?playlist/|spotify:playlist:)([A-Za-z0-9]{22})")
+
+
+async def resolve_spotify_url(url: str) -> str:
+    """Expands spotify.link / spoti.fi short share links to canonical open.spotify.com URLs."""
+    u = str(url or "").strip()
+    if any(host in u.lower() for host in ("spotify.link/", "spoti.fi/", "spotify.app.link/")):
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=BROWSER_HEADERS) as client:
+                resp = await client.get(u)
+                return str(resp.url)
+        except Exception as e:
+            logger.warning(f"[Universal] Short URL redirect failed for {u}: {e}")
+    return u
+
+
+async def _get_spotify_client_token() -> str | None:
+    """Gets an app-level Spotify Client Credentials token (no 5-user OAuth restriction)."""
+    cid = os.getenv("SPOTIFY_CLIENT_ID", "").strip()
+    csec = os.getenv("SPOTIFY_CLIENT_SECRET", "").strip()
+    if not cid or not csec:
+        try:
+            from config import settings
+            cid = cid or getattr(settings, "SPOTIFY_CLIENT_ID", "")
+            csec = csec or getattr(settings, "SPOTIFY_CLIENT_SECRET", "")
+        except Exception:
+            pass
+    if not cid or not csec:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                "https://accounts.spotify.com/api/token",
+                data={"grant_type": "client_credentials"},
+                auth=(cid, csec),
+            )
+            if resp.status_code == 200:
+                return resp.json().get("access_token")
+    except Exception as e:
+        logger.warning(f"[Universal] Client Credentials token fetch failed: {e}")
+    return None
+
+
+async def resolve_spotify_track_metadata(track_id: str) -> tuple[str, str]:
+    """3-tier metadata resolver: 1) Spotify Client Credentials API, 2) Embed JSON, 3) oEmbed + OG meta."""
+    # Tier 1: Spotify Web API via Client Credentials (/v1/tracks/{id})
+    token = await _get_spotify_client_token()
+    if token:
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.get(
+                    f"https://api.spotify.com/v1/tracks/{track_id}",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if resp.status_code == 200:
+                    d = resp.json()
+                    title = str(d.get("name") or "").strip()
+                    artists = ", ".join(a.get("name", "") for a in (d.get("artists") or []) if a.get("name")).strip()
+                    if title:
+                        return (artists or "Spotify"), title
+        except Exception as e:
+            logger.warning(f"[Universal] Spotify API track lookup failed for {track_id}: {e}")
+
+    # Tier 2: Spotify public Embed __NEXT_DATA__ JSON
+    try:
+        entity = await fetch_spotify_embed_entity("track", track_id)
+        title = str(entity.get("name") or entity.get("title") or "").strip()
+        artists_list = [a.get("name", "") for a in (entity.get("artists") or []) if a.get("name")]
+        artist = ", ".join(artists_list).strip() or str(entity.get("subtitle") or "").strip()
+        if title:
+            return (artist or "Spotify"), title
+    except Exception as e:
+        logger.warning(f"[Universal] Spotify embed lookup failed for {track_id}: {e}")
+
+    # Tier 3: Spotify oEmbed + OpenGraph HTML tags
+    try:
+        track_url = f"https://open.spotify.com/track/{track_id}"
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True, headers=BROWSER_HEADERS) as client:
+            title, artist = "", ""
+            oe = await client.get("https://open.spotify.com/oembed", params={"url": track_url})
+            if oe.status_code == 200:
+                title = str(oe.json().get("title") or "").strip()
+            page = await client.get(track_url)
+            if page.status_code == 200:
+                m_t = re.search(r'<meta[^>]+property="og:title"[^>]+content="([^"]+)"', page.text)
+                m_d = re.search(r'<meta[^>]+property="og:description"[^>]+content="([^"]+)"', page.text)
+                if not title and m_t:
+                    title = m_t.group(1).strip()
+                if m_d:
+                    # Spotify og:description format: "Artist · Song · Year"
+                    parts = [p.strip() for p in re.split(r"·|•", m_d.group(1)) if p.strip()]
+                    if parts:
+                        artist = parts[0]
+            if title:
+                return (artist or "Spotify"), title
+    except Exception as e:
+        logger.warning(f"[Universal] Spotify oEmbed/OG lookup failed for {track_id}: {e}")
+
+    raise ValueError(f"Could not resolve Spotify track metadata for ID {track_id}")
+
+
+async def trigger_navidrome_quick_scan():
+    """Notifies Navidrome to index newly downloaded single tracks immediately."""
+    try:
+        import hashlib, secrets
+        nav_url = os.getenv("NAVIDROME_URL", "http://navidrome-svc.media.svc.cluster.local:4533").rstrip("/")
+        nav_user = os.getenv("NAVIDROME_ADMIN_USER", "nexus_system")
+        nav_pass = os.getenv("NAVIDROME_ADMIN_PASS", "")
+        if not nav_pass:
+            try:
+                from config import settings
+                nav_url = getattr(settings, "NAVIDROME_URL", nav_url).rstrip("/")
+                nav_user = getattr(settings, "NAVIDROME_ADMIN_USER", nav_user)
+                nav_pass = getattr(settings, "NAVIDROME_ADMIN_PASS", "")
+            except Exception:
+                pass
+        if not nav_pass:
+            return
+        salt = secrets.token_hex(4)
+        tok = hashlib.md5(f"{nav_pass}{salt}".encode()).hexdigest()
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            await client.get(
+                f"{nav_url}/rest/startScan.view",
+                params={"u": nav_user, "t": tok, "s": salt, "v": "1.16.1", "c": "nexus-universal", "f": "json"},
+            )
+    except Exception:
+        pass
+
+
 async def fetch_spotify_embed_entity(kind: str, spotify_id: str) -> dict:
     url = f"https://open.spotify.com/embed/{kind}/{spotify_id}"
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, headers=BROWSER_HEADERS) as client:
@@ -723,46 +856,51 @@ async def download_youtube_playlist(job_data: dict, r):
 
 async def download_spotify_single(job_data: dict, r):
     task_id = str(job_data.get("task_id", "sp_single"))
-    url = str(job_data.get("url", "")).strip()
+    raw_url = str(job_data.get("url", "")).strip()
     owner = job_data.get("owner_username", "admin")
 
     TRACKS_DIR.mkdir(parents=True, exist_ok=True)
-    m_id = re.search(r"(?:open\.spotify\.com/track/|spotify:track:)([A-Za-z0-9]+)", url)
-    track_id = m_id.group(1) if m_id else ""
-
     track_title = "Resolving Spotify Track..."
     artist_name = "Spotify"
 
     await push_progress(
-        r, task_id, track_title, artist_name, 5.0, "Probing...", "--:--", owner, "starting",
-        log_line=f"Resolving Spotify metadata for track {track_id or url}...",
+        r, task_id, track_title, artist_name, 5.0, "Resolving...", "--:--", owner, "starting",
+        log_line=f"Resolving Spotify track link: {raw_url}...",
     )
 
     try:
+        url = await resolve_spotify_url(raw_url)
+        m_id = SPOTIFY_TRACK_RE.search(url)
+        track_id = m_id.group(1) if m_id else (str(job_data.get("spotify_track_id") or "").strip())
         if not track_id:
-            raise ValueError(f"Invalid Spotify track URL: {url}")
+            raise ValueError(f"Invalid Spotify track URL: {raw_url}")
 
-        entity = await fetch_spotify_embed_entity("track", track_id)
-        track_title = entity.get("name") or entity.get("title") or "Unknown Track"
-        artists_list = [a.get("name", "") for a in entity.get("artists", []) if a.get("name")]
-        artist_name = ", ".join(artists_list) or entity.get("subtitle") or "Spotify"
-
+        artist_name, track_title = await resolve_spotify_track_metadata(track_id)
         final_name = f"{sanitize_filename(artist_name)} - {sanitize_filename(track_title)}.mp3"
         dest = TRACKS_DIR / final_name
 
-        async def _cb(pct, spd, eta, msg):
-            await push_progress(r, task_id, track_title, artist_name, pct, spd, eta, owner, log_line=msg)
+        await push_progress(
+            r, task_id, f"{artist_name} - {track_title}", artist_name, 12.0, "Matched", "--:--", owner,
+            log_line=f"Spotify track resolved: '{artist_name} - {track_title}' — locating 320kbps stream...",
+        )
 
-        ok, tier_info = await download_track_resilient(artist_name, track_title, dest, task_id=task_id, r=r, progress_cb=_cb)
+        async def _cb(pct, spd, eta, msg):
+            await push_progress(r, task_id, f"{artist_name} - {track_title}", artist_name, pct, spd, eta, owner, log_line=msg)
+
+        ok, tier_info = await download_track_resilient(
+            artist_name, track_title, dest, task_id=task_id, r=r, progress_cb=_cb
+        )
         if tier_info == "cancelled":
             await record_history(r, task_id, track_title, artist_name, "cancelled")
         elif ok:
+            await trigger_navidrome_quick_scan()
             await push_progress(
-                r, task_id, track_title, artist_name, 100.0, "Complete", "00:00", owner,
-                log_line=f"Saved {final_name} ({tier_info})",
+                r, task_id, f"{artist_name} - {track_title}", artist_name, 100.0, "Complete", "00:00", owner,
+                log_line=f"Saved /mnt/audio_pool/music/tracks/{final_name} ({tier_info})",
             )
             await record_history(r, task_id, track_title, artist_name, "completed", final_name)
         else:
+            logger.error(f"[Universal] All 4 tiers failed for Spotify single '{artist_name} - {track_title}': {tier_info}")
             await record_history(r, task_id, track_title, artist_name, "failed")
     except Exception as e:
         logger.error(f"[Universal] Spotify single error: {e}")
@@ -781,7 +919,8 @@ async def download_spotify_playlist(job_data: dict, r):
     TRACKS_DIR.mkdir(parents=True, exist_ok=True)
     PLAYLISTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    m_id = re.search(r"(?:open\.spotify\.com/playlist/|spotify:playlist:)([A-Za-z0-9]+)", url)
+    url = await resolve_spotify_url(url)
+    m_id = SPOTIFY_PLAYLIST_RE.search(url)
     playlist_id = m_id.group(1) if m_id else ""
     playlist_title = f"Spotify_Playlist_{playlist_id[:8] or task_id}"
     cancelled = False

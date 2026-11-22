@@ -60,7 +60,7 @@ def sanitize_slug(text: str) -> str:
 
 def extract_spotify_playlist_id(input_str: str) -> str:
     input_str = input_str.strip()
-    match = re.search(r"playlist/([a-zA-Z0-9]+)", input_str)
+    match = re.search(r"playlist/([a-zA-Z0-9]{22})", input_str)
     if match:
         return match.group(1)
     if re.match(r"^[a-zA-Z0-9]{22}$", input_str):
@@ -208,6 +208,72 @@ async def import_playlist_by_url(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # SPOTIFY_SINGLE_INTERCEPT: handle individual Spotify track links & short links
+    _raw_in = str(getattr(req, "url_or_id", None) or getattr(req, "url", "") or "").strip()
+    if any(h in _raw_in.lower() for h in ("spotify.link/", "spoti.fi/", "spotify.app.link/")):
+        try:
+            import httpx as _hx
+            async with _hx.AsyncClient(timeout=10.0, follow_redirects=True) as _hc:
+                _raw_in = str((await _hc.get(_raw_in)).url)
+                if hasattr(req, "url_or_id"):
+                    req.url_or_id = _raw_in
+        except Exception:
+            pass
+    import re as _re
+    _m_tr = _re.search(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?track/|spotify:track:)([A-Za-z0-9]{22})", _raw_in)
+    if _m_tr:
+        import json as _js, os as _os, uuid as _uu
+        import redis.asyncio as _ar
+        _tid = _uu.uuid4().hex[:8]
+        _uname = getattr(current_user, "username", "admin")
+        _uid = str(getattr(current_user, "id", "admin"))
+        _rhost = _os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
+        _rurl = _os.getenv("REDIS_URL") or f"redis://{_rhost}:6379/0"
+        _rc = _ar.from_url(_rurl, decode_responses=True)
+        try:
+            _sp_label = "Spotify Track"
+            try:
+                import asyncio as _as
+                from universal_downloader import resolve_spotify_track_metadata as _rsm
+                _a, _t = await _as.wait_for(_rsm(_m_tr.group(1)), timeout=4.0)
+                if _t:
+                    _sp_label = f"{_a} — {_t}" if _a and _a.lower() != "spotify" else _t
+                    await _rc.hset("nexus:url:titles", _raw_in, _sp_label)
+            except Exception:
+                pass
+            _job = {
+                "task_type": "spotify_single",
+                "task_id": _tid,
+                "url": _raw_in,
+                "spotify_track_id": _m_tr.group(1),
+                "title": _sp_label,
+                "owner_id": _uid,
+                "owner_username": _uname,
+                "visibility": getattr(req, "visibility", "private"),
+            }
+            await _rc.lpush("nexus:queue:playlists", _js.dumps(_job))
+            if await _rc.hlen("nexus:downloads:active") == 0:
+                await _rc.hset("nexus:downloads:active", _tid, _js.dumps({
+                    "id": _tid,
+                    "title": _sp_label,
+                    "artist": "Spotify",
+                    "percent": 2.0,
+                    "overall_percent": 2.0,
+                    "speed": "Starting",
+                    "eta": "--:--",
+                    "status": "starting",
+                    "owner": _uname,
+                    "log_line": "Queued Spotify track — resolving metadata...",
+                }))
+            await _rc.publish("nexus:events", _js.dumps({"event": "QUEUE_SYNC"}))
+        finally:
+            await (_rc.aclose() if hasattr(_rc, 'aclose') else _rc.close())
+        return {
+            "status": "queued",
+            "type": "spotify_single",
+            "task_id": _tid,
+            "message": "Spotify track queued for immediate 320kbps MP3 download",
+        }
     spotify_playlist_id = extract_spotify_playlist_id(req.url_or_id)
     token = await get_client_credentials_token()
 
@@ -452,7 +518,7 @@ async def get_vault_overview(
     try:
         r_del = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
         deleted_set = set(await r_del.smembers("nexus:playlists:deleted") or [])
-        await r_del.aclose()
+        await (r_del.aclose() if hasattr(r_del, 'aclose') else r_del.close())
     except Exception:
         pass
 

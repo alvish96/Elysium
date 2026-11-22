@@ -1,3 +1,4 @@
+import os, json, re, uuid, asyncio, traceback
 import os
 import sys
 import json
@@ -153,7 +154,7 @@ async def clear_pending_download_queue(user: User = Depends(get_current_user)):
         await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
         return {"status": "cleared", "cleared_count": cleared_count}
     finally:
-        await r_conn.aclose()
+        await _safe_close_redis(r_conn)
 
 # === PLAYLIST RESYNC & RESYNC-ALL ENDPOINTS ===
 class PlaylistResyncReq(BaseModel):
@@ -273,7 +274,7 @@ async def check_new_spotify_playlists(
             ),
         }
     finally:
-        await r_conn.aclose()
+        await _safe_close_redis(r_conn)
 # === END SPOTIFY NEW PLAYLIST DISCOVERY ===
 
 @app.post("/api/v1/playlists/resync-all")
@@ -367,7 +368,7 @@ async def resync_all_playlists(
             "message": f"Queued {len(queued_names)} playlist(s) for fresh Spotify re-sync.",
         }
     finally:
-        await r_conn.aclose()
+        await _safe_close_redis(r_conn)
 
 
 @app.post("/api/v1/playlists/{spotify_playlist_id}/resync")
@@ -475,50 +476,267 @@ async def resync_single_playlist(
             "message": f"Re-sync started for {pl_name}",
         }
     finally:
-        await r_conn.aclose()
+        await _safe_close_redis(r_conn)
 # === END PLAYLIST RESYNC ENDPOINTS ===
+# === UNIFIED QUEUE TITLE RESOLVER ===
+_PLACEHOLDER_TITLES = {
+    "",
+    "queued track",
+    "queued download",
+    "unknown",
+    "unknown track",
+    "resolving...",
+    "spotify track — starting...",
+    "youtube track — starting...",
+    "spotify playlist — starting...",
+    "youtube playlist — starting...",
+}
 
-@app.get("/api/v1/downloads/queue")
-async def get_download_queue(user: User = Depends(get_current_user)):
-    # 1. Currently downloading tasks
+def _is_placeholder_title(val: str | None) -> bool:
+    s = str(val or "").strip()
+    sl = s.lower()
+    return (
+        sl in _PLACEHOLDER_TITLES
+        or sl.startswith("http://")
+        or sl.startswith("https://")
+        or sl.startswith("spotify:track:")
+        or sl.startswith("spotify:playlist:")
+    )
+
+def _queue_async_redis():
+    import os
+    import redis.asyncio as aioredis
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        r_host = os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
+        r_port = os.getenv("REDIS_PORT", "6379")
+        redis_url = f"redis://{r_host}:{r_port}/0"
+    return aioredis.from_url(redis_url, decode_responses=True)
+
+async def _safe_close_redis(r_conn):
+    if r_conn is None:
+        return
     try:
-        raw_active = await dl_redis.hgetall("nexus:downloads:active")
-        active = [json.loads(v) for v in raw_active.values()] if raw_active else []
+        if hasattr(r_conn, "aclose"):
+            await _safe_close_redis(r_conn)
+        elif hasattr(r_conn, "close"):
+            await r_conn.close()
     except Exception:
-        active = []
+        pass
 
-    # 2. Tasks waiting in line in Redis
+async def resolve_queue_item_title(
+    url: str = "",
+    task_type: str = "",
+    playlist_id: str = "",
+    spotify_track_id: str = "",
+    r_conn=None,
+) -> str:
     try:
-        raw_pending = await dl_redis.lrange("nexus:queue:playlists", 0, -1)
-        pending = []
-        for raw in raw_pending:
+        import asyncio, html, httpx, re
+
+        u = str(url or "").strip()
+        pid = str(playlist_id or "").strip()
+        sp_tid = str(spotify_track_id or "").strip()
+
+        if u and r_conn is not None:
             try:
-                p = json.loads(raw)
-                pending.append({
-                    "id": p.get("task_id", "queued"),
-                    "title": p.get("title", p.get("url", "Queued Track")),
-                    "url": p.get("url", ""),
-                    "type": p.get("task_type", "youtube_single"),
-                    "owner": p.get("owner_username", "admin")
-                })
+                cached = await r_conn.hget("nexus:url:titles", u)
+                if cached and not _is_placeholder_title(cached):
+                    return cached
             except Exception:
                 pass
-    except Exception:
-        pending = []
 
-    # 3. Finished download history
+        # Spotify Single Track
+        m_sp_t = re.search(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?track/|spotify:track:)([A-Za-z0-9]{22})", u)
+        if not sp_tid and m_sp_t:
+            sp_tid = m_sp_t.group(1)
+
+        if sp_tid or task_type == "spotify_single":
+            resolved = ""
+            if sp_tid:
+                try:
+                    from universal_downloader import resolve_spotify_track_metadata
+                    artist, title = await asyncio.wait_for(resolve_spotify_track_metadata(sp_tid), timeout=4.0)
+                    if title:
+                        resolved = f"{artist} — {title}" if artist and artist.lower() != "spotify" else title
+                except Exception:
+                    pass
+                if not resolved:
+                    try:
+                        async with httpx.AsyncClient(timeout=3.5) as client:
+                            oe = await client.get(
+                                "https://open.spotify.com/oembed",
+                                params={"url": f"https://open.spotify.com/track/{sp_tid}"},
+                            )
+                            if oe.status_code == 200:
+                                resolved = str(oe.json().get("title") or "").strip()
+                    except Exception:
+                        pass
+            if resolved and not _is_placeholder_title(resolved):
+                if u and r_conn is not None:
+                    try:
+                        await r_conn.hset("nexus:url:titles", u, resolved)
+                    except Exception:
+                        pass
+                return resolved
+
+        # Spotify Playlist
+        m_sp_p = re.search(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?playlist/|spotify:playlist:)([A-Za-z0-9]{22})", u)
+        sp_pid = m_sp_p.group(1) if m_sp_p else (pid if re.match(r"^[A-Za-z0-9]{22}$", pid) else "")
+
+        if pid or sp_pid or task_type in ("spotify_playlist", "sync_playlist"):
+            pl_name = ""
+            if r_conn is not None:
+                for key_id in (sp_pid, pid):
+                    if key_id:
+                        try:
+                            pl_name = await r_conn.hget("nexus:playlist:names", key_id) or ""
+                            if pl_name and not _is_placeholder_title(pl_name):
+                                break
+                        except Exception:
+                            pass
+            if not pl_name and sp_pid:
+                try:
+                    async with httpx.AsyncClient(timeout=3.5) as client:
+                        oe = await client.get(
+                            "https://open.spotify.com/oembed",
+                            params={"url": f"https://open.spotify.com/playlist/{sp_pid}"},
+                        )
+                        if oe.status_code == 200:
+                            pl_name = str(oe.json().get("title") or "").strip()
+                except Exception:
+                    pass
+            if pl_name and not _is_placeholder_title(pl_name):
+                label = pl_name if pl_name.lower().startswith("playlist") else f"Playlist Sync // {pl_name}"
+                if r_conn is not None:
+                    try:
+                        if sp_pid:
+                            await r_conn.hset("nexus:playlist:names", sp_pid, pl_name)
+                        if u:
+                            await r_conn.hset("nexus:url:titles", u, label)
+                    except Exception:
+                        pass
+                return label
+
+        # YouTube / YouTube Music Track or Playlist
+        if u and "youtu" in u.lower():
+            m_vid = re.search(r"(?:[?&]v=|youtu\.be/|youtube\.com/shorts/|youtube\.com/embed/)([A-Za-z0-9_-]{11})", u)
+            m_list = re.search(r"[?&]list=([A-Za-z0-9_-]+)", u)
+            is_yt_pl = (task_type == "youtube_playlist") or ("/playlist" in u and bool(m_list))
+
+            canonical = u
+            if is_yt_pl and m_list:
+                canonical = f"https://www.youtube.com/playlist?list={m_list.group(1)}"
+            elif m_vid:
+                canonical = f"https://www.youtube.com/watch?v={m_vid.group(1)}"
+
+            resolved = ""
+            try:
+                async with httpx.AsyncClient(timeout=3.5, follow_redirects=True) as client:
+                    oe = await client.get(
+                        "https://www.youtube.com/oembed",
+                        params={"url": canonical, "format": "json"},
+                        headers={"User-Agent": "Mozilla/5.0"},
+                    )
+                    if oe.status_code == 200:
+                        data = oe.json()
+                        t = str(data.get("title") or "").strip()
+                        author = re.sub(r"\s*-\s*Topic$", "", str(data.get("author_name") or "").strip(), flags=re.IGNORECASE)
+                        if t:
+                            if is_yt_pl:
+                                resolved = f"Playlist // {t}"
+                            elif author and author.lower() not in t.lower():
+                                resolved = f"{author} — {t}"
+                            else:
+                                resolved = t
+                    if not resolved:
+                        page = await client.get(canonical, headers={"User-Agent": "Mozilla/5.0"})
+                        if page.status_code == 200:
+                            mt = re.search(r"<title>(.*?)</title>", page.text, re.IGNORECASE | re.DOTALL)
+                            if mt:
+                                cleaned = re.sub(r"\s*-\s*YouTube\s*$", "", html.unescape(mt.group(1)).strip(), flags=re.IGNORECASE)
+                                if cleaned and cleaned.lower() not in ("youtube", "youtube music"):
+                                    resolved = f"Playlist // {cleaned}" if is_yt_pl else cleaned
+            except Exception:
+                pass
+
+            if resolved and not _is_placeholder_title(resolved):
+                if r_conn is not None:
+                    try:
+                        await r_conn.hset("nexus:url:titles", u, resolved)
+                    except Exception:
+                        pass
+                return resolved
+    except Exception:
+        pass
+    return "Queued Track"
+# === END UNIFIED QUEUE TITLE RESOLVER ===
+
+@app.get("/api/v1/downloads/queue")
+async def get_download_queue(user=Depends(get_current_user)):
+    import json
+    r_conn = _queue_async_redis()
     try:
-        raw_history = await dl_redis.lrange("nexus:downloads:history", 0, 30)
-        history = [json.loads(v) for v in raw_history] if raw_history else []
-    except Exception:
-        history = []
+        try:
+            raw_active = await r_conn.hgetall("nexus:downloads:active")
+            active = [json.loads(v) for v in raw_active.values()] if raw_active else []
+        except Exception:
+            active = []
 
-    return {
-        "active": active,
-        "pending": pending,
-        "pending_count": len(pending),
-        "history": history
-    }
+        pending = []
+        try:
+            raw_pending = await r_conn.lrange("nexus:queue:playlists", 0, 50)
+            for idx, raw in enumerate(raw_pending):
+                try:
+                    p = json.loads(raw)
+                    cur_title = str(p.get("title") or p.get("playlist_name") or "").strip()
+                    if _is_placeholder_title(cur_title):
+                        resolved = await resolve_queue_item_title(
+                            url=p.get("url", ""),
+                            task_type=p.get("task_type", ""),
+                            playlist_id=str(p.get("spotify_playlist_id") or p.get("playlist_id") or ""),
+                            spotify_track_id=str(p.get("spotify_track_id") or ""),
+                            r_conn=r_conn,
+                        )
+                        if resolved and not _is_placeholder_title(resolved):
+                            cur_title = resolved
+                            p["title"] = resolved
+                            try:
+                                await r_conn.lset("nexus:queue:playlists", idx, json.dumps(p))
+                            except Exception:
+                                pass
+                        elif not cur_title:
+                            cur_title = "Queued Track"
+
+                    pending.append({
+                        "id": str(p.get("task_id") or p.get("id") or f"q_{idx}"),
+                        "title": cur_title,
+                        "name": cur_title,
+                        "url": p.get("url", ""),
+                        "playlist_id": str(p.get("spotify_playlist_id") or p.get("playlist_id") or ""),
+                        "type": p.get("task_type", "youtube_single"),
+                        "owner": p.get("owner_username", "admin"),
+                        "status": "queued",
+                    })
+                except Exception:
+                    pass
+        except Exception:
+            pending = []
+
+        try:
+            raw_history = await r_conn.lrange("nexus:downloads:history", 0, 30)
+            history = [json.loads(item) for item in raw_history] if raw_history else []
+        except Exception:
+            history = []
+
+        return {
+            "active": active,
+            "pending": pending,
+            "pending_count": len(pending),
+            "history": history,
+        }
+    finally:
+        await _safe_close_redis(r_conn)
 
 from fastapi.responses import FileResponse
 
@@ -955,65 +1173,94 @@ class UniversalQuickDownloadReq(BaseModel):
 
 @app.post("/api/v1/downloads/quick")
 async def quick_download_media(req: UniversalQuickDownloadReq, user=Depends(get_current_user)):
-    import json, os, re, uuid
-    import redis.asyncio as aioredis
+    import httpx, json, re, traceback, uuid
 
-    url = req.url.strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="URL is required")
-
-    task_id = uuid.uuid4().hex[:8]
-    u_id = str(user.get("id", "admin") if isinstance(user, dict) else getattr(user, "id", "admin"))
-    u_name = str(user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin"))
-
-    # Classify all 4 supported media URL types
-    if "open.spotify.com/track/" in url or "spotify:track:" in url:
-        task_type = "spotify_single"
-        label = "Spotify Track — Starting..."
-        artist = "Spotify"
-    elif "open.spotify.com/playlist/" in url or "spotify:playlist:" in url:
-        task_type = "spotify_playlist"
-        label = "Spotify Playlist — Starting..."
-        artist = "Spotify Playlist"
-    elif "youtu" in url:
-        is_radio_mix = bool(re.search(r"[?&]list=RD", url))
-        is_playlist = ("/playlist" in url) or ("list=" in url and not is_radio_mix)
-        task_type = "youtube_playlist" if is_playlist else "youtube_single"
-        label = "YouTube Playlist — Starting..." if is_playlist else "YouTube Track — Starting..."
-        artist = "YouTube Playlist" if is_playlist else "YouTube"
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported URL. Paste a YouTube, YouTube Music, or Spotify track/playlist link.")
-
-    job = {
-        "task_type": task_type,
-        "task_id": task_id,
-        "url": url,
-        "owner_id": u_id,
-        "owner_username": u_name,
-        "visibility": req.visibility,
-    }
-
-    redis_url = os.getenv("REDIS_URL")
-    if not redis_url:
-        r_host = os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
-        r_port = os.getenv("REDIS_PORT", "6379")
-        redis_url = f"redis://{r_host}:{r_port}/0"
-
-    r_conn = aioredis.from_url(redis_url, decode_responses=True)
+    r_conn = None
     try:
-        await r_conn.lpush("nexus:queue:playlists", json.dumps(job))
-        await r_conn.hset("nexus:downloads:active", task_id, json.dumps({
-            "id": task_id,
-            "title": label,
-            "artist": artist,
-            "percent": 2.0,
-            "speed": "Starting",
-            "eta": "--:--",
-            "status": "starting",
-            "owner": u_name,
-        }))
-        await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
-    finally:
-        await r_conn.aclose()
+        url = str(req.url or "").strip()
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
 
-    return {"status": "queued", "type": task_type, "task_id": task_id, "message": f"Queued {task_type.replace('_', ' ')} for immediate download"}
+        if any(h in url.lower() for h in ("spotify.link/", "spoti.fi/", "spotify.app.link/")):
+            try:
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    r_exp = await client.get(url)
+                    url = str(r_exp.url)
+            except Exception:
+                pass
+
+        task_id = uuid.uuid4().hex[:8]
+        u_id = str(user.get("id", "admin") if isinstance(user, dict) else getattr(user, "id", "admin"))
+        u_name = str(user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin"))
+
+        m_sp_track = re.search(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?track/|spotify:track:)([A-Za-z0-9]{22})", url)
+        m_sp_pl = re.search(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,3}/)?playlist/|spotify:playlist:)([A-Za-z0-9]{22})", url)
+
+        if m_sp_track:
+            task_type = "spotify_single"
+            artist = "Spotify"
+            extra_meta = {"spotify_track_id": m_sp_track.group(1)}
+        elif m_sp_pl:
+            task_type = "spotify_playlist"
+            artist = "Spotify Playlist"
+            extra_meta = {"spotify_playlist_id": m_sp_pl.group(1)}
+        elif "youtu" in url.lower():
+            is_radio_mix = bool(re.search(r"[?&]list=RD", url))
+            is_playlist = ("/playlist" in url) or ("list=" in url and not is_radio_mix)
+            task_type = "youtube_playlist" if is_playlist else "youtube_single"
+            artist = "YouTube Playlist" if is_playlist else "YouTube"
+            extra_meta = {}
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported URL. Paste a Spotify track/playlist or YouTube/YT Music track/playlist link.")
+
+        r_conn = _queue_async_redis()
+        resolved_title = await resolve_queue_item_title(
+            url=url,
+            task_type=task_type,
+            playlist_id=extra_meta.get("spotify_playlist_id", ""),
+            spotify_track_id=extra_meta.get("spotify_track_id", ""),
+            r_conn=r_conn,
+        )
+        display_title = resolved_title if not _is_placeholder_title(resolved_title) else f"{artist} — Starting..."
+
+        job = {
+            "task_type": task_type,
+            "task_id": task_id,
+            "title": resolved_title,
+            "url": url,
+            "owner_id": u_id,
+            "owner_username": u_name,
+            "visibility": req.visibility,
+            **extra_meta,
+        }
+
+        await r_conn.lpush("nexus:queue:playlists", json.dumps(job))
+        if await r_conn.hlen("nexus:downloads:active") == 0:
+            await r_conn.hset("nexus:downloads:active", task_id, json.dumps({
+                "id": task_id,
+                "title": display_title,
+                "artist": artist,
+                "percent": 2.0,
+                "overall_percent": 2.0,
+                "speed": "Starting",
+                "eta": "--:--",
+                "status": "starting",
+                "owner": u_name,
+                "log_line": f"Queued '{display_title}' — initiating download...",
+            }))
+        await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+
+        return {
+            "status": "queued",
+            "type": task_type,
+            "task_id": task_id,
+            "title": resolved_title,
+            "message": f"Queued '{resolved_title}' for immediate download",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print("quick_download_media error:\n" + traceback.format_exc(), flush=True)
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
+    finally:
+        await _safe_close_redis(r_conn)

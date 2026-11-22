@@ -1405,37 +1405,55 @@ body.light-polarity .space-only { display: none !important; }
   opacity: 0.5;
   cursor: wait;
 }
-.holocron-left-info.nx-spotify-link {
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.18s ease;
-}
-.holocron-left-info.nx-spotify-link:hover {
-  background: rgba(16, 185, 129, 0.08);
-}
-.holocron-left-info.nx-spotify-link:hover .nx-spotify-pill {
-  opacity: 1;
-  transform: translateX(0);
-}
 .nx-spotify-pill {
+  display: none !important;
+}
+.nx-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.nx-feishin-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.16s ease, text-shadow 0.16s ease;
+}
+.nx-feishin-title:hover {
+  color: var(--accent, #10b981) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.nx-spotify-open-btn {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  margin-left: 8px;
-  padding: 1px 6px;
-  border-radius: 3px;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: #1db954;
-  background: rgba(29, 185, 84, 0.12);
-  border: 1px solid rgba(29, 185, 84, 0.35);
-  opacity: 0.72;
+  background: rgba(29, 185, 84, 0.14);
+  border: 1px solid rgba(29, 185, 84, 0.48);
+  text-decoration: none;
+  cursor: pointer;
   transition: all 0.18s ease;
-  vertical-align: middle;
+  line-height: 1.45;
+  white-space: nowrap;
 }
-
+.nx-spotify-open-btn:hover {
+  background: rgba(29, 185, 84, 0.3);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(29, 185, 84, 0.35);
+}
 /* === SCROLLABLE PLAYLIST CONTAINER & CHECK-NEW BUTTON === */
 .nx-check-new-btn {
   display: inline-flex;
