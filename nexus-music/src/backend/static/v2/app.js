@@ -61,6 +61,7 @@ function setTelemetryInterval(ms) {
 }
 
 const appState = {
+  currentUser: localStorage.getItem('nexus_username') || 'COMMANDER',
   visibility: 'private',
   archiveSource: 'spotify',
   archiveFilter: 'all',
@@ -432,7 +433,7 @@ async function fetchTelemetry() {
             </div>
             <div class="breaker-meta" style="font-size:11px;">
               <span>TRANSFER RATE: <strong style="color:var(--fg);">${t.speed || '--'}</strong> // ETA: <strong style="color:var(--fg);">${t.eta || '--'}</strong></span>
-              <span>OPERATOR // ${t.owner || 'ALVISH'}</span>
+              <span>OPERATOR // ${String(t.owner || appState.currentUser || 'COMMANDER').toUpperCase()}</span>
             </div>
           </div>
         `;
@@ -621,7 +622,8 @@ function renderArchives() {
     const id = item.spotify_id || item.spotify_playlist_id || item.id || '';
     const name = item.name || item.title || 'UNTITLED ARCHIVE';
     const cover = item.cover_url || item.image_url || '';
-    const owner = (item.owner_username || item.owner || 'alvish').toUpperCase();
+    const rawOwner = item.owner_username || (typeof item.owner === 'string' ? item.owner : (item.owner && item.owner.display_name ? item.owner.display_name : '')) || appState.currentUser || 'COMMANDER';
+    const owner = String(rawOwner).toUpperCase();
     const total = item.total_tracks ?? item.tracks_total ?? 0;
     const dl = item.downloaded_tracks ?? item.on_disk_count ?? 0;
     const pct = total > 0 ? Math.min(100, Math.round((dl / total) * 100)) : 0;
@@ -840,3 +842,863 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 120);
   }
 });
+
+// === MULTI-USER SESSION, LOGOUT & CALLSIGN SYNC ===
+async function syncCurrentCommanderProfile() {
+  const hudEl = document.getElementById('hudUserBtn');
+  const token = getToken();
+  if (!token) {
+    appState.currentUser = 'UNAUTHENTICATED';
+    if (hudEl) hudEl.textContent = 'UNAUTHENTICATED';
+    return null;
+  }
+  try {
+    const res = await apiFetch('/api/v1/auth/me?_t=' + Date.now());
+    if (res.ok) {
+      const me = await res.json();
+      const uname = me.username || me.sub || localStorage.getItem('nexus_username') || 'COMMANDER';
+      appState.currentUser = uname;
+      localStorage.setItem('nexus_username', uname);
+      if (hudEl) hudEl.textContent = 'CMD // ' + uname.toUpperCase();
+      return uname;
+    } else if (res.status === 401) {
+      logoutCommander();
+      return null;
+    }
+  } catch (e) {
+    console.warn('Profile sync warning:', e);
+  }
+  return appState.currentUser;
+}
+
+function openAuthModal() {
+  const modal = document.getElementById('authModal');
+  const errEl = document.getElementById('authErr');
+  const userIn = document.getElementById('authUser');
+  const passIn = document.getElementById('authPass');
+  if (errEl) errEl.style.display = 'none';
+  if (userIn) userIn.value = (appState.currentUser && appState.currentUser !== 'UNAUTHENTICATED') ? appState.currentUser : '';
+  if (passIn) passIn.value = '';
+  if (modal) modal.style.display = 'flex';
+  if (userIn) setTimeout(() => userIn.focus(), 50);
+}
+
+async function logoutCommander() {
+  try {
+    await apiFetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {});
+  } catch (e) {}
+
+  // Clear every possible token key and cookie
+  ['nexus_token', 'jwt_token', 'token', 'access_token', 'nexus_username', 'nexus_deleted_playlists'].forEach(k => {
+    localStorage.removeItem(k);
+    sessionStorage.removeItem(k);
+  });
+  document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  document.cookie = 'nexus_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+  // Clear in-memory datasets and update UI immediately
+  appState.currentUser = 'UNAUTHENTICATED';
+  appState.datasets = { spotify: [], imported: [], vault: [] };
+  appState.deletedIds = new Set();
+
+  const hudEl = document.getElementById('hudUserBtn');
+  if (hudEl) hudEl.textContent = 'UNAUTHENTICATED';
+
+  const spText = document.getElementById('sectorSpotifyStatusText');
+  if (spText) spText.textContent = 'Session logged out. Authenticate to continue.';
+
+  ['cntSpotify', 'cntImported', 'cntVault'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '0';
+  });
+
+  renderArchives();
+  openAuthModal();
+}
+
+async function submitCommandAuth() {
+  const userEl = document.getElementById('authUser');
+  const passEl = document.getElementById('authPass');
+  const errEl = document.getElementById('authErr');
+  const username = (userEl ? userEl.value : '').trim();
+  const password = passEl ? passEl.value : '';
+
+  if (!username || !password) {
+    if (errEl) {
+      errEl.textContent = 'CALLSIGN AND ACCESS CODE REQUIRED';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    let res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+      const formBody = new URLSearchParams();
+      formBody.append('username', username);
+      formBody.append('password', password);
+      res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody.toString()
+      });
+    }
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'INVALID CREDENTIALS');
+    }
+
+    const data = await res.json();
+    const token = data.access_token || data.token;
+    if (!token) throw new Error('NO TOKEN RETURNED');
+
+    // Clear old tokens and store new token consistently across all keys
+    ['nexus_token', 'jwt_token', 'token', 'access_token'].forEach(k => localStorage.setItem(k, token));
+    localStorage.setItem('nexus_username', username);
+    document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+
+    appState.currentUser = username;
+    appState.datasets = { spotify: [], imported: [], vault: [] };
+
+    const hudEl = document.getElementById('hudUserBtn');
+    if (hudEl) hudEl.textContent = 'CMD // ' + username.toUpperCase();
+
+    const modal = document.getElementById('authModal');
+    if (modal) modal.style.display = 'none';
+
+    await syncCurrentCommanderProfile();
+    await loadAllArchives();
+    await fetchTelemetry();
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = 'ERROR: ' + (err.message || 'AUTHENTICATION FAILED').toUpperCase();
+      errEl.style.display = 'block';
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  syncCurrentCommanderProfile();
+});
+
+
+// Instant telemetry boost whenever a playlist sync is toggled or manually triggered
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("button, input[type='checkbox'], .saber-switch");
+  if (!btn) return;
+  const row = btn.closest(".holocron-row");
+  if (row && typeof triggerRapidTelemetryPoll === "function") {
+    triggerRapidTelemetryPoll();
+  }
+}, true);
+
+// Bulk-clear all pending queued songs
+window.clearAllPendingQueue = async function() {
+  const btn = document.getElementById("btnClearPendingQueue");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "CLEARING...";
+  }
+  try {
+    const token = (typeof getToken === "function" ? getToken() : "")
+      || localStorage.getItem("nexus_token")
+      || localStorage.getItem("token")
+      || "";
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = typeof apiFetch === "function"
+      ? await apiFetch("/api/v1/downloads/queue", { method: "DELETE" })
+      : await fetch("/api/v1/downloads/queue", { method: "DELETE", headers });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errBody}`);
+    }
+
+    if (typeof triggerRapidTelemetryPoll === "function") {
+      triggerRapidTelemetryPoll();
+    }
+    if (typeof fetchTelemetry === "function") {
+      await fetchTelemetry();
+    }
+  } catch (err) {
+    console.error("Failed to clear pending queue:", err);
+    alert("Clear queue failed: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "✕ CLEAR ALL";
+    }
+  }
+};
+
+// === ENHANCED PLAYLIST TELEMETRY RENDERER (IN-PLACE DOM PATCHER) ===
+(function() {
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let latestActiveItems = [];
+  let isPatching = false;
+
+  async function cancelTaskById(taskId) {
+    try {
+      const token = (typeof getToken === "function" ? getToken() : "") || localStorage.getItem("nexus_token") || localStorage.getItem("token") || "";
+      const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+      if (typeof cancelQueueItem === "function") {
+        await cancelQueueItem(taskId);
+      } else {
+        await fetch(`/api/v1/downloads/queue/${encodeURIComponent(taskId)}`, { method: "DELETE", headers });
+      }
+      if (typeof triggerRapidTelemetryPoll === "function") triggerRapidTelemetryPoll();
+    } catch (e) {
+      console.error("Cancel failed:", e);
+    }
+  }
+  window.nexusCancelStream = cancelTaskById;
+
+  function buildCardElement(item) {
+    const card = document.createElement("div");
+    card.className = "nx-stream-card";
+    card.dataset.taskId = String(item.id || "");
+    card.dataset.lastLog = "";
+    card.dataset.lastActiveIdx = "-1";
+    card.innerHTML = `
+      <div class="nx-stream-top">
+        <div class="nx-stream-title-wrap">
+          <div class="nx-stream-title"></div>
+          <div class="nx-stream-sub"></div>
+        </div>
+        <div class="nx-stream-controls">
+          <span class="nx-overall-pct">0%</span>
+          <button class="nx-cancel-btn" type="button">✕ CANCEL</button>
+        </div>
+      </div>
+      <div class="nx-bar-track"><div class="nx-bar-fill"></div></div>
+      <div class="nx-ticker-bar">
+        <span class="nx-ticker-tag"><span class="nx-ticker-dot"></span>LIVE LOG //</span>
+        <div class="nx-ticker-viewport"><span class="nx-ticker-text"></span></div>
+      </div>
+      <div class="nx-current-song" style="display:none;">
+        <div class="nx-current-song-head">
+          <span class="nx-current-song-name"></span>
+          <span class="nx-current-song-meta"></span>
+        </div>
+        <div class="nx-bar-track mini"><div class="nx-bar-fill"></div></div>
+      </div>
+      <div class="nx-song-list" style="display:none;"></div>
+      <div class="nx-stream-footer">
+        <span class="nx-foot-left"></span>
+        <span class="nx-foot-right"></span>
+      </div>
+    `;
+    card.querySelector(".nx-cancel-btn").addEventListener("click", () => cancelTaskById(item.id));
+    return card;
+  }
+
+  function updateCardInPlace(card, item) {
+    const overallPct = Math.max(0, Math.min(100, Number(item.overall_percent ?? item.percent ?? 0)));
+    const isPl = Boolean(item.is_playlist || (Array.isArray(item.tracks) && item.tracks.length > 0));
+    const titleEl = card.querySelector(".nx-stream-title");
+    const subEl = card.querySelector(".nx-stream-sub");
+    const pctEl = card.querySelector(".nx-overall-pct");
+    const barEl = card.querySelector(".nx-bar-track:not(.mini) .nx-bar-fill");
+
+    if (isPl) {
+      const done = item.completed_tracks ?? 0;
+      const tot = item.total_tracks ?? (item.tracks ? item.tracks.length : 0);
+      titleEl.textContent = `PLAYLIST // ${item.playlist_name || item.title}`;
+      subEl.textContent = `OVERALL PROGRESS: ${done} / ${tot} TRACKS COMPLETED • ${item.artist || "SYNC"}`;
+    } else {
+      titleEl.textContent = item.title || "Active Stream";
+      subEl.textContent = `${item.artist || "TRANSCODING"} • SINGLE TRACK`;
+    }
+
+    pctEl.textContent = `${overallPct.toFixed(0)}%`;
+    barEl.style.width = `${overallPct}%`;
+
+    // Update single-line scrolling status message ONLY when text changes (prevents animation stutter)
+    const logText = String(item.log_line || `${item.title || "Processing"} — ${item.speed || "Live"}`);
+    if (card.dataset.lastLog !== logText) {
+      card.dataset.lastLog = logText;
+      const tickerEl = card.querySelector(".nx-ticker-text");
+      const vpEl = card.querySelector(".nx-ticker-viewport");
+      tickerEl.classList.remove("scrolling");
+      tickerEl.textContent = logText;
+      // Enable smooth horizontal scrolling whenever the message overflows the single line
+      if (vpEl && tickerEl.scrollWidth > vpEl.clientWidth + 6) {
+        tickerEl.textContent = `${logText}     ///     ${logText}`;
+        tickerEl.classList.add("scrolling");
+      }
+    }
+
+    // Active song spotlight + per-song list for playlists
+    const spotBox = card.querySelector(".nx-current-song");
+    const listBox = card.querySelector(".nx-song-list");
+    if (isPl && Array.isArray(item.tracks) && item.tracks.length > 0) {
+      spotBox.style.display = "block";
+      const curIdx = item.current_index || 1;
+      const curName = item.current_track || item.tracks[0].name;
+      const curPct = Math.max(0, Math.min(100, Number(item.track_percent ?? 0)));
+      spotBox.querySelector(".nx-current-song-name").textContent = `NOW PROCESSING [${curIdx}/${item.tracks.length}]: ${curName}`;
+      spotBox.querySelector(".nx-current-song-meta").textContent = `${curPct.toFixed(0)}% • ${item.speed || "LIVE"}`;
+      spotBox.querySelector(".nx-bar-fill").style.width = `${curPct}%`;
+
+      listBox.style.display = "flex";
+      if (listBox.children.length !== item.tracks.length) {
+        listBox.innerHTML = item.tracks.map((t) => `
+          <div class="nx-song-row" data-song-idx="${t.index}">
+            <span class="nx-song-idx">${String(t.index).padStart(2, "0")}</span>
+            <span class="nx-song-name" title="${esc(t.name)}">${esc(t.name)}</span>
+            <div class="nx-song-bar"><div class="nx-song-bar-fill"></div></div>
+            <span class="nx-song-stat">WAIT</span>
+          </div>
+        `).join("");
+      }
+
+      item.tracks.forEach((t, i) => {
+        const row = listBox.children[i];
+        if (!row) return;
+        const st = t.status || "queued";
+        const spct = Math.max(0, Math.min(100, Number(t.percent || 0)));
+        row.className = `nx-song-row ${st === "downloading" ? "active" : st}`;
+        row.querySelector(".nx-song-name").textContent = t.name || `Track ${t.index}`;
+        row.querySelector(".nx-song-bar-fill").style.width = `${spct}%`;
+        const statEl = row.querySelector(".nx-song-stat");
+        if (st === "done") statEl.textContent = "100% ✓";
+        else if (st === "cached") statEl.textContent = "POOL ✓";
+        else if (st === "failed") statEl.textContent = "ERR ✕";
+        else if (st === "downloading") statEl.textContent = `${spct.toFixed(0)}%`;
+        else statEl.textContent = "QUEUE";
+      });
+
+      // Auto-scroll active song into view only when switching to a new song
+      if (String(curIdx) !== card.dataset.lastActiveIdx) {
+        card.dataset.lastActiveIdx = String(curIdx);
+        const activeRow = listBox.querySelector(".nx-song-row.active");
+        if (activeRow) activeRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    } else {
+      spotBox.style.display = "none";
+      listBox.style.display = "none";
+    }
+
+    card.querySelector(".nx-foot-left").textContent = `TRANSFER RATE: ${String(item.speed || "LIVE").toUpperCase()} // ETA: ${String(item.eta || "--:--").toUpperCase()}`;
+    card.querySelector(".nx-foot-right").textContent = `OPERATOR // ${String(item.owner || "ADMIN").toUpperCase()}`;
+  }
+
+  function renderEnhancedActiveStreams(items) {
+    const container = document.getElementById("telemetryActiveList");
+    if (!container || !Array.isArray(items) || items.length === 0) return;
+
+    isPatching = true;
+    try {
+      // Remove non-enhanced legacy elements written by the base renderer
+      const existingMap = new Map();
+      Array.from(container.children).forEach((child) => {
+        if (child.classList.contains("nx-stream-card") && child.dataset.taskId) {
+          existingMap.set(child.dataset.taskId, child);
+        } else {
+          child.remove();
+        }
+      });
+
+      const incomingIds = new Set(items.map((x) => String(x.id || "")));
+      for (const [tid, node] of existingMap.entries()) {
+        if (!incomingIds.has(tid)) node.remove();
+      }
+
+      items.forEach((item) => {
+        const tid = String(item.id || "");
+        let card = existingMap.get(tid);
+        if (!card) {
+          card = buildCardElement(item);
+          container.appendChild(card);
+        }
+        updateCardInPlace(card, item);
+      });
+    } finally {
+      isPatching = false;
+    }
+  }
+
+  // Intercept /api/v1/downloads/queue responses so we capture rich per-song payloads seamlessly
+  const origFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const res = await origFetch.apply(this, args);
+    try {
+      const urlStr = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url ? args[0].url : "");
+      if (urlStr.includes("/api/v1/downloads/queue") && res.ok) {
+        const cloned = res.clone();
+        cloned.json().then((data) => {
+          latestActiveItems = Array.isArray(data && data.active) ? data.active : [];
+          if (latestActiveItems.length > 0) {
+            requestAnimationFrame(() => renderEnhancedActiveStreams(latestActiveItems));
+          }
+        }).catch(() => {});
+      }
+    } catch (_) {}
+    return res;
+  };
+
+  // Re-apply in-place enhanced view immediately if base app.js writes legacy markup to #telemetryActiveList
+  window.addEventListener("DOMContentLoaded", () => {
+    const container = document.getElementById("telemetryActiveList");
+    if (!container) return;
+    const obs = new MutationObserver(() => {
+      if (isPatching || latestActiveItems.length === 0) return;
+      if (!container.querySelector(".nx-stream-card")) {
+        renderEnhancedActiveStreams(latestActiveItems);
+      }
+    });
+    obs.observe(container, { childList: true });
+  });
+})();
+
+// === PLAYLIST RESYNC, RESYNC-ALL & CLICK-TO-SPOTIFY ENHANCER ===
+(function() {
+  const SPOTIFY_ID_RE = /^[A-Za-z0-9]{22}$/;
+  const playlistByTitle = new Map();
+  const playlistById = new Map();
+
+  function indexPlaylists(items) {
+    if (!Array.isArray(items)) return;
+    items.forEach((p) => {
+      if (!p || typeof p !== "object") return;
+      const spId = String(p.spotify_playlist_id || p.id || "").trim();
+      const name = String(p.name || p.title || "").trim();
+      const spUrl =
+        (p.external_urls && p.external_urls.spotify) ||
+        p.spotify_url ||
+        (SPOTIFY_ID_RE.test(spId) ? `https://open.spotify.com/playlist/${spId}` : (p.url || ""));
+      const rec = { id: spId, name, url: spUrl, visibility: p.visibility || "private", folder_slug: p.folder_slug || "" };
+      if (spId) playlistById.set(spId, rec);
+      if (name) playlistByTitle.set(name.toLowerCase(), rec);
+    });
+  }
+
+  // Capture playlist lists as they load from API
+  const prevFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const res = await prevFetch.apply(this, args);
+    try {
+      const urlStr = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url ? args[0].url : "");
+      if (
+        res.ok &&
+        (urlStr.includes("/api/v1/spotify/playlists") ||
+          urlStr.includes("/api/v1/playlists/imported") ||
+          urlStr.includes("/api/v1/playlists/vault"))
+      ) {
+        res.clone().json().then((data) => {
+          if (Array.isArray(data)) indexPlaylists(data);
+          else if (data && Array.isArray(data.items)) indexPlaylists(data.items);
+          setTimeout(enhanceHolocronUI, 60);
+        }).catch(() => {});
+      }
+    } catch (_) {}
+    return res;
+  };
+
+  function getAuthHeaders() {
+    const token =
+      (typeof getToken === "function" ? getToken() : "") ||
+      localStorage.getItem("nexus_token") ||
+      localStorage.getItem("token") ||
+      "";
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }
+
+  function resolveRowMetadata(row) {
+    // 1. Direct data attribute or Spotify ID inside row onclick attributes
+    const directId = row.dataset.playlistId || row.dataset.spotifyId || row.dataset.id || "";
+    if (directId && playlistById.has(directId)) return playlistById.get(directId);
+
+    const htmlStr = row.innerHTML || "";
+    const idMatch = htmlStr.match(/['"]([A-Za-z0-9]{22})['"]/);
+    if (idMatch) {
+      const spId = idMatch[1];
+      if (playlistById.has(spId)) return playlistById.get(spId);
+      const titleNode = row.querySelector(".holocron-title, .playlist-title, h3, h4, strong, .holocron-left-info");
+      const rawName = titleNode ? titleNode.textContent.replace(/SPOTIFY\s*↗/gi, "").trim().split("\n")[0].trim() : spId;
+      return {
+        id: spId,
+        name: rawName,
+        url: `https://open.spotify.com/playlist/${spId}`,
+        visibility: "private",
+        folder_slug: "",
+      };
+    }
+
+    // 2. Fallback: match by displayed title against API cache
+    const left = row.querySelector(".holocron-left-info");
+    if (left) {
+      const firstLine = (left.innerText || "").replace(/SPOTIFY\s*↗/gi, "").split("\n")[0].trim().toLowerCase();
+      if (firstLine && playlistByTitle.has(firstLine)) return playlistByTitle.get(firstLine);
+    }
+    return null;
+  }
+
+  async function triggerResyncSingle(meta, btnEl) {
+    if (!meta || !meta.id) return;
+    const origText = btnEl ? btnEl.textContent : "↻ RE-SYNC";
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.textContent = "↻ SYNCING...";
+    }
+    try {
+      const res = await fetch(`/api/v1/playlists/${encodeURIComponent(meta.id)}/resync`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: meta.name || undefined,
+          visibility: meta.visibility || undefined,
+          folder_slug: meta.folder_slug || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      if (typeof triggerRapidTelemetryPoll === "function") triggerRapidTelemetryPoll();
+      if (typeof fetchTelemetry === "function") fetchTelemetry();
+
+      if (btnEl) {
+        btnEl.textContent = "✓ QUEUED";
+        setTimeout(() => {
+          btnEl.textContent = origText;
+          btnEl.disabled = false;
+        }, 1600);
+      }
+    } catch (err) {
+      console.error("Re-sync failed:", err);
+      if (btnEl) {
+        btnEl.textContent = "✕ ERR";
+        setTimeout(() => {
+          btnEl.textContent = origText;
+          btnEl.disabled = false;
+        }, 1800);
+      }
+    }
+  }
+
+  window.nexusResyncAllPlaylists = async function(btnEl) {
+    const btn = btnEl || document.getElementById("btnResyncAllPlaylists");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "↻ QUEUING ALL...";
+    }
+    try {
+      const res = await fetch("/api/v1/playlists/resync-all", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ include_unsynced: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      if (typeof triggerRapidTelemetryPoll === "function") triggerRapidTelemetryPoll();
+      if (typeof fetchTelemetry === "function") fetchTelemetry();
+
+      const cnt = Number(data.queued_count || 0);
+      if (btn) {
+        btn.textContent = cnt > 0 ? `✓ QUEUED ${cnt} PLAYLIST${cnt === 1 ? "" : "S"}` : "NO SYNCED PLAYLISTS";
+        setTimeout(() => {
+          btn.textContent = "↻ RE-SYNC ALL";
+          btn.disabled = false;
+        }, 2400);
+      }
+    } catch (err) {
+      console.error("Re-sync all failed:", err);
+      alert("Re-sync All failed: " + err.message);
+      if (btn) {
+        btn.textContent = "↻ RE-SYNC ALL";
+        btn.disabled = false;
+      }
+    }
+  };
+
+  function ensureResyncAllButton() {
+    if (document.getElementById("btnResyncAllPlaylists")) return;
+
+    const btn = document.createElement("button");
+    btn.id = "btnResyncAllPlaylists";
+    btn.type = "button";
+    btn.className = "nx-resync-all-btn";
+    btn.title = "Check Spotify for changes and re-sync all synced playlists";
+    btn.textContent = "↻ RE-SYNC ALL";
+    btn.addEventListener("click", () => window.nexusResyncAllPlaylists(btn));
+
+    // Place cleanly inside Sector 03 toolbar next to archive filter/tabs
+    const cntSpotify = document.getElementById("cntSpotify");
+    const tabBar = cntSpotify ? cntSpotify.closest("div, nav, header") : null;
+    if (tabBar && tabBar.parentElement) {
+      const barContainer = tabBar.parentElement;
+      barContainer.appendChild(btn);
+      return;
+    }
+
+    const firstRow = document.querySelector(".holocron-row");
+    if (firstRow && firstRow.parentElement) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex; justify-content:flex-end; margin-bottom:10px;";
+      wrap.appendChild(btn);
+      firstRow.parentElement.insertBefore(wrap, firstRow);
+    }
+  }
+
+  function enhanceHolocronUI() {
+    // Also pull from appState.datasets if exposed globally
+    try {
+      if (typeof appState !== "undefined" && appState && appState.datasets) {
+        Object.values(appState.datasets).forEach((arr) => indexPlaylists(arr));
+      }
+    } catch (_) {}
+
+    const rows = document.querySelectorAll(".holocron-row");
+    if (!rows.length) return;
+    ensureResyncAllButton();
+
+    rows.forEach((row) => {
+      const meta = resolveRowMetadata(row);
+      if (!meta || !meta.id) return;
+
+      // 1. Make playlist title/left block open its Spotify page in a new tab
+      const left = row.querySelector(".holocron-left-info");
+      if (left && meta.url && !left.dataset.nxSpotifyBound) {
+        left.dataset.nxSpotifyBound = "1";
+        left.classList.add("nx-spotify-link");
+        left.title = `Open "${meta.name}" on Spotify`;
+
+        // Append subtle SPOTIFY ↗ pill once
+        if (!left.querySelector(".nx-spotify-pill")) {
+          const titleHost = left.querySelector(".holocron-title, .playlist-title, h3, h4, div") || left;
+          const pill = document.createElement("span");
+          pill.className = "nx-spotify-pill";
+          pill.textContent = "SPOTIFY ↗";
+          titleHost.appendChild(pill);
+        }
+
+        left.addEventListener("click", (e) => {
+          if (e.target.closest("button, input, label, select, a")) return;
+          window.open(meta.url, "_blank", "noopener,noreferrer");
+        });
+      }
+
+      // 2. Add/upgrade per-playlist ↻ RE-SYNC button in right actions column
+      const actions = row.querySelector(".holocron-right-actions");
+      if (actions && !actions.querySelector(".nx-resync-btn")) {
+        // Check if an existing ⚡ SYNC button is present; upgrade it cleanly in place so columns stay aligned
+        const existingSyncBtn = Array.from(actions.querySelectorAll("button")).find((b) =>
+          /sync/i.test(b.textContent || "") && !/delete|remove/i.test(b.textContent || "")
+        );
+
+        const resyncBtn = document.createElement("button");
+        resyncBtn.type = "button";
+        resyncBtn.className = "nx-resync-btn";
+        resyncBtn.title = `Re-sync "${meta.name}" with latest Spotify changes`;
+        resyncBtn.textContent = "↻ RE-SYNC";
+        resyncBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          triggerResyncSingle(meta, resyncBtn);
+        });
+
+        if (existingSyncBtn) {
+          existingSyncBtn.replaceWith(resyncBtn);
+        } else {
+          const delBtn = Array.from(actions.querySelectorAll("button")).find((b) =>
+            /✕|×|delete|del/i.test(b.textContent || "")
+          );
+          if (delBtn) actions.insertBefore(resyncBtn, delBtn);
+          else actions.appendChild(resyncBtn);
+        }
+      }
+    });
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    setTimeout(enhanceHolocronUI, 300);
+    const obs = new MutationObserver(() => enhanceHolocronUI());
+    obs.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+
+// === CHECK NEW SPOTIFY PLAYLISTS & SCROLLABLE ARCHIVE CONTAINER ===
+(function() {
+  let newlyDiscoveredIds = new Set();
+
+  function getAuthHeaders() {
+    const token =
+      (typeof getToken === "function" ? getToken() : "") ||
+      localStorage.getItem("nexus_token") ||
+      localStorage.getItem("token") ||
+      "";
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }
+
+  function getKnownSpotifyIds() {
+    const ids = new Set();
+    try {
+      if (typeof appState !== "undefined" && appState && appState.datasets && Array.isArray(appState.datasets.spotify)) {
+        appState.datasets.spotify.forEach((p) => {
+          const id = p && (p.spotify_playlist_id || p.id);
+          if (id) ids.add(String(id));
+        });
+      }
+    } catch (_) {}
+    document.querySelectorAll(".holocron-row").forEach((row) => {
+      const m = (row.innerHTML || "").match(/['"]([A-Za-z0-9]{22})['"]/);
+      if (m) ids.add(m[1]);
+    });
+    return Array.from(ids);
+  }
+
+  function showDiscoveryBanner(text, variant = "success") {
+    let banner = document.getElementById("nxCheckNewBanner");
+    const scrollBox = document.querySelector(".nx-holocron-scrollbox");
+    if (!banner && scrollBox && scrollBox.parentElement) {
+      banner = document.createElement("div");
+      banner.id = "nxCheckNewBanner";
+      banner.className = "nx-check-new-banner";
+      scrollBox.parentElement.insertBefore(banner, scrollBox);
+    }
+    if (!banner) return;
+    banner.className = `nx-check-new-banner ${variant === "success" ? "" : variant}`.trim();
+    banner.innerHTML = `<span>${text}</span><button type="button" style="background:none;border:none;color:inherit;cursor:pointer;font-weight:700;" onclick="this.parentElement.style.display='none'">✕</button>`;
+    banner.style.display = "flex";
+  }
+
+  window.nexusCheckNewSpotifyPlaylists = async function(btnEl) {
+    const btn = btnEl || document.getElementById("btnCheckNewPlaylists");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "✦ CHECKING SPOTIFY...";
+    }
+    try {
+      const knownIds = getKnownSpotifyIds();
+      const res = await fetch("/api/v1/spotify/playlists/check-new", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ known_ids: knownIds }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      newlyDiscoveredIds = new Set((data.new_ids || []).map(String));
+
+      // Reload the playlists from backend so newly added Spotify playlists render immediately
+      if (typeof loadAllArchives === "function") {
+        await loadAllArchives();
+      } else {
+        await fetch(`/api/v1/spotify/playlists?_t=${Date.now()}`, { headers: getAuthHeaders() });
+      }
+
+      setTimeout(() => {
+        applyScrollBoxAndNewHighlights();
+        if (newlyDiscoveredIds.size > 0) {
+          const firstNew = document.querySelector(".holocron-row.nx-newly-discovered");
+          if (firstNew) firstNew.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+
+      if (data.new_count > 0) {
+        const names = (data.new_playlists || []).slice(0, 4).map((p) => `"${p.name}"`).join(", ");
+        const suffix = data.new_count > 4 ? ` +${data.new_count - 4} more` : "";
+        showDiscoveryBanner(`✓ FOUND ${data.new_count} NEW SPOTIFY PLAYLIST${data.new_count === 1 ? "" : "S"}: ${names}${suffix}`, "success");
+        if (btn) btn.textContent = `✓ +${data.new_count} NEW FOUND`;
+      } else {
+        showDiscoveryBanner(`✓ SPOTIFY ACCOUNT UP TO DATE — NO NEW PLAYLISTS (${data.total_count} TOTAL)`, "info");
+        if (btn) btn.textContent = "✓ UP TO DATE";
+      }
+
+      setTimeout(() => {
+        if (btn) {
+          btn.textContent = "✦ CHECK NEW PLAYLISTS";
+          btn.disabled = false;
+        }
+      }, 2600);
+    } catch (err) {
+      console.error("Check new playlists failed:", err);
+      showDiscoveryBanner(`✕ CHECK FAILED: ${err.message}`, "error");
+      if (btn) {
+        btn.textContent = "✦ CHECK NEW PLAYLISTS";
+        btn.disabled = false;
+      }
+    }
+  };
+
+  function ensureCheckNewButton() {
+    if (document.getElementById("btnCheckNewPlaylists")) return;
+
+    const btn = document.createElement("button");
+    btn.id = "btnCheckNewPlaylists";
+    btn.type = "button";
+    btn.className = "nx-check-new-btn";
+    btn.title = "Check your Spotify account for newly created or followed playlists";
+    btn.textContent = "✦ CHECK NEW PLAYLISTS";
+    btn.addEventListener("click", () => window.nexusCheckNewSpotifyPlaylists(btn));
+
+    const resyncAllBtn = document.getElementById("btnResyncAllPlaylists");
+    if (resyncAllBtn && resyncAllBtn.parentElement) {
+      resyncAllBtn.parentElement.insertBefore(btn, resyncAllBtn);
+      return;
+    }
+
+    const cntSpotify = document.getElementById("cntSpotify");
+    const tabBar = cntSpotify ? cntSpotify.closest("div, nav, header") : null;
+    if (tabBar && tabBar.parentElement) {
+      tabBar.parentElement.appendChild(btn);
+    }
+  }
+
+  function applyScrollBoxAndNewHighlights() {
+    ensureCheckNewButton();
+
+    const rows = document.querySelectorAll(".holocron-row");
+    if (!rows.length) return;
+
+    // Bind bounded scroll container to the direct list parent holding .holocron-row items
+    const listParent = rows[0].parentElement;
+    if (
+      listParent &&
+      !listParent.classList.contains("nx-holocron-scrollbox") &&
+      !listParent.querySelector("#cntSpotify") &&
+      !listParent.querySelector("#btnResyncAllPlaylists") &&
+      !listParent.querySelector("#btnCheckNewPlaylists")
+    ) {
+      listParent.classList.add("nx-holocron-scrollbox");
+    }
+
+    // Highlight any newly discovered playlists with a NEW badge
+    if (newlyDiscoveredIds.size > 0) {
+      rows.forEach((row) => {
+        const m = (row.innerHTML || "").match(/['"]([A-Za-z0-9]{22})['"]/);
+        if (m && newlyDiscoveredIds.has(m[1])) {
+          row.classList.add("nx-newly-discovered");
+          const left = row.querySelector(".holocron-left-info");
+          if (left && !left.querySelector(".nx-new-badge")) {
+            const titleHost = left.querySelector(".holocron-title, .playlist-title, h3, h4, div") || left;
+            const badge = document.createElement("span");
+            badge.className = "nx-new-badge";
+            badge.textContent = "NEW";
+            titleHost.appendChild(badge);
+          }
+        }
+      });
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    setTimeout(applyScrollBoxAndNewHighlights, 350);
+    const obs = new MutationObserver(() => applyScrollBoxAndNewHighlights());
+    obs.observe(document.body, { childList: true, subtree: true });
+  });
+})();

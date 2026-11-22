@@ -1,3 +1,12 @@
+from pathlib import Path
+from universal_downloader import (
+    dispatch_universal_job,
+    rescue_spotify_track_by_id,
+    download_track_resilient,
+    PlaylistTelemetryTracker,
+    ACTIVE_TRACK_TRACKER,
+    push_progress,
+)
 from datetime import datetime, timezone
 #!/usr/bin/env python3
 import asyncio
@@ -117,7 +126,7 @@ async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> boo
         "--output", str(scratch_dir / "{artist} - {title}.{ext}"),
         "--format", "mp3",
         "--bitrate", "320k",
-        "--simple-tui",
+        "--simple-tui", "--dont-filter-results",
         "--log-level", "INFO"
     ]
 
@@ -142,6 +151,9 @@ async def download_track_spotdl(spotify_track_id: str, master_file: Path) -> boo
         return False
     finally:
         shutil.rmtree(scratch_dir, ignore_errors=True)
+    if not (Path(master_file).exists() and Path(master_file).stat().st_size > 50000):
+        logger.info(f"[Worker] SpotDL missed {spotify_track_id} - running 4-tier waterfall...")
+        await rescue_spotify_track_by_id(str(spotify_track_id), Path(master_file))
 
 async def fetch_tracks_via_spotdl_save(spotify_playlist_id: str) -> List[Dict]:
     cache_dir = Path("/tmp/spotdl_cache")
@@ -157,7 +169,7 @@ async def fetch_tracks_via_spotdl_save(spotify_playlist_id: str) -> List[Dict]:
         "save",
         f"https://open.spotify.com/playlist/{spotify_playlist_id}",
         "--save-file", str(save_file),
-        "--simple-tui",
+        "--simple-tui", "--dont-filter-results",
         "--log-level", "INFO"
     ]
 
@@ -242,142 +254,174 @@ async def fetch_playlist_tracks(token: str, spotify_playlist_id: str) -> List[Di
     return await fetch_tracks_via_spotdl_save(spotify_playlist_id)
 
 async def sync_playlist_task(job_data: dict, r: redis.Redis):
-    playlist_id = job_data["playlist_id"]
-    spotify_playlist_id = job_data["spotify_playlist_id"]
-    owner_id = job_data["owner_id"]
+    _sync_task_id = str(job_data.get("task_id") or f"pl_{job_data.get('playlist_id', 'sync')}")
+    _sync_owner = job_data.get("owner_username", "admin")
+    _raw_pid = str(job_data.get("playlist_id") or job_data.get("spotify_playlist_id") or "")
+    _cached_name = await r.hget("nexus:playlist:names", _raw_pid) if _raw_pid else None
+    _sync_name = job_data.get("playlist_name") or job_data.get("title") or _cached_name or f"Playlist {_raw_pid}"
+    try:
+        await push_progress(r, _sync_task_id, f"{_sync_name} - Fetching Spotify Tracklist...", "Spotify Sync", 5.0, "Connecting...", "--:--", _sync_owner, "starting", log_line=f"Connecting to Spotify for playlist {_sync_name}...")
+        playlist_id = job_data["playlist_id"]
+        spotify_playlist_id = job_data["spotify_playlist_id"]
+        owner_id = job_data["owner_id"]
 
-    logger.info(f"--> Starting Sync for playlist {spotify_playlist_id}...")
+        logger.info(f"--> Starting Sync for playlist {spotify_playlist_id}...")
 
-    async with AsyncSessionLocal() as db:
-        stmt = select(Playlist).where(Playlist.id == playlist_id)
-        res = await db.execute(stmt)
-        playlist = res.scalar_one_or_none()
-        if not playlist or not playlist.is_synced:
-            logger.info(f"Playlist {playlist_id} is not marked for sync. Skipping.")
-            return
+        async with AsyncSessionLocal() as db:
+            stmt = select(Playlist).where(Playlist.id == playlist_id)
+            res = await db.execute(stmt)
+            playlist = res.scalar_one_or_none()
+            if not playlist or not playlist.is_synced:
+                logger.info(f"Playlist {playlist_id} is not marked for sync. Skipping.")
+                return
 
-        stmt_u = select(User).where(User.id == owner_id)
-        res_u = await db.execute(stmt_u)
-        user = res_u.scalar_one_or_none()
-        if not user:
-            logger.error(f"User {owner_id} not found.")
-            return
+            stmt_u = select(User).where(User.id == owner_id)
+            res_u = await db.execute(stmt_u)
+            user = res_u.scalar_one_or_none()
+            if not user:
+                logger.error(f"User {owner_id} not found.")
+                return
 
-        playlist.sync_status = "syncing"
-        await db.commit()
-
-        try:
-            spotify_token = await get_valid_spotify_token(db, user.id)
-        except Exception:
-            spotify_token = ""
-
-        tracks_meta = await fetch_playlist_tracks(spotify_token, spotify_playlist_id)
-        if not tracks_meta:
-            logger.warning(f"No tracks found for playlist {spotify_playlist_id}.")
-            playlist.sync_status = "failed"
+            playlist.sync_status = "syncing"
             await db.commit()
-            return
 
-        playlist.total_tracks = len(tracks_meta)
-        await db.commit()
+            try:
+                spotify_token = await get_valid_spotify_token(db, user.id)
+            except Exception:
+                spotify_token = ""
 
-    music_root = Path(settings.MUSIC_ROOT)
-    master_pool = music_root / ".master_pool"
-    master_pool.mkdir(parents=True, exist_ok=True)
-    
-    tracks_dir = music_root / "tracks"
-    tracks_dir.mkdir(parents=True, exist_ok=True)
+            tracks_meta = await fetch_playlist_tracks(spotify_token, spotify_playlist_id)
+            if not tracks_meta:
+                logger.warning(f"No tracks found for playlist {spotify_playlist_id}.")
+                playlist.sync_status = "failed"
+                await db.commit()
+                return
 
-    target_dir = music_root / "playlists" / playlist.folder_slug
-    target_dir.mkdir(parents=True, exist_ok=True)
+            playlist.total_tracks = len(tracks_meta)
+            await db.commit()
 
-    downloaded_count = 0
-    playlist_track_filenames: List[str] = []
+        music_root = Path(settings.MUSIC_ROOT)
+        master_pool = music_root / ".master_pool"
+        master_pool.mkdir(parents=True, exist_ok=True)
 
-    for idx, t_meta in enumerate(tracks_meta, start=1):
-        sp_tid = t_meta["spotify_track_id"]
-        master_file = master_pool / f"{sp_tid}.mp3"
+        tracks_dir = music_root / "tracks"
+        tracks_dir.mkdir(parents=True, exist_ok=True)
 
-        if not (master_file.exists() and master_file.stat().st_size > 50000):
-            lock_key = f"lock:track:{sp_tid}"
-            acquired = await r.set(lock_key, "worker", nx=True, ex=300)
-            if acquired:
-                try:
-                    await download_track_spotdl(sp_tid, master_file)
-                finally:
-                    await r.delete(lock_key)
-            else:
-                for _ in range(12):
-                    await asyncio.sleep(2)
-                    if master_file.exists() and master_file.stat().st_size > 50000:
-                        break
+        target_dir = music_root / "playlists" / playlist.folder_slug
+        target_dir.mkdir(parents=True, exist_ok=True)
 
-        if master_file.exists() and master_file.stat().st_size > 50000:
-            safe_artist = sanitize_filename(t_meta["artist"])
-            safe_title = sanitize_filename(t_meta["title"])
-            link_name = f"{safe_artist} - {safe_title}.mp3"
-            central_track_dest = tracks_dir / link_name
+        downloaded_count = 0
+        playlist_track_filenames: List[str] = []
 
-            if not central_track_dest.exists():
-                try:
-                    os.link(master_file, central_track_dest)
-                except FileExistsError:
-                    pass
-                except Exception as e:
-                    logger.warning(f"Could not link {master_file} to {central_track_dest}: {e}")
+        _track_labels = [
+            (f"{_t.get('artist', 'Unknown')} - {_t.get('title', 'Track')}" if isinstance(_t, dict) else str(_t))
+            for _t in tracks_meta
+        ]
+        _pl_tracker = PlaylistTelemetryTracker(r, _sync_task_id, _sync_name, "Spotify Sync", _sync_owner, _track_labels)
+        _tracker_token = ACTIVE_TRACK_TRACKER.set(_pl_tracker)
+        await _pl_tracker.emit(force=True)
+        _track_loop_idx = -1
+        for idx, t_meta in enumerate(tracks_meta, start=1):
+            _track_loop_idx += 1
+            if '_pl_tracker' in locals():
+                _nm = _track_labels[_track_loop_idx] if _track_loop_idx < len(_track_labels) else 'Track'
+                await _pl_tracker.start_track(_track_loop_idx, f"[{_track_loop_idx + 1}/{len(_track_labels)}] Checking {_nm}...")
+            sp_tid = t_meta["spotify_track_id"]
+            master_file = master_pool / f"{sp_tid}.mp3"
 
-            playlist_track_filenames.append(link_name)
-            downloaded_count += 1
+            if not (master_file.exists() and master_file.stat().st_size > 50000):
+                lock_key = f"lock:track:{sp_tid}"
+                acquired = await r.set(lock_key, "worker", nx=True, ex=300)
+                if acquired:
+                    try:
+                        if '_pl_tracker' in locals():
+                            _nm = _track_labels[_track_loop_idx] if _track_loop_idx < len(_track_labels) else 'Track'
+                            await _pl_tracker.update_track(_track_loop_idx, 12.0, speed="SpotDL", detail="Matching...", log_line=f"[{_track_loop_idx + 1}/{len(_track_labels)}] SpotDL matching {_nm}...")
+                        await download_track_spotdl(sp_tid, master_file)
+                    finally:
+                        await r.delete(lock_key)
+                else:
+                    for _ in range(12):
+                        await asyncio.sleep(2)
+                        if master_file.exists() and master_file.stat().st_size > 50000:
+                            break
+
+            if master_file.exists() and master_file.stat().st_size > 50000:
+                safe_artist = sanitize_filename(t_meta["artist"])
+                safe_title = sanitize_filename(t_meta["title"])
+                link_name = f"{safe_artist} - {safe_title}.mp3"
+                central_track_dest = tracks_dir / link_name
+
+                if not central_track_dest.exists():
+                    try:
+                        os.link(master_file, central_track_dest)
+                    except FileExistsError:
+                        pass
+                    except Exception as e:
+                        logger.warning(f"Could not link {master_file} to {central_track_dest}: {e}")
+
+                playlist_track_filenames.append(link_name)
+                downloaded_count += 1
+                if '_pl_tracker' in locals():
+                    await _pl_tracker.mark_done(_track_loop_idx, detail="Synced")
+
+            await publish_event(r, {
+                "event": "TRACK_PROGRESS",
+                "playlist_id": spotify_playlist_id,
+                "folder_slug": playlist.folder_slug,
+                "current": idx,
+                "total": len(tracks_meta),
+                "track_title": t_meta["title"],
+                "downloaded_count": downloaded_count
+            })
+
+        m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
+        m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
+        for fn in playlist_track_filenames:
+            m3u8_lines.append(f"../../tracks/{fn}")
+
+        m3u8_file.write_text("\n".join(m3u8_lines) + "\n")
+        logger.info(f"Generated static playlist file: {m3u8_file} ({len(playlist_track_filenames)} tracks)")
+
+        async with AsyncSessionLocal() as db:
+            stmt = select(Playlist).where(Playlist.id == playlist_id)
+            res = await db.execute(stmt)
+            p = res.scalar_one_or_none()
+            if p:
+                p.downloaded_tracks = downloaded_count
+                p.total_tracks = len(tracks_meta)
+                p.sync_status = "completed"
+                p.last_synced_at = datetime.utcnow()
+                await db.commit()
+
+        await trigger_navidrome_scan_and_visibility(
+            user,
+            playlist.name,
+            playlist.folder_slug,
+            playlist.visibility == "public"
+        )
 
         await publish_event(r, {
-            "event": "TRACK_PROGRESS",
+            "event": "SYNC_COMPLETED",
             "playlist_id": spotify_playlist_id,
             "folder_slug": playlist.folder_slug,
-            "current": idx,
-            "total": len(tracks_meta),
-            "track_title": t_meta["title"],
-            "downloaded_count": downloaded_count
+            "downloaded_count": downloaded_count,
+            "total_tracks": len(tracks_meta)
         })
 
-    m3u8_file = target_dir / f"{playlist.folder_slug}.m3u8"
-    m3u8_lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
-    for fn in playlist_track_filenames:
-        m3u8_lines.append(f"../../tracks/{fn}")
-
-    m3u8_file.write_text("\n".join(m3u8_lines) + "\n")
-    logger.info(f"Generated static playlist file: {m3u8_file} ({len(playlist_track_filenames)} tracks)")
-
-    async with AsyncSessionLocal() as db:
-        stmt = select(Playlist).where(Playlist.id == playlist_id)
-        res = await db.execute(stmt)
-        p = res.scalar_one_or_none()
-        if p:
-            p.downloaded_tracks = downloaded_count
-            p.total_tracks = len(tracks_meta)
-            p.sync_status = "completed"
-            p.last_synced_at = datetime.utcnow()
-            await db.commit()
-
-    await trigger_navidrome_scan_and_visibility(
-        user,
-        playlist.name,
-        playlist.folder_slug,
-        playlist.visibility == "public"
-    )
-
-    await publish_event(r, {
-        "event": "SYNC_COMPLETED",
-        "playlist_id": spotify_playlist_id,
-        "folder_slug": playlist.folder_slug,
-        "downloaded_count": downloaded_count,
-        "total_tracks": len(tracks_meta)
-    })
-
-    await send_notification(
-        title="🎵 Nexus Music Sync",
-        body=f"Synced playlist '{playlist.name}' for {user.username} ({downloaded_count}/{len(tracks_meta)} tracks ready)."
-    )
-    logger.info(f"✅ Finished syncing playlist: {playlist.name} (Owner: {user.username})")
+        await send_notification(
+            title="🎵 Nexus Music Sync",
+            body=f"Synced playlist '{playlist.name}' for {user.username} ({downloaded_count}/{len(tracks_meta)} tracks ready)."
+        )
+        logger.info(f"✅ Finished syncing playlist: {playlist.name} (Owner: {user.username})")
+    finally:
+        try:
+            if "_tracker_token" in locals():
+                ACTIVE_TRACK_TRACKER.reset(_tracker_token)
+            await r.hdel("nexus:downloads:active", _sync_task_id)
+            await r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+        except Exception:
+            pass
 
 # === YOUTUBE ENGINE ===
 async def download_youtube_single(job_data: dict, r: redis.Redis):
@@ -771,6 +815,9 @@ async def queue_worker_loop():
                 _, payload_raw = item
                 try:
                     job_data = json.loads(payload_raw)
+                    if job_data.get("task_type") in ("youtube_single", "youtube_playlist", "spotify_single", "spotify_playlist"):
+                        await dispatch_universal_job(job_data, r)
+                        continue
                     task_type = job_data.get('task_type', 'sync_playlist')
                     if task_type == 'youtube_single':
                         await download_youtube_single(job_data, r)

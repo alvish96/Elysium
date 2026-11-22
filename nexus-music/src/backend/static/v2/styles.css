@@ -1096,3 +1096,438 @@ body.light-polarity .space-only { display: none !important; }
   box-shadow: 0 0 8px var(--accent);
   border-radius: 3px;
 }
+
+/* === ENHANCED PLAYLIST TELEMETRY: OVERALL + TICKER + PER-SONG PROGRESS === */
+.nx-stream-card {
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-left: 4px solid var(--accent, #10b981);
+  background: rgba(6, 14, 18, 0.88);
+  padding: 16px 18px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.08);
+}
+.nx-stream-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.nx-stream-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+.nx-stream-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-stream-sub {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.nx-stream-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.nx-overall-pct {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent, #10b981);
+}
+.nx-cancel-btn {
+  background: rgba(244, 63, 94, 0.14);
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  color: #fda4af;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 5px 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.nx-cancel-btn:hover {
+  background: rgba(244, 63, 94, 0.28);
+}
+.nx-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.nx-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent, #10b981), #5eead4);
+  box-shadow: 0 0 12px var(--accent, #10b981);
+  transition: width 0.28s ease;
+}
+
+/* Single-Line Live Scrolling Ticker */
+.nx-ticker-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.nx-ticker-tag {
+  flex-shrink: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent, #10b981);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nx-ticker-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #10b981);
+  box-shadow: 0 0 8px var(--accent, #10b981);
+  animation: nxPulse 1.2s infinite;
+}
+.nx-ticker-viewport {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+}
+.nx-ticker-text {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: #cbd5e1;
+  white-space: nowrap;
+  padding-right: 48px;
+}
+.nx-ticker-text.scrolling {
+  animation: nxMarquee 14s linear infinite;
+}
+@keyframes nxMarquee {
+  0%   { transform: translateX(0%); }
+  15%  { transform: translateX(0%); }
+  85%  { transform: translateX(-45%); }
+  100% { transform: translateX(-45%); }
+}
+@keyframes nxPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+/* Active Song Spotlight */
+.nx-current-song {
+  background: rgba(16, 185, 129, 0.07);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.nx-current-song-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  margin-bottom: 6px;
+}
+.nx-current-song-name {
+  color: #ecfdf5;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-current-song-meta {
+  flex-shrink: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--accent, #10b981);
+}
+.nx-bar-track.mini {
+  height: 5px;
+  margin-bottom: 0;
+}
+
+/* Scrollable Per-Song Breakdown */
+.nx-song-list {
+  max-height: 195px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 10px;
+}
+.nx-song-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 110px 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 12px;
+}
+.nx-song-row.active {
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.nx-song-row.done, .nx-song-row.cached {
+  opacity: 0.78;
+}
+.nx-song-row.failed {
+  background: rgba(244, 63, 94, 0.1);
+  color: #fda4af;
+}
+.nx-song-idx {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #64748b;
+}
+.nx-song-name {
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-song-bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.nx-song-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent, #10b981);
+  transition: width 0.25s ease;
+}
+.nx-song-row.failed .nx-song-bar-fill {
+  background: #f43f5e;
+}
+.nx-song-stat {
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.nx-song-row.active .nx-song-stat {
+  color: var(--accent, #10b981);
+  font-weight: 700;
+}
+.nx-song-row.done .nx-song-stat, .nx-song-row.cached .nx-song-stat {
+  color: #34d399;
+}
+.nx-stream-footer {
+  display: flex;
+  justify-content: space-between;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+}
+
+/* === PLAYLIST RESYNC, RESYNC-ALL & SPOTIFY LINK STYLES === */
+.nx-resync-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: var(--accent, #10b981);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 6px 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.nx-resync-all-btn:hover {
+  background: rgba(16, 185, 129, 0.28);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+  color: #ecfdf5;
+}
+.nx-resync-all-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.nx-resync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 5px 9px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.nx-resync-btn:hover {
+  background: rgba(16, 185, 129, 0.26);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+.nx-resync-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.holocron-left-info.nx-spotify-link {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.18s ease;
+}
+.holocron-left-info.nx-spotify-link:hover {
+  background: rgba(16, 185, 129, 0.08);
+}
+.holocron-left-info.nx-spotify-link:hover .nx-spotify-pill {
+  opacity: 1;
+  transform: translateX(0);
+}
+.nx-spotify-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #1db954;
+  background: rgba(29, 185, 84, 0.12);
+  border: 1px solid rgba(29, 185, 84, 0.35);
+  opacity: 0.72;
+  transition: all 0.18s ease;
+  vertical-align: middle;
+}
+
+/* === SCROLLABLE PLAYLIST CONTAINER & CHECK-NEW BUTTON === */
+.nx-check-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  color: #7dd3fc;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 6px 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+.nx-check-new-btn:hover {
+  background: rgba(56, 189, 248, 0.26);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+  color: #f0f9ff;
+}
+.nx-check-new-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.nx-check-new-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 10px 0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #a7f3d0;
+}
+.nx-check-new-banner.info {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #bae6fd;
+}
+.nx-check-new-banner.error {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.45);
+  color: #fecdd3;
+}
+.nx-holocron-scrollbox {
+  max-height: clamp(420px, 60vh, 660px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 10px 10px 10px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  background: rgba(4, 10, 15, 0.55);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.45);
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent, #10b981) rgba(255, 255, 255, 0.05);
+}
+.nx-holocron-scrollbox::-webkit-scrollbar {
+  width: 7px;
+}
+.nx-holocron-scrollbox::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 99px;
+}
+.nx-holocron-scrollbox::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent, #10b981), rgba(16, 185, 129, 0.45));
+  border-radius: 99px;
+  box-shadow: 0 0 8px var(--accent, #10b981);
+}
+.holocron-row.nx-newly-discovered {
+  border-color: rgba(56, 189, 248, 0.75) !important;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.25) !important;
+}
+.nx-new-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #082f49;
+  background: #38bdf8;
+  vertical-align: middle;
+}

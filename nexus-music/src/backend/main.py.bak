@@ -1,0 +1,1019 @@
+import os
+import sys
+import json
+import uuid
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
+import redis.asyncio as aioredis
+from navidrome_bridge import get_current_user
+from models import User
+
+from navidrome_bridge import get_current_user
+from models import User
+import redis.asyncio as aioredis
+from pydantic import BaseModel
+import uuid
+import json
+import asyncio
+from pathlib import Path
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+from database import init_db
+from navidrome_bridge import router as auth_router
+from spotify_service import router as spotify_router
+from playlists_router import router as playlists_router
+from websocket_manager import router as ws_router, redis_event_listener
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Initializing Nexus Sync Database Schema...")
+    await init_db()
+    listener_task = asyncio.create_task(redis_event_listener())
+    yield
+    listener_task.cancel()
+    try:
+        await listener_task
+    except asyncio.CancelledError:
+        pass
+
+app = FastAPI(
+    title="Nexus Music Sync API",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router)
+app.include_router(spotify_router)
+app.include_router(playlists_router)
+app.include_router(ws_router)
+
+static_dir = Path("/app/static")
+static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+@app.get("/")
+async def serve_main_galactic_ui():
+    return FileResponse("/app/static/v2/index.html")
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "service": "nexus-music-sync-api"}
+
+
+# === UNIVERSAL DOWNLOADS API ===
+REDIS_HOST = os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
+dl_redis = aioredis.from_url(f"redis://{REDIS_HOST}:6379/0", decode_responses=True)
+
+class YouTubeDownloadRequest(BaseModel):
+    url: str
+    visibility: str = "private"
+
+@app.post("/api/v1/downloads/youtube")
+async def queue_youtube_download(req: YouTubeDownloadRequest, user: User = Depends(get_current_user)):
+    url = req.url.strip()
+    if not ("youtube.com" in url or "youtu.be" in url):
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL. Please enter a valid YouTube or YouTube Music link.")
+
+    task_id = str(uuid.uuid4())[:8]
+    is_playlist = ("list=" in url or "/playlist" in url)
+    task_type = "youtube_playlist" if is_playlist else "youtube_single"
+
+    job = {
+        "task_type": task_type,
+        "task_id": task_id,
+        "url": url,
+        "owner_id": str(user.id),
+        "owner_username": user.username,
+        "visibility": req.visibility
+    }
+
+    await dl_redis.lpush("nexus:queue:playlists", json.dumps(job))
+    await dl_redis.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+
+    return {
+        "status": "queued",
+        "task_id": task_id,
+        "task_type": task_type,
+        "message": f"Queued {'playlist' if is_playlist else 'song'} for download"
+    }
+
+@app.delete("/api/v1/downloads/queue")
+async def clear_pending_download_queue(user: User = Depends(get_current_user)):
+    import redis.asyncio as aioredis
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        r_host = os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
+        r_port = os.getenv("REDIS_PORT", "6379")
+        redis_url = f"redis://{r_host}:{r_port}/0"
+
+    r_conn = aioredis.from_url(redis_url, decode_responses=True)
+    try:
+        queue_keys = ["nexus:queue:playlists", "nexus:queue:downloads", "nexus:downloads:pending"]
+        cleared_count = 0
+        queued_ids = set()
+
+        for qk in queue_keys:
+            raw_items = await r_conn.lrange(qk, 0, -1)
+            cleared_count += len(raw_items)
+            for raw in raw_items:
+                try:
+                    item = json.loads(raw)
+                    for id_key in ("task_id", "id", "playlist_id"):
+                        if item.get(id_key):
+                            queued_ids.add(str(item[id_key]))
+                except Exception:
+                    pass
+            await r_conn.delete(qk)
+
+        # Also remove any pre-seeded 'starting' placeholders in nexus:downloads:active
+        raw_active = await r_conn.hgetall("nexus:downloads:active")
+        for tid, val in (raw_active or {}).items():
+            try:
+                parsed = json.loads(val)
+                if parsed.get("status") == "starting" or str(tid) in queued_ids:
+                    await r_conn.hdel("nexus:downloads:active", tid)
+            except Exception:
+                pass
+
+        await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+        return {"status": "cleared", "cleared_count": cleared_count}
+    finally:
+        await r_conn.aclose()
+
+# === PLAYLIST RESYNC & RESYNC-ALL ENDPOINTS ===
+class PlaylistResyncReq(BaseModel):
+    name: str | None = None
+    visibility: str | None = None
+    folder_slug: str | None = None
+
+class PlaylistResyncAllReq(BaseModel):
+    playlist_ids: list[str] | None = None
+    include_unsynced: bool = False
+
+def _resync_slug(text: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^\w\s-]", "", str(text or "").strip())
+    slug = re.sub(r"[-\s]+", "_", cleaned).lower().strip("_")
+    return slug or fallback
+
+def _get_async_redis():
+    import redis.asyncio as aioredis
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        r_host = os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
+        r_port = os.getenv("REDIS_PORT", "6379")
+        redis_url = f"redis://{r_host}:{r_port}/0"
+    return aioredis.from_url(redis_url, decode_responses=True)
+# === SPOTIFY NEW PLAYLIST DISCOVERY ENDPOINT ===
+class CheckNewPlaylistsReq(BaseModel):
+    known_ids: list[str] | None = None
+
+@app.post("/api/v1/spotify/playlists/check-new")
+async def check_new_spotify_playlists(
+    req: CheckNewPlaylistsReq | None = None,
+    user=Depends(get_current_user),
+):
+    import httpx
+    from sqlalchemy import select
+    from database import AsyncSessionLocal
+    from models import SpotifyAccount, Playlist
+    from spotify_service import get_valid_spotify_token, SPOTIFY_API_BASE
+
+    u_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
+
+    r_conn = _get_async_redis()
+    try:
+        # 1. Bust cached catalog so fresh Spotify playlists are pulled immediately
+        await r_conn.delete("nexus:spotify:shared_catalog")
+
+        async with AsyncSessionLocal() as db:
+            # Prefer current user's linked Spotify account; fallback to shared account if unlinked
+            acc_res = await db.execute(select(SpotifyAccount).where(SpotifyAccount.user_id == u_id))
+            account = acc_res.scalar_one_or_none()
+            if not account:
+                fallback_res = await db.execute(select(SpotifyAccount))
+                account = fallback_res.scalars().first()
+            if not account:
+                raise HTTPException(status_code=400, detail="No Spotify account connected. Connect Spotify in Sector 04 first.")
+
+            token = await get_valid_spotify_token(db, account.user_id)
+
+            # Collect known IDs from frontend (or fall back to Redis + DB snapshot)
+            known_ids = set(str(x).strip() for x in (req.known_ids or []) if x) if req else set()
+            if not known_ids:
+                known_ids = set(await r_conn.smembers("nexus:spotify:known_ids") or [])
+                if not known_ids:
+                    db_rows = (await db.execute(select(Playlist.spotify_playlist_id))).scalars().all()
+                    known_ids = {str(x) for x in db_rows if x}
+
+        # 2. Query Spotify API directly for all owned/followed playlists
+        fetched = []
+        url = f"{SPOTIFY_API_BASE}/me/playlists?limit=50"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            while url:
+                resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
+                if resp.status_code == 403:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Spotify API 403 Forbidden: Ensure this account is whitelisted in the Spotify Developer Dashboard."
+                    )
+                if resp.status_code == 401:
+                    raise HTTPException(status_code=401, detail="Spotify token expired or revoked. Reconnect Spotify in Sector 04.")
+                if resp.status_code != 200:
+                    raise HTTPException(status_code=resp.status_code, detail=f"Spotify API error ({resp.status_code})")
+                data = resp.json()
+                for item in data.get("items", []):
+                    if item and item.get("id"):
+                        fetched.append(item)
+                url = data.get("next")
+
+        # 3. Identify newly added playlists & refresh Redis name/ID tracking
+        new_playlists = []
+        all_ids = []
+        for p in fetched:
+            sp_id = str(p["id"])
+            sp_name = str(p.get("name") or "Untitled")
+            all_ids.append(sp_id)
+            await r_conn.hset("nexus:playlist:names", sp_id, sp_name)
+            if known_ids and sp_id not in known_ids:
+                new_playlists.append({
+                    "id": sp_id,
+                    "name": sp_name,
+                    "total_tracks": (p.get("tracks") or {}).get("total", 0),
+                })
+
+        if all_ids:
+            await r_conn.delete("nexus:spotify:known_ids")
+            await r_conn.sadd("nexus:spotify:known_ids", *all_ids)
+
+        return {
+            "status": "ok",
+            "total_count": len(fetched),
+            "new_count": len(new_playlists),
+            "new_ids": [p["id"] for p in new_playlists],
+            "new_playlists": new_playlists,
+            "message": (
+                f"Found {len(new_playlists)} new playlist(s) on Spotify."
+                if new_playlists
+                else f"Spotify library is up to date ({len(fetched)} playlists)."
+            ),
+        }
+    finally:
+        await r_conn.aclose()
+# === END SPOTIFY NEW PLAYLIST DISCOVERY ===
+
+@app.post("/api/v1/playlists/resync-all")
+async def resync_all_playlists(
+    req: PlaylistResyncAllReq | None = None,
+    user=Depends(get_current_user),
+):
+    import uuid
+    from sqlalchemy import select
+    from database import AsyncSessionLocal
+    from models import Playlist
+
+    u_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
+    u_name = str(user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin"))
+    include_unsynced = bool(req.include_unsynced) if req else False
+    filter_ids = set(req.playlist_ids) if (req and req.playlist_ids) else None
+
+    r_conn = _get_async_redis()
+    try:
+        async with AsyncSessionLocal() as db:
+            stmt = select(Playlist).where(Playlist.owner_id == u_id)
+            if not include_unsynced and not filter_ids:
+                stmt = stmt.where(Playlist.is_synced == True)
+            res = await db.execute(stmt)
+            playlists = list(res.scalars().all())
+
+            # Fallback to any synced playlists if current user has none owned directly
+            if not playlists and not filter_ids:
+                stmt_any = select(Playlist).where(Playlist.is_synced == True)
+                res_any = await db.execute(stmt_any)
+                playlists = list(res_any.scalars().all())
+
+            if filter_ids:
+                playlists = [p for p in playlists if str(p.spotify_playlist_id) in filter_ids or str(p.id) in filter_ids]
+
+            if not playlists:
+                return {"status": "empty", "queued_count": 0, "message": "No synced playlists found. Enable Sync on at least one playlist first."}
+
+            # Check already-queued and active playlist IDs to avoid duplicates
+            existing_sp_ids = set()
+            for raw in await r_conn.lrange("nexus:queue:playlists", 0, -1):
+                try:
+                    item = json.loads(raw)
+                    for k in ("spotify_playlist_id", "playlist_id"):
+                        if item.get(k):
+                            existing_sp_ids.add(str(item[k]))
+                except Exception:
+                    pass
+
+            # Clear shared catalog cache so Spotify changes are refreshed
+            await r_conn.delete("nexus:spotify:shared_catalog")
+
+            queued_names = []
+            for pl in playlists:
+                sp_id = str(pl.spotify_playlist_id or "")
+                if sp_id:
+                    await r_conn.delete(f"nexus:spotify:meta:{sp_id}")
+                    await r_conn.hset("nexus:playlist:names", sp_id, pl.name or sp_id)
+                await r_conn.hset("nexus:playlist:names", str(pl.id), pl.name or sp_id)
+
+                if sp_id in existing_sp_ids or str(pl.id) in existing_sp_ids:
+                    continue
+
+                pl.is_synced = True
+                pl.sync_status = "queued"
+                task_id = f"resync_{uuid.uuid4().hex[:8]}"
+                job = {
+                    "action": "sync_playlist",
+                    "task_type": "sync_playlist",
+                    "task_id": task_id,
+                    "playlist_id": str(pl.id),
+                    "spotify_playlist_id": sp_id,
+                    "playlist_name": pl.name or sp_id,
+                    "title": pl.name or sp_id,
+                    "owner_id": str(pl.owner_id),
+                    "owner_username": u_name,
+                    "visibility": pl.visibility or "private",
+                    "folder_slug": pl.folder_slug or _resync_slug(pl.name, sp_id),
+                    "force_resync": True,
+                }
+                await r_conn.rpush("nexus:queue:playlists", json.dumps(job))
+                queued_names.append(pl.name or sp_id)
+
+            await db.commit()
+
+        await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+        return {
+            "status": "ok",
+            "queued_count": len(queued_names),
+            "playlists": queued_names,
+            "message": f"Queued {len(queued_names)} playlist(s) for fresh Spotify re-sync.",
+        }
+    finally:
+        await r_conn.aclose()
+
+
+@app.post("/api/v1/playlists/{spotify_playlist_id}/resync")
+async def resync_single_playlist(
+    spotify_playlist_id: str,
+    req: PlaylistResyncReq | None = None,
+    user=Depends(get_current_user),
+):
+    import uuid
+    from sqlalchemy import select
+    from database import AsyncSessionLocal
+    from models import Playlist
+
+    u_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
+    u_name = str(user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin"))
+    sp_id = spotify_playlist_id.strip()
+
+    r_conn = _get_async_redis()
+    try:
+        # Bust cached Spotify tracklist so newly added/changed tracks are fetched fresh
+        await r_conn.delete(f"nexus:spotify:meta:{sp_id}")
+        await r_conn.delete("nexus:spotify:shared_catalog")
+
+        async with AsyncSessionLocal() as db:
+            stmt = select(Playlist).where(
+                Playlist.owner_id == u_id,
+                Playlist.spotify_playlist_id == sp_id,
+            )
+            res = await db.execute(stmt)
+            pl = res.scalar_one_or_none()
+
+            # Also check if matched by internal DB id or another owner's synced record
+            if not pl:
+                stmt2 = select(Playlist).where(Playlist.spotify_playlist_id == sp_id)
+                res2 = await db.execute(stmt2)
+                pl = res2.scalars().first()
+
+            if not pl:
+                cached_name = await r_conn.hget("nexus:playlist:names", sp_id)
+                pl_name = (req.name if req and req.name else None) or cached_name or sp_id
+                pl_vis = (req.visibility if req and req.visibility in ("public", "private") else "private")
+                pl_slug = _resync_slug((req.folder_slug if req and req.folder_slug else pl_name), sp_id)
+                pl = Playlist(
+                    spotify_playlist_id=sp_id,
+                    owner_id=u_id,
+                    name=pl_name,
+                    folder_slug=pl_slug,
+                    is_synced=True,
+                    visibility=pl_vis,
+                    sync_status="queued",
+                )
+                db.add(pl)
+            else:
+                if req and req.name:
+                    pl.name = req.name
+                pl.is_synced = True
+                pl.sync_status = "queued"
+
+            await db.commit()
+            await db.refresh(pl)
+
+            pl_name = pl.name or sp_id
+            task_id = f"resync_{uuid.uuid4().hex[:8]}"
+            await r_conn.hset("nexus:playlist:names", sp_id, pl_name)
+            await r_conn.hset("nexus:playlist:names", str(pl.id), pl_name)
+
+            job = {
+                "action": "sync_playlist",
+                "task_type": "sync_playlist",
+                "task_id": task_id,
+                "playlist_id": str(pl.id),
+                "spotify_playlist_id": sp_id,
+                "playlist_name": pl_name,
+                "title": pl_name,
+                "owner_id": str(pl.owner_id),
+                "owner_username": u_name,
+                "visibility": pl.visibility or "private",
+                "folder_slug": pl.folder_slug or _resync_slug(pl_name, sp_id),
+                "force_resync": True,
+            }
+            # Priority push to front of queue so manual re-sync starts immediately
+            await r_conn.lpush("nexus:queue:playlists", json.dumps(job))
+
+            # Seed active stream immediately if worker is currently idle
+            if await r_conn.hlen("nexus:downloads:active") == 0:
+                await r_conn.hset("nexus:downloads:active", task_id, json.dumps({
+                    "id": task_id,
+                    "title": f"{pl_name} — Re-syncing from Spotify...",
+                    "artist": "Spotify Re-Sync",
+                    "percent": 2.0,
+                    "overall_percent": 2.0,
+                    "speed": "Refreshing",
+                    "eta": "--:--",
+                    "status": "starting",
+                    "owner": u_name,
+                    "log_line": f"Cache cleared — checking Spotify for updates in '{pl_name}'...",
+                }))
+
+        await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+        return {
+            "status": "ok",
+            "task_id": task_id,
+            "playlist_id": sp_id,
+            "name": pl_name,
+            "message": f"Re-sync started for {pl_name}",
+        }
+    finally:
+        await r_conn.aclose()
+# === END PLAYLIST RESYNC ENDPOINTS ===
+
+@app.get("/api/v1/downloads/queue")
+async def get_download_queue(user: User = Depends(get_current_user)):
+    # 1. Currently downloading tasks
+    try:
+        raw_active = await dl_redis.hgetall("nexus:downloads:active")
+        active = [json.loads(v) for v in raw_active.values()] if raw_active else []
+    except Exception:
+        active = []
+
+    # 2. Tasks waiting in line in Redis
+    try:
+        raw_pending = await dl_redis.lrange("nexus:queue:playlists", 0, -1)
+        pending = []
+        for raw in raw_pending:
+            try:
+                p = json.loads(raw)
+                pending.append({
+                    "id": p.get("task_id", "queued"),
+                    "title": p.get("title", p.get("url", "Queued Track")),
+                    "url": p.get("url", ""),
+                    "type": p.get("task_type", "youtube_single"),
+                    "owner": p.get("owner_username", "admin")
+                })
+            except Exception:
+                pass
+    except Exception:
+        pending = []
+
+    # 3. Finished download history
+    try:
+        raw_history = await dl_redis.lrange("nexus:downloads:history", 0, 30)
+        history = [json.loads(v) for v in raw_history] if raw_history else []
+    except Exception:
+        history = []
+
+    return {
+        "active": active,
+        "pending": pending,
+        "pending_count": len(pending),
+        "history": history
+    }
+
+from fastapi.responses import FileResponse
+
+@app.get("/v2")
+async def serve_v2_workspace():
+    return FileResponse("/app/static/v2/index.html")
+
+
+
+@app.get("/v1")
+@app.get("/legacy")
+async def serve_legacy_v1_ui():
+    return FileResponse("/app/static/index.html")
+
+@app.get("/tracks")
+async def serve_downloaded_tracks_page():
+    return FileResponse("/app/static/v2/tracks.html")
+
+@app.get("/api/v1/downloads/tracks")
+async def list_downloaded_tracks():
+    tracks_dir = Path("/mnt/audio_pool/music/tracks")
+    items = []
+    total_bytes = 0
+    if tracks_dir.exists():
+        files = sorted(
+            [f for f in tracks_dir.glob("*.mp3") if f.is_file()],
+            key=lambda x: x.stat().st_mtime,
+            reverse=True
+        )
+        for f in files:
+            st = f.stat()
+            total_bytes += st.st_size
+            stem = f.stem
+            if " - " in stem:
+                artist, title = stem.split(" - ", 1)
+            else:
+                artist, title = "YouTube Audio", stem
+            items.append({
+                "filename": f.name,
+                "title": title.strip(),
+                "artist": artist.strip(),
+                "size_mb": round(st.st_size / (1024 * 1024), 2),
+                "modified_at": st.st_mtime
+            })
+    return {
+        "total_count": len(items),
+        "total_size_mb": round(total_bytes / (1024 * 1024), 2),
+        "tracks": items
+    }
+
+@app.get("/api/v1/downloads/tracks/stream/{filename}")
+async def stream_downloaded_track(filename: str):
+    safe_name = os.path.basename(filename)
+    target = Path("/mnt/audio_pool/music/tracks") / safe_name
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Track file not found")
+    return FileResponse(str(target), media_type="audio/mpeg", filename=safe_name)
+# === END V2.1 ROUTES ===
+
+# === QUEUE CANCELLATION & PROFILE PLAYLIST DELETION ROUTES ===
+import shutil, json, os, redis
+from pathlib import Path
+
+def _get_sync_redis():
+    return redis.Redis(
+        host=os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local"),
+        port=6379,
+        db=0,
+        decode_responses=True
+    )
+
+@app.delete("/api/v1/downloads/queue/{item_id}")
+async def cancel_or_remove_download(item_id: str):
+    r = _get_sync_redis()
+    removed_active = False
+    removed_pending = 0
+
+    # 1. Signal worker subprocess to kill yt-dlp if currently running
+    r.sadd("nexus:downloads:cancelled", item_id)
+
+    # 2. Remove from active downloads hash immediately
+    if r.hexists("nexus:downloads:active", item_id):
+        r.hdel("nexus:downloads:active", item_id)
+        removed_active = True
+
+    for k, v in list(r.hgetall("nexus:downloads:active").items()):
+        try:
+            data = json.loads(v)
+            if str(data.get("id")) == item_id or str(data.get("title")) == item_id:
+                r.sadd("nexus:downloads:cancelled", k)
+                r.hdel("nexus:downloads:active", k)
+                removed_active = True
+        except Exception:
+            pass
+
+    # 3. Remove matching item from pending Redis queue (by task_id, playlist_id, url, or index)
+    pending_raw = r.lrange("nexus:queue:playlists", 0, -1)
+    for idx, raw in enumerate(pending_raw):
+        try:
+            job = json.loads(raw)
+            job_id = str(job.get("task_id") or job.get("playlist_id") or job.get("id") or "")
+            job_url = str(job.get("url") or "")
+            if item_id in (job_id, job_url, f"idx-{idx}"):
+                r.lrem("nexus:queue:playlists", 0, raw)
+                removed_pending += 1
+        except Exception:
+            if item_id == f"idx-{idx}":
+                r.lrem("nexus:queue:playlists", 0, raw)
+                removed_pending += 1
+
+    r.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+    return {
+        "status": "cancelled",
+        "item_id": item_id,
+        "removed_active": removed_active,
+        "removed_pending": removed_pending
+    }
+
+@app.delete("/api/v1/playlists/profile/{playlist_id}")
+async def delete_playlist_from_profile(playlist_id: str, slug: str = ""):
+    r = _get_sync_redis()
+
+    # 1. Record in deleted playlists set so it stays hidden from profile views
+    r.sadd("nexus:playlists:deleted", playlist_id)
+    if slug and slug not in ("", "unindexed"):
+        r.sadd("nexus:playlists:deleted", slug)
+
+    # 2. Remove from pending download queue if queued
+    for raw in r.lrange("nexus:queue:playlists", 0, -1):
+        try:
+            job = json.loads(raw)
+            if job.get("playlist_id") == playlist_id or job.get("task_id") == playlist_id:
+                r.lrem("nexus:queue:playlists", 0, raw)
+        except Exception:
+            pass
+
+    # 3. Remove ONLY the playlist .m3u8 folder (NEVER touch /mnt/audio_pool/music/tracks/*.mp3)
+    removed_folder = False
+    if slug and slug not in ("", "unindexed", "/", "."):
+        safe_slug = os.path.basename(slug.strip("/"))
+        pl_dir = Path("/mnt/audio_pool/music/playlists") / safe_slug
+        if pl_dir.exists() and pl_dir.is_dir():
+            shutil.rmtree(pl_dir, ignore_errors=True)
+            removed_folder = True
+
+    return {
+        "status": "deleted",
+        "playlist_id": playlist_id,
+        "removed_playlist_folder": removed_folder,
+        "tracks_preserved": True
+    }
+
+@app.get("/api/v1/playlists/deleted")
+async def get_deleted_profile_playlists():
+    r = _get_sync_redis()
+    return {"deleted_ids": list(r.smembers("nexus:playlists:deleted") or [])}
+
+@app.post("/api/v1/playlists/deleted/restore")
+async def restore_deleted_profile_playlists():
+    r = _get_sync_redis()
+    r.delete("nexus:playlists:deleted")
+    return {"status": "restored"}
+# === END QUEUE CANCELLATION & PROFILE PLAYLIST DELETION ROUTES ===
+
+# === MULTI-USER SPOTIFY, TRACK COUNT RECONCILIATION & QUEUE TITLE FIX ===
+import urllib.request
+import urllib.parse
+import re as _re
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+def _resolve_youtube_title_fast(url: str) -> str:
+    try:
+        oembed_url = "https://www.youtube.com/oembed?url=" + urllib.parse.quote(url, safe="") + "&format=json"
+        req = urllib.request.Request(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            title = data.get("title")
+            author = data.get("author_name")
+            if title and author and author.lower() not in title.lower():
+                return f"{author} — {title}"
+            if title:
+                return title
+    except Exception:
+        pass
+    return url
+
+def _fetch_spotify_embed_tracks(playlist_id: str) -> dict:
+    """Zero-auth fallback: extracts playlist title and track list from Spotify Embed JSON."""
+    if not playlist_id:
+        return {"title": None, "tracks": [], "total": 0}
+    clean_id = playlist_id.split("?")[0].rstrip("/").split("/")[-1]
+    if ":" in clean_id:
+        clean_id = clean_id.split(":")[-1]
+    r = _get_sync_redis()
+    cache_key = f"nexus:spotify:meta:{clean_id}"
+    cached = r.get(cache_key)
+    if cached:
+        try:
+            parsed = json.loads(cached)
+            if parsed.get("total", 0) > 0:
+                return parsed
+        except Exception:
+            pass
+    try:
+        embed_url = f"https://open.spotify.com/embed/playlist/{clean_id}"
+        req = urllib.request.Request(embed_url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        })
+        with urllib.request.urlopen(req, timeout=5.0) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        m = _re.search(r'<script id="__NEXT_DATA__" type="application/json">({.*?})</script>', html)
+        if m:
+            ndata = json.loads(m.group(1))
+            entity = ndata.get("props", {}).get("pageProps", {}).get("state", {}).get("data", {}).get("entity", {})
+            title = entity.get("name") or entity.get("title")
+            track_list = entity.get("trackList") or []
+            tracks = []
+            for t in track_list:
+                t_title = t.get("title") or ""
+                t_artist = t.get("subtitle") or ""
+                if t_title:
+                    tracks.append({"title": t_title, "artist": t_artist.replace("\xa0", " ")})
+            result = {"title": title, "tracks": tracks, "total": len(tracks)}
+            if result["total"] > 0:
+                r.setex(cache_key, 3600, json.dumps(result))
+            return result
+    except Exception:
+        pass
+    return {"title": None, "tracks": [], "total": 0}
+
+def _count_playlist_on_disk(slug: str) -> tuple:
+    """Returns (downloaded_count, m3u8_total_entries) from /mnt/audio_pool/music/playlists/<slug>."""
+    if not slug or slug in ("unindexed", "/", "."):
+        return (0, 0)
+    safe_slug = os.path.basename(slug.strip("/"))
+    pl_dir = Path("/mnt/audio_pool/music/playlists") / safe_slug
+    tracks_dir = Path("/mnt/audio_pool/music/tracks")
+    if not pl_dir.exists():
+        return (0, 0)
+    m3u8_files = list(pl_dir.glob("*.m3u8")) + list(pl_dir.glob("*.m3u"))
+    if m3u8_files:
+        try:
+            lines = [
+                ln.strip() for ln in m3u8_files[0].read_text(encoding="utf-8", errors="ignore").splitlines()
+                if ln.strip() and not ln.strip().startswith("#")
+            ]
+            existing = 0
+            for ln in lines:
+                fname = os.path.basename(ln)
+                if (tracks_dir / fname).exists() or (pl_dir / fname).exists():
+                    existing += 1
+            return (existing, len(lines))
+        except Exception:
+            pass
+    mp3s = list(pl_dir.glob("*.mp3"))
+    return (len(mp3s), len(mp3s))
+
+def _enrich_playlist_items(items: list, current_username: str) -> list:
+    r = _get_sync_redis()
+    enriched = []
+    for item in items:
+        if not isinstance(item, dict):
+            enriched.append(item)
+            continue
+        pid = str(item.get("spotify_id") or item.get("spotify_playlist_id") or item.get("id") or "")
+        name = item.get("name") or item.get("title") or ""
+        slug = item.get("folder_slug") or item.get("folder_path") or ""
+        if (not slug or slug == "unindexed") and name:
+            cand_slug = "".join(c for c in name if c.isalnum() or c in " ._-").strip().lower().replace(" ", "_")
+            if cand_slug and (Path("/mnt/audio_pool/music/playlists") / cand_slug).exists():
+                slug = cand_slug
+                item["folder_slug"] = slug
+
+        # 1. Fix Owner Username: check Redis override or use active user if unowned/defaulted
+        saved_owner = r.hget("nexus:playlist:owners", pid) if pid else None
+        if saved_owner:
+            item["owner_username"] = saved_owner
+        elif current_username:
+            raw_owner = item.get("owner_username") or ""
+            if not raw_owner or raw_owner.lower() == "alvish":
+                item["owner_username"] = current_username
+
+        # 2. Reconcile total_tracks and downloaded_tracks from disk & Spotify Embed
+        total = int(item.get("total_tracks") or item.get("tracks_total") or 0)
+        dl = int(item.get("downloaded_tracks") or item.get("on_disk_count") or 0)
+
+        disk_dl, disk_total = _count_playlist_on_disk(slug)
+        if disk_dl > dl:
+            dl = disk_dl
+
+        if total == 0 and pid and len(pid) == 22:
+            meta = _fetch_spotify_embed_tracks(pid)
+            if meta.get("total", 0) > 0:
+                total = meta["total"]
+                if not name or name.startswith("Spotify_"):
+                    item["name"] = meta["title"] or name
+
+        if total == 0 and disk_total > 0:
+            total = disk_total
+        if dl > total and total > 0:
+            total = dl
+
+        item["total_tracks"] = total
+        item["tracks_total"] = total
+        item["downloaded_tracks"] = dl
+        item["on_disk_count"] = dl
+
+        # Cache playlist name for queue display
+        if pid and (item.get("name") or item.get("title")):
+            r.hset("nexus:playlist:names", pid, item.get("name") or item.get("title"))
+
+        enriched.append(item)
+    return enriched
+
+class NexusTelemetryAndPlaylistNormalizerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Extract current username from JWT token if present
+        current_username = ""
+        try:
+            auth_hdr = request.headers.get("Authorization", "")
+            token = auth_hdr.split(" ")[1].strip() if "Bearer " in auth_hdr else request.query_params.get("token", "")
+            if token:
+                import jwt as _jwt
+                payload = _jwt.decode(token, options={"verify_signature": False})
+                current_username = payload.get("username") or payload.get("sub") or ""
+        except Exception:
+            pass
+
+        path = request.url.path
+        response = await call_next(request)
+
+        # Record playlist owner when user configures, imports, or syncs a playlist
+        if request.method == "POST" and current_username and "/api/v1/playlists/" in path:
+            parts = path.strip("/").split("/")
+            if len(parts) >= 4:
+                pid = parts[3]
+                if pid not in ("import", "deleted"):
+                    try:
+                        _get_sync_redis().hset("nexus:playlist:owners", pid, current_username)
+                    except Exception:
+                        pass
+
+        # Intercept JSON responses for playlists and queue to enrich titles, counts, and multi-user fallback
+        if response.status_code == 200 and path in (
+            "/api/v1/spotify/playlists",
+            "/api/v1/playlists/imported",
+            "/api/v1/playlists/vault",
+            "/api/v1/downloads/queue"
+        ):
+            body_chunks = [chunk async for chunk in response.body_iterator]
+            raw_bytes = b"".join(body_chunks)
+            try:
+                data = json.loads(raw_bytes.decode("utf-8"))
+                r = _get_sync_redis()
+
+                if path == "/api/v1/downloads/queue" and isinstance(data, dict):
+                    # Fix "Queued Track" in pending queue items
+                    pending = data.get("pending") or []
+                    for p in pending:
+                        if isinstance(p, dict):
+                            cur_title = str(p.get("title") or "").strip()
+                            if not cur_title or cur_title.lower() in ("queued track", "unknown", "resolving..."):
+                                url = p.get("url") or ""
+                                pid = p.get("playlist_id") or ""
+                                if url and ("youtube.com" in url or "youtu.be" in url):
+                                    cached_t = r.hget("nexus:url:titles", url)
+                                    if not cached_t:
+                                        cached_t = _resolve_youtube_title_fast(url)
+                                        r.hset("nexus:url:titles", url, cached_t)
+                                    p["title"] = cached_t
+                                elif pid:
+                                    pl_name = r.hget("nexus:playlist:names", pid)
+                                    if not pl_name:
+                                        meta = _fetch_spotify_embed_tracks(pid)
+                                        pl_name = meta.get("title") or f"Spotify Playlist ({pid})"
+                                        r.hset("nexus:playlist:names", pid, pl_name)
+                                    p["title"] = f"Playlist Sync // {pl_name}"
+                    # Also rewrite raw Redis queue items so future polls are instant
+                    for idx, raw_job in enumerate(r.lrange("nexus:queue:playlists", 0, -1)):
+                        try:
+                            j = json.loads(raw_job)
+                            jt = str(j.get("title") or "").strip()
+                            if not jt or jt.lower() == "queued track":
+                                jurl = j.get("url") or ""
+                                jpid = j.get("playlist_id") or ""
+                                if jurl and r.hexists("nexus:url:titles", jurl):
+                                    j["title"] = r.hget("nexus:url:titles", jurl)
+                                    r.lset("nexus:queue:playlists", idx, json.dumps(j))
+                                elif jpid and r.hexists("nexus:playlist:names", jpid):
+                                    j["title"] = "Playlist Sync // " + r.hget("nexus:playlist:names", jpid)
+                                    r.lset("nexus:queue:playlists", idx, json.dumps(j))
+                        except Exception:
+                            pass
+
+                elif path in ("/api/v1/spotify/playlists", "/api/v1/playlists/imported", "/api/v1/playlists/vault"):
+                    if isinstance(data, list):
+                        # If a secondary user (e.g. vikas) gets 0 Spotify playlists because OAuth is linked on primary account, fallback to cached catalog
+                        if path == "/api/v1/spotify/playlists":
+                            if len(data) > 0:
+                                r.set("nexus:spotify:shared_catalog", json.dumps(data))
+                            else:
+                                cached_cat = r.get("nexus:spotify:shared_catalog")
+                                if cached_cat:
+                                    data = json.loads(cached_cat)
+                        data = _enrich_playlist_items(data, current_username)
+                    elif isinstance(data, dict):
+                        key = "items" if "items" in data else ("playlists" if "playlists" in data else None)
+                        if key and isinstance(data[key], list):
+                            if path == "/api/v1/spotify/playlists":
+                                if len(data[key]) > 0:
+                                    r.set("nexus:spotify:shared_catalog", json.dumps(data[key]))
+                                else:
+                                    cached_cat = r.get("nexus:spotify:shared_catalog")
+                                    if cached_cat:
+                                        data[key] = json.loads(cached_cat)
+                            data[key] = _enrich_playlist_items(data[key], current_username)
+
+                new_bytes = json.dumps(data).encode("utf-8")
+                headers = dict(response.headers)
+                headers["content-length"] = str(len(new_bytes))
+                return Response(content=new_bytes, status_code=response.status_code, headers=headers, media_type="application/json")
+            except Exception:
+                return Response(content=raw_bytes, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
+
+        return response
+
+app.add_middleware(NexusTelemetryAndPlaylistNormalizerMiddleware)
+# === END MULTI-USER & QUEUE FIX ===
+
+class UniversalQuickDownloadReq(BaseModel):
+    url: str
+    visibility: str = "private"
+
+@app.post("/api/v1/downloads/quick")
+async def quick_download_media(req: UniversalQuickDownloadReq, user=Depends(get_current_user)):
+    import json, os, re, uuid
+    import redis.asyncio as aioredis
+
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    task_id = uuid.uuid4().hex[:8]
+    u_id = str(user.get("id", "admin") if isinstance(user, dict) else getattr(user, "id", "admin"))
+    u_name = str(user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin"))
+
+    # Classify all 4 supported media URL types
+    if "open.spotify.com/track/" in url or "spotify:track:" in url:
+        task_type = "spotify_single"
+        label = "Spotify Track — Starting..."
+        artist = "Spotify"
+    elif "open.spotify.com/playlist/" in url or "spotify:playlist:" in url:
+        task_type = "spotify_playlist"
+        label = "Spotify Playlist — Starting..."
+        artist = "Spotify Playlist"
+    elif "youtu" in url:
+        is_radio_mix = bool(re.search(r"[?&]list=RD", url))
+        is_playlist = ("/playlist" in url) or ("list=" in url and not is_radio_mix)
+        task_type = "youtube_playlist" if is_playlist else "youtube_single"
+        label = "YouTube Playlist — Starting..." if is_playlist else "YouTube Track — Starting..."
+        artist = "YouTube Playlist" if is_playlist else "YouTube"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported URL. Paste a YouTube, YouTube Music, or Spotify track/playlist link.")
+
+    job = {
+        "task_type": task_type,
+        "task_id": task_id,
+        "url": url,
+        "owner_id": u_id,
+        "owner_username": u_name,
+        "visibility": req.visibility,
+    }
+
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        r_host = os.getenv("REDIS_HOST", "nexus-sync-redis-svc.media.svc.cluster.local")
+        r_port = os.getenv("REDIS_PORT", "6379")
+        redis_url = f"redis://{r_host}:{r_port}/0"
+
+    r_conn = aioredis.from_url(redis_url, decode_responses=True)
+    try:
+        await r_conn.lpush("nexus:queue:playlists", json.dumps(job))
+        await r_conn.hset("nexus:downloads:active", task_id, json.dumps({
+            "id": task_id,
+            "title": label,
+            "artist": artist,
+            "percent": 2.0,
+            "speed": "Starting",
+            "eta": "--:--",
+            "status": "starting",
+            "owner": u_name,
+        }))
+        await r_conn.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+    finally:
+        await r_conn.aclose()
+
+    return {"status": "queued", "type": task_type, "task_id": task_id, "message": f"Queued {task_type.replace('_', ' ')} for immediate download"}

@@ -19,6 +19,32 @@ from models import User, Playlist, PlaylistTrack
 from navidrome_bridge import get_current_user
 from schemas import PlaylistConfigureRequest, PlaylistConfigureResponse
 
+
+# --- INSTANT TELEMETRY & PRIORITY ENQUEUE HELPER ---
+async def enqueue_playlist_sync_immediate(r_client, job_payload: dict, playlist_title: str = "Spotify Playlist"):
+    import json, uuid
+    task_id = job_payload.setdefault("task_id", f"pl_{uuid.uuid4().hex[:8]}")
+    owner = job_payload.get("owner_username", "admin")
+    pid = str(job_payload.get("playlist_id") or job_payload.get("spotify_playlist_id") or "")
+    if pid and playlist_title:
+        await r_client.hset("nexus:playlist:names", pid, playlist_title)
+    # Priority front-of-line push so manual user syncs start immediately
+    await r_client.lpush("nexus:queue:playlists", json.dumps(job_payload))
+    # Immediately seed active stream banner so UI shows progress right away
+    await r_client.hset("nexus:downloads:active", task_id, json.dumps({
+        "id": task_id,
+        "playlist_id": pid,
+        "title": f"{playlist_title} — Initializing Sync...",
+        "artist": "Spotify Sync",
+        "percent": 2.0,
+        "speed": "Starting",
+        "eta": "Connecting...",
+        "status": "starting",
+        "owner": owner
+    }))
+    await r_client.publish("nexus:events", json.dumps({"event": "QUEUE_SYNC"}))
+    return task_id
+
 router = APIRouter(prefix="/api/v1/playlists", tags=["Playlists"])
 
 class PlaylistImportRequest(BaseModel):
@@ -244,7 +270,7 @@ async def import_playlist_by_url(
             "visibility": playlist.visibility,
             "folder_slug": playlist.folder_slug
         }
-        await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
+        await r.lpush("nexus:queue:playlists", json.dumps(job_payload))
 
     await r.publish("nexus:events", json.dumps({
         "event": "PLAYLIST_CONFIGURED",
@@ -349,7 +375,7 @@ async def configure_playlist(
             "visibility": playlist.visibility,
             "folder_slug": playlist.folder_slug
         }
-        await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
+        await r.lpush("nexus:queue:playlists", json.dumps(job_payload))
 
     await r.publish("nexus:events", json.dumps({
         "event": "PLAYLIST_CONFIGURED",
@@ -399,7 +425,7 @@ async def trigger_sync_now(
         "visibility": playlist.visibility,
         "folder_slug": playlist.folder_slug
     }
-    await r.rpush("nexus:queue:playlists", json.dumps(job_payload))
+    await r.lpush("nexus:queue:playlists", json.dumps(job_payload))
 
     await r.publish("nexus:events", json.dumps({
         "event": "PLAYLIST_QUEUED",
@@ -414,27 +440,57 @@ async def get_vault_overview(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Admins see all playlists in the vault tagged with their owner
-    # Standard users see their own playlists + public playlists tagged with the owner
-    if current_user.is_admin:
-        stmt = select(Playlist, User.username).join(User, Playlist.owner_id == User.id)
-    else:
-        stmt = select(Playlist, User.username).join(User, Playlist.owner_id == User.id).where(
-            (Playlist.owner_id == current_user.id) | (Playlist.visibility == "public")
-        )
-
+    stmt = select(Playlist).where(
+        Playlist.is_synced == True,
+        (Playlist.owner_id == current_user.id) | (Playlist.visibility == "public")
+    )
     res = await db.execute(stmt)
-    rows = res.all()
+    playlists = list(res.scalars().all())
+
+    # Resolve deleted playlist IDs/slugs from Redis so hidden items never show in Server Vault
+    deleted_set = set()
+    try:
+        r_del = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
+        deleted_set = set(await r_del.smembers("nexus:playlists:deleted") or [])
+        await r_del.aclose()
+    except Exception:
+        pass
+
+    # Map owner IDs to usernames
+    users_res = await db.execute(select(User))
+    owner_map = {u.id: u.username for u in users_res.scalars().all()}
+
+    # Deduplicate by folder_slug, preferring current user's row + valid 22-char Spotify ID
+    sp_id_re = re.compile(r"^[A-Za-z0-9]{22}$")
+    deduped = {}
+    for pl in playlists:
+        slug_key = (pl.folder_slug or pl.name or str(pl.id)).strip().lower()
+        sp_id = str(pl.spotify_playlist_id or "")
+        if sp_id in deleted_set or slug_key in deleted_set or str(pl.id) in deleted_set:
+            continue
+
+        rank = (
+            pl.owner_id == current_user.id,
+            bool(sp_id_re.match(sp_id)),
+            int(pl.downloaded_tracks or 0),
+            str(pl.last_synced_at or ""),
+        )
+        prev = deduped.get(slug_key)
+        if prev is None or rank > prev[0]:
+            deduped[slug_key] = (rank, pl)
 
     music_root = Path(settings.MUSIC_ROOT)
     vault_items = []
 
-    for pl, owner_username in rows:
+    for _, pl in deduped.values():
         folder_path = music_root / "playlists" / pl.folder_slug
         m3u8_file = folder_path / f"{pl.folder_slug}.m3u8"
         on_disk_count = 0
         if m3u8_file.exists():
-            on_disk_count = sum(1 for line in m3u8_file.read_text(encoding="utf-8").splitlines() if line.strip() and not line.strip().startswith("#"))
+            on_disk_count = sum(
+                1 for line in m3u8_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            )
 
         vault_items.append({
             "id": pl.id,
@@ -443,14 +499,16 @@ async def get_vault_overview(
             "folder_slug": pl.folder_slug,
             "visibility": pl.visibility,
             "cover_url": pl.cover_url,
-            "owner_username": owner_username,
+            "is_synced": bool(pl.is_synced),
             "is_owner": pl.owner_id == current_user.id,
+            "owner_username": owner_map.get(pl.owner_id, current_user.username),
             "sync_status": pl.sync_status,
-            "downloaded_tracks": pl.downloaded_tracks,
-            "total_tracks": pl.total_tracks,
+            "downloaded_tracks": max(int(pl.downloaded_tracks or 0), on_disk_count),
+            "total_tracks": max(int(pl.total_tracks or 0), on_disk_count),
             "on_disk_count": on_disk_count,
             "folder_path": str(folder_path),
             "last_synced_at": pl.last_synced_at.isoformat() if pl.last_synced_at else None
         })
 
+    vault_items.sort(key=lambda x: (x["name"] or "").lower())
     return vault_items
