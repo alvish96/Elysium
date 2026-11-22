@@ -1,0 +1,25 @@
+name: NexusMusicGalactic
+options:
+  bundleIdPrefix: link.nexus.alvish
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  NexusMusicGalactic:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: "Nexus Music"
+        UILaunchScreen: {}
+        UIBackgroundModes:
+          - audio
+        LSApplicationQueriesSchemes:
+          - amperfy
+          - subsonify
+          - playsubapp
+          - substreamer
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
