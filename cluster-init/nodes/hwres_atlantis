@@ -1,5 +1,5 @@
 # Hardware Profile: atlantis
-Last Updated: Wed Nov 25 00:05:01 UTC 2026
+Last Updated: Thu Nov 26 00:05:01 UTC 2026
 ---
 ## OS & Kernel
 Linux atlantis 6.8.0-149-generic #149-Ubuntu SMP PREEMPT_DYNAMIC Fri Oct 23 13:21:10 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -14,8 +14,8 @@ NUMA node0 CPU(s):                       0-3
 
 ## Memory
                total        used        free      shared  buff/cache   available
-Mem:            10Gi       9.6Gi       266Mi       632Mi       1.8Gi       1.1Gi
-Swap:          3.3Gi       929Mi       2.4Gi
+Mem:            10Gi       9.9Gi       210Mi       642Mi       1.6Gi       823Mi
+Swap:          3.3Gi       1.1Gi       2.2Gi
 
 ## Block Devices (Disks)
 NAME                        SIZE FSTYPE      TYPE MOUNTPOINT
